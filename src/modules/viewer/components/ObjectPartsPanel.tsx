@@ -1,6 +1,6 @@
 import { GeneratedShape } from "@/modules/ai/types/chat.type";
-import { ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, ChevronRight, Download, Eye, EyeOff, FileCode, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface ObjectPartsPanelProps {
   shape: GeneratedShape;
@@ -8,6 +8,7 @@ interface ObjectPartsPanelProps {
   onSelectPart: (partId: string | null) => void;
   highlightedParts: Set<string>;
   onToggleHighlight: (partId: string) => void;
+  onSwapPart?: (partId: string) => void;
 }
 
 // Fallback parts if none found
@@ -19,6 +20,8 @@ interface PartDefinition {
   id: string;
   name: string;
   group: string;
+  assetName?: string;
+  assetUrl?: string;
 }
 
 export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
@@ -27,14 +30,24 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
   onSelectPart,
   highlightedParts,
   onToggleHighlight,
+  onSwapPart,
 }) => {
   // Determine parts: Use shape.geometry.parts if available, otherwise fallback
-  const parts = (shape.geometry.parts && shape.geometry.parts.length > 0) 
-    ? shape.geometry.parts.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        group: p.group || "Model Components"
-      }))
+  const parts = (shape.geometry?.parts && shape.geometry.parts.length > 0) 
+    ? shape.geometry.parts.map((p: any) => {
+        // Find matching asset if available
+        const asset = p.assetName && shape.assets 
+          ? shape.assets.find((a: any) => a.filename === p.assetName || a.filename.endsWith(p.assetName))
+          : null;
+          
+        return {
+          id: p.id,
+          name: p.name,
+          group: p.group || "Model Components",
+          assetName: p.assetName,
+          assetUrl: asset?.url
+        };
+      })
     : defaultGenericParts;
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
@@ -49,6 +62,24 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
     acc[part.group].push(part);
     return acc;
   }, {} as Record<string, PartDefinition[]>);
+
+  // Ensure the group containing the selected part is expanded
+  useEffect(() => {
+    if (selectedPart) {
+      const parentGroup = parts.find((p: PartDefinition) => p.id === selectedPart)?.group;
+      if (parentGroup && !expandedGroups.has(parentGroup)) {
+        toggleGroup(parentGroup);
+      }
+      
+      // Scroll into view after a small delay to allow expansion
+      setTimeout(() => {
+        const el = document.getElementById(`part-item-${selectedPart}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  }, [selectedPart, parts]);
 
   const toggleGroup = (group: string) => {
     setExpandedGroups((prev) => {
@@ -86,7 +117,7 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-neutral-600">
-                  {groupParts.length}
+                  {(groupParts as PartDefinition[]).length}
                 </span>
                 {expandedGroups.has(group) ? (
                   <ChevronDown className="w-3 h-3 text-neutral-500" />
@@ -102,6 +133,7 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
                 {(groupParts as PartDefinition[]).map((part) => (
                   <div
                     key={part.id}
+                    id={`part-item-${part.id}`}
                     className={`flex items-center justify-between px-4 py-2 cursor-pointer transition-all ${
                       selectedPart === part.id
                         ? "bg-blue-500/20 border-l-2 border-blue-400"
@@ -149,19 +181,75 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
       {/* Selection Info */}
       {selectedPart && (
         <div className="px-4 py-3 border-t border-neutral-800 bg-blue-500/5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-neutral-400">Selected</p>
-              <p className="text-sm text-blue-400 font-medium">
-                {parts.find((p: PartDefinition) => p.id === selectedPart)?.name}
-              </p>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-neutral-400">Selected</p>
+                <p className="text-sm text-blue-400 font-medium">
+                  {parts.find((p: PartDefinition) => p.id === selectedPart)?.name}
+                </p>
+              </div>
+              <button
+                onClick={() => onSelectPart(null)}
+                className="text-xs text-neutral-500 hover:text-neutral-300"
+              >
+                Clear
+              </button>
             </div>
-            <button
-              onClick={() => onSelectPart(null)}
-              className="text-xs text-neutral-500 hover:text-neutral-300"
-            >
-              Clear
-            </button>
+
+            {/* Asset Actions */}
+            <div className="mt-2 pt-2 border-t border-blue-500/20 flex items-center justify-between gap-2">
+              {/* Asset Info */}
+              {(() => {
+                const part = parts.find((p: PartDefinition) => p.id === selectedPart);
+                if (part?.assetUrl) {
+                  return (
+                    <div className="flex items-center gap-2 text-xs text-neutral-400 flex-1 min-w-0">
+                      <FileCode className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="truncate">{part.assetName}</span>
+                    </div>
+                  );
+                }
+                return <div className="flex-1" />;
+              })()}
+
+              <div className="flex items-center gap-1">
+                {/* Swap Button */}
+                {onSwapPart && (
+                  <button
+                    onClick={() => selectedPart && onSwapPart(selectedPart)}
+                    className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded text-xs transition-colors"
+                    title="Swap with another asset"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Swap
+                  </button>
+                )}
+
+                {/* Download Button */}
+                {(() => {
+                  const part = parts.find((p: PartDefinition) => p.id === selectedPart);
+                  if (part?.assetUrl) {
+                    return (
+                      <button
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = part.assetUrl!;
+                          link.download = part.assetName || "part.stl";
+                          link.click();
+                        }}
+                        className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded text-xs transition-colors"
+                        title="Download source asset"
+                      >
+                        <Download className="w-3 h-3" />
+                        Asset
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </div>
           </div>
         </div>
       )}

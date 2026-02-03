@@ -40,6 +40,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     adjustHeight();
   }, [input]);
 
+  useEffect(() => {
+    if (!disabled && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [disabled]);
+
   return (
     <div className="border-t border-neutral-800 bg-neutral-950/80 backdrop-blur-xl px-4 py-4">
       <div className="max-w-4xl mx-auto">

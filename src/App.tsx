@@ -3,12 +3,10 @@ import { useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { FullPageLoader } from "@/components/common/Loader";
-import ChatPage from "@/pages/ChatPage";
 import HomePage from "@/pages/HomePage";
 import LandingPage from "@/pages/LandingPage";
-import SimulationPage from "@/pages/SimulationPage";
-import ViewerPage from "@/pages/ViewerPage";
 
 const AutoRoute = () => {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -35,79 +33,57 @@ function App() {
   }, [initAuth]);
 
   return (
-    <BrowserRouter>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: '#171717',
-            color: '#fff',
-            border: '1px solid #262626',
-            borderRadius: '12px',
-            padding: '12px 16px',
-          },
-          success: {
-            iconTheme: {
-              primary: '#22c55e',
-              secondary: '#fff',
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#171717',
+              color: '#fff',
+              border: '1px solid #262626',
+              borderRadius: '12px',
+              padding: '12px 16px',
             },
-          },
-          error: {
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+            success: {
+              iconTheme: {
+                primary: '#22c55e',
+                secondary: '#fff',
+              },
             },
-          },
-          loading: {
-            iconTheme: {
-              primary: '#3b82f6',
-              secondary: '#fff',
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
             },
-          },
-        }}
-      />
-      <Routes>
-        <Route path="/" element={<AutoRoute />} />
+            loading: {
+              iconTheme: {
+                primary: '#3b82f6',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+        <Routes>
+          <Route path="/" element={<AutoRoute />} />
 
-        <Route path="/landing" element={<LandingPage />} />
+          <Route path="/landing" element={<LandingPage />} />
 
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <HomePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/chat"
-          element={
-            <ProtectedRoute>
-              <ChatPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/viewer"
-          element={
-            <ProtectedRoute>
-              <ViewerPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/simulation"
-          element={
-            <ProtectedRoute>
-              <SimulationPage />
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            }
+          />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

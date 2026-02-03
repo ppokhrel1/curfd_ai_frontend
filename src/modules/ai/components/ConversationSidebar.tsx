@@ -12,6 +12,22 @@ interface ConversationSidebarProps {
   isOpen: boolean;
 }
 
+const getGroupTitle = (date: Date): string => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const lastWeek = new Date(today);
+  lastWeek.setDate(lastWeek.getDate() - 7);
+
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  if (d.getTime() === today.getTime()) return "Today";
+  if (d.getTime() === yesterday.getTime()) return "Yesterday";
+  if (d.getTime() >= lastWeek.getTime()) return "Previous 7 Days";
+  return "Older";
+};
+
 export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   conversations,
   activeConversationId,
@@ -71,7 +87,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         </div>
 
         {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-neutral-900">
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-neutral-900">
           {conversations.length === 0 ? (
             <div className="text-center py-8">
               <MessageSquare className="w-8 h-8 text-neutral-600 mx-auto mb-3" />
@@ -81,14 +97,29 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
               </p>
             </div>
           ) : (
-            conversations.map((conversation) => (
-              <ConversationItem
-                key={conversation.id}
-                conversation={conversation}
-                isActive={conversation.id === activeConversationId}
-                onSelect={() => onSelectConversation(conversation.id)}
-                onDelete={() => onDeleteConversation(conversation.id)}
-              />
+            // Grouping logic
+            Object.entries(
+              conversations.reduce((groups, conv) => {
+                const title = getGroupTitle(conv.updatedAt || conv.createdAt);
+                if (!groups[title]) groups[title] = [];
+                groups[title].push(conv);
+                return groups;
+              }, {} as Record<string, Conversation[]>)
+            ).map(([groupTitle, groupConversations]) => (
+              <div key={groupTitle} className="space-y-1">
+                <h3 className="px-3 text-[10px] font-bold text-neutral-500 uppercase tracking-widest mb-2">
+                  {groupTitle}
+                </h3>
+                {groupConversations.map((conversation) => (
+                  <ConversationItem
+                    key={conversation.id}
+                    conversation={conversation}
+                    isActive={conversation.id === activeConversationId}
+                    onSelect={() => onSelectConversation(conversation.id)}
+                    onDelete={() => onDeleteConversation(conversation.id)}
+                  />
+                ))}
+              </div>
             ))
           )}
         </div>

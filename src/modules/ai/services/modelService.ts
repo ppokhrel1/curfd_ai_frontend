@@ -25,6 +25,10 @@ export interface ModelFilesResponse {
         url: string;
         format: string;
     }>;
+    assets?: Array<{
+        filename: string;
+        url: string;
+    }>;
 }
 
 export interface ModelResponse {

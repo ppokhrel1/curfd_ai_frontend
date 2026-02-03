@@ -38,21 +38,51 @@ export const Hero = ({ onAuthClick }: HeroProps) => {
           visualization, and next-level aerodynamic insights.
         </p>
 
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
-          <button
-            onClick={() => onAuthClick("signup")}
-            className="group px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-black font-semibold rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-105 flex items-center gap-2"
+        {/* Chat Input CTA */}
+        <div className="max-w-2xl mx-auto mb-16">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const input = (e.currentTarget.elements.namedItem("prompt") as HTMLInputElement).value;
+              if (input.trim()) {
+                sessionStorage.setItem("pending_chat_message", input);
+                onAuthClick("signup");
+              }
+            }}
+            className="relative group"
           >
-            Start Free Trial
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </button>
-
-          <a href="#features">
-            <button className="px-8 py-4 border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-all duration-300">
-              Explore Features
+            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+            <div className="relative flex items-center bg-neutral-900 border border-neutral-800 rounded-2xl p-2 shadow-2xl">
+              <div className="pl-4 text-neutral-500">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <input
+                type="text"
+                name="prompt"
+                placeholder="Describe a drone frame with 4 arms..."
+                className="flex-1 bg-transparent border-none text-white placeholder-neutral-500 focus:ring-0 px-4 py-3 text-base md:text-lg"
+                autoComplete="off"
+              />
+              <button
+                type="submit"
+                className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-black font-semibold rounded-xl transition-all duration-200 flex items-center gap-2"
+              >
+                Generate
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+          <div className="flex justify-center gap-6 mt-6">
+            <button 
+              onClick={() => onAuthClick("signin")} 
+              className="text-sm text-neutral-400 hover:text-white transition-colors"
+            >
+              Sign In
             </button>
-          </a>
+            <a href="#features" className="text-sm text-neutral-400 hover:text-white transition-colors">
+              Features
+            </a>
+          </div>
         </div>
 
         {/* Stats */}

@@ -17,6 +17,7 @@ export const ROUTES = {
 
 export const STORAGE_KEYS = {
   AUTH_TOKEN: 'curfd_auth_token',
+  REFRESH_TOKEN: 'curfd_refresh_token',
   USER_DATA: 'curfd_user_data',
   THEME: 'curfd_theme',
 } as const;

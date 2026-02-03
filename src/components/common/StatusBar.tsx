@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 interface StatusBarProps {
   currentShape: GeneratedShape | null;
-  activeView: 'chat-viewer' | 'simulation';
+  activeView: 'chat-viewer' | 'simulation' | 'editor';
   onOpenSimulation?: () => void;
 }
 
@@ -52,8 +52,12 @@ export const StatusBar = ({ currentShape, activeView, onOpenSimulation }: Status
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="text-neutral-500">View:</span>
-          <span className={`font-medium ${activeView === 'chat-viewer' ? 'text-green-400' : 'text-blue-400'}`}>
-            {activeView === 'chat-viewer' ? 'Chat & Viewer' : 'Simulation'}
+          <span className={`font-medium ${
+            activeView === 'chat-viewer' ? 'text-green-400' : 
+            activeView === 'editor' ? 'text-blue-400' : 'text-purple-400'
+          }`}>
+            {activeView === 'chat-viewer' ? 'Chat & Viewer' : 
+             activeView === 'editor' ? 'CAD Script Editor' : 'Simulation'}
           </span>
         </div>
 

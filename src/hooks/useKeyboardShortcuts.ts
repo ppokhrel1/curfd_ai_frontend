@@ -50,6 +50,7 @@ export const useKeyboardShortcuts = ({ shortcuts, enabled = true }: UseKeyboardS
 export const getDefaultShortcuts = (handlers: {
     goToChat?: () => void;
     goToViewer?: () => void;
+    goToEditor?: () => void;
     goToSimulation?: () => void;
     toggleFullscreen?: () => void;
 }): ShortcutConfig[] => {
@@ -64,18 +65,18 @@ export const getDefaultShortcuts = (handlers: {
         });
     }
 
-    if (handlers.goToViewer) {
+    if (handlers.goToEditor) {
         shortcuts.push({
-            key: '2',
+            key: '3',
             ctrl: true,
-            action: handlers.goToViewer,
-            description: 'Switch to Viewer',
+            action: handlers.goToEditor,
+            description: 'Focus CAD Editor',
         });
     }
 
     if (handlers.goToSimulation) {
         shortcuts.push({
-            key: '3',
+            key: '4',
             ctrl: true,
             action: handlers.goToSimulation,
             description: 'Switch to Simulation',

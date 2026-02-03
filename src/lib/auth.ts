@@ -37,6 +37,16 @@ export const useAuthStore = create<AuthStore>((set) => ({
           const user = response.data;
 
           localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
+
+          // Initialize chat service with user context
+          const { chatService } = await import('@/modules/ai/services/chatService');
+          const { useChatStore } = await import('@/modules/ai/stores/chatStore');
+          const userId = user.id || user.user_id;
+          if (userId) {
+            chatService.setUserId(userId.toString());
+            useChatStore.getState().setCurrentUserId(userId.toString());
+          }
+
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error) {
           // Token invalid
@@ -72,14 +82,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signIn: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Backend expects OAuth2 Password Request Form (x-www-form-urlencoded)
-      const params = new URLSearchParams();
-      params.append("username", email);
-      params.append("password", password);
+      // Backend expects username_or_email
+      const payload = { username_or_email: email, password };
 
-      const response = await api.post("/auth/login", params, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" }
-      });
+      const response = await api.post("/auth/login", payload);
 
       const { access_token } = response.data;
 
@@ -91,12 +97,26 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const user = profileResponse.data;
 
       localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
+
+      // Clear and re-initialize chat for new user
+      const { chatService } = await import('@/modules/ai/services/chatService');
+      const { useChatStore } = await import('@/modules/ai/stores/chatStore');
+      useChatStore.getState().clearStore();
+
+      const userId = user.id || user.user_id;
+      if (userId) {
+        chatService.setUserId(userId.toString());
+        useChatStore.getState().setCurrentUserId(userId.toString());
+      }
+
       set({ user, isAuthenticated: true, isLoading: false, error: null });
 
     } catch (err: unknown) {
       let message = "Sign in failed";
       if (axios.isAxiosError(err)) {
-        message = err.response?.data?.detail || message;
+        const detail = err.response?.data?.detail;
+        console.error("Sign in 422 DETAIL:", JSON.stringify(detail, null, 2));
+        message = typeof detail === 'string' ? detail : (detail ? "Schema mismatch (see console)" : message);
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -109,21 +129,39 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signUp: async (email: string, password: string, name: string) => {
     set({ isLoading: true, error: null });
     try {
-      const payload = { email, password, name };
+      // Align with backend UserCreate schema (app/schemas/user.py)
+      const payload = {
+        username: email.split('@')[0], // Use email prefix as username
+        email: email,
+        password: password,
+        display_name: name
+      };
 
       // Register calls /auth/register
-      // Response format: { access_token: "...", token_type: "bearer", user: {...} }
       const response = await api.post("/auth/register", payload);
       const { access_token, user } = response.data;
 
       localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, access_token);
       localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
 
+      // Clear and re-initialize chat for new user
+      const { chatService } = await import('@/modules/ai/services/chatService');
+      const { useChatStore } = await import('@/modules/ai/stores/chatStore');
+      useChatStore.getState().clearStore();
+
+      const userId = user.id || user.user_id;
+      if (userId) {
+        chatService.setUserId(userId.toString());
+        useChatStore.getState().setCurrentUserId(userId.toString());
+      }
+
       set({ user, isAuthenticated: true, isLoading: false, error: null });
     } catch (err: unknown) {
       let message = "Sign up failed";
       if (axios.isAxiosError(err)) {
-        message = err.response?.data?.detail || message;
+        console.error("Sign up ERROR DETAIL:", JSON.stringify(err.response?.data, null, 2));
+        const detail = err.response?.data?.detail;
+        message = typeof detail === 'string' ? detail : (detail ? "Backend Error (see console)" : message);
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -153,15 +191,18 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signOut: () => {
     localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-    set({ user: null, isAuthenticated: false, error: null });
 
-    // Clear chat history on logout
-    import('./api/client').then(() => {
-      const { chatService } = require('@/modules/ai/services/chatService');
-      chatService.clearHistory();
-    }).catch(() => {
-      // Fallback for direct storage clearing if import fails or not possible in this context
-      localStorage.removeItem('current_session_id');
+    // Clear chat service context locally
+    import('@/modules/ai/services/chatService').then(({ chatService }) => {
+      chatService.setUserId(null);
+      chatService.setActiveSession(null);
     });
+
+    // Clear chat store
+    import('@/modules/ai/stores/chatStore').then(({ useChatStore }) => {
+      useChatStore.getState().clearStore();
+    });
+
+    set({ user: null, isAuthenticated: false, error: null });
   },
 }));

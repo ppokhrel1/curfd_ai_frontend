@@ -34,8 +34,10 @@ export interface GeneratedShape {
   createdAt: Date;
   // ML service response data
   assetId?: string;
+  assets?: { filename: string; url: string; }[];
   sdfUrl?: string;           // URL to model.sdf for 3D loading
   yamlUrl?: string;          // URL to model.yaml config
+  scadCode?: string;         // OpenSCAD source code
   specification?: ModelSpecification;
   requirements?: Record<string, any>;
   metrics?: GenerationMetrics;
@@ -52,6 +54,7 @@ export interface ModelSpecification {
 }
 
 export interface ModelPart {
+  id: string;
   name: string;
   category: string;
   role: string;
