@@ -1,3 +1,4 @@
+import { proxifyUrl } from "@/lib/apiConfig";
 import { useChatStore } from "@/modules/ai/stores/chatStore";
 import { GeneratedShape } from "@/modules/ai/types/chat.type";
 import {
@@ -104,60 +105,10 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         return;
       }
 
-      const proxify = (url: string) => {
-        if (!url) return url;
-        if (url.startsWith("blob:") || url.startsWith("data:")) return url;
-
-        const hasToken = url.includes("token=");
-        let normalizedUrl = url;
-
-        if (url.includes("supabase.co")) {
-          if (hasToken) {
-            normalizedUrl = url.replace("/object/public/", "/object/sign/");
-          } else {
-            normalizedUrl = url.replace("/object/sign/", "/object/public/");
-          }
-        }
-
-        if (normalizedUrl.includes("supabase.co") && hasToken) {
-          return normalizedUrl;
-        }
-
-        try {
-          const isMesh = normalizedUrl
-            .toLowerCase()
-            .match(/\.(stl|obj|glb|gltf|bin)$/);
-          if (!isMesh && !normalizedUrl.includes("/object/sign/")) {
-            return normalizedUrl;
-          }
-
-          const parsed = new URL(normalizedUrl);
-          const protocol = parsed.protocol.replace(":", "");
-          const host = parsed.host;
-
-          const segments = parsed.pathname.substring(1).split("/");
-          const encodedPath = segments
-            .map((s) => encodeURIComponent(decodeURIComponent(s)))
-            .join("/");
-
-          const path = encodedPath + parsed.search;
-
-          const API_BASE =
-            window.location.origin.includes("localhost") ||
-            window.location.origin.includes("127.0.0.1")
-              ? "http://127.0.0.1:8000/api/v1"
-              : `${window.location.origin}/api/v1`;
-
-          return `${API_BASE}/proxy/${protocol}/${host}/${path}`;
-        } catch (e) {
-          return normalizedUrl;
-        }
-      };
-
       const zipBlob = await exporter.exportToZip(
         groupToExport,
         shape?.name || "curfd-model",
-        shape?.assets?.map((a) => ({ ...a, url: proxify(a.url) })),
+        shape?.assets?.map((a) => ({ ...a, url: proxifyUrl(a.url) })),
         shape?.geometry
       );
 

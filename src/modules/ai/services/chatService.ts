@@ -1,4 +1,4 @@
-import { api } from "@/lib/api/client";
+import { encryptedApi as api } from "@/lib/api/encryptedClient";
 import { Conversation, Message, SendMessageParams } from "../types/chat.type";
 
 export interface SessionResponse {

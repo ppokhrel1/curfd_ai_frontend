@@ -1,10 +1,8 @@
 import { useEffect, useRef } from "react";
 
-//  Hook to manage AbortController for cancelling API requests
-//  Automatically aborts on component unmount
 
 export function useAbortController() {
-  const abortControllerRef = useRef<AbortController>();
+  const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
   useEffect(() => {
     abortControllerRef.current = new AbortController();

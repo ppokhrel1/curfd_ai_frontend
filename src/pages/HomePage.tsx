@@ -4,6 +4,7 @@ import {
   getDefaultShortcuts,
   useKeyboardShortcuts,
 } from "@/hooks/useKeyboardShortcuts";
+import { proxifyUrl } from "@/lib/apiConfig";
 import { useAuthStore } from "@/lib/auth";
 import {
   ChatInterface,
@@ -86,8 +87,14 @@ const HomePage = () => {
 
     const toastId = toast.loading(`Swapping part with ${asset.name}...`);
     try {
+      // Get asset URL (prefer url over uri)
+      const assetUrl = asset.url || asset.uri;
+      if (!assetUrl) {
+        throw new Error("Asset URL not available");
+      }
+
       // 1. Fetch asset blob
-      const response = await fetch(asset.url);
+      const response = await fetch(assetUrl);
       if (!response.ok) throw new Error("Failed to download asset");
       const blob = await response.blob();
       const localUrl = URL.createObjectURL(blob);
@@ -473,72 +480,11 @@ const HomePage = () => {
       setIsImporting(true);
       const loadingToast = toast.loading(`Loading ${shape.name}...`);
       try {
-        const proxify = (url: string) => {
-          if (!url) return url;
-          if (url.startsWith("blob:") || url.startsWith("data:")) return url;
-          let normalizedUrl = url;
-          const hasToken = url.includes("token=");
-
-          if (url.includes("supabase.co")) {
-            if (hasToken) {
-              normalizedUrl = url.replace("/object/public/", "/object/sign/");
-            } else {
-              normalizedUrl = url.replace("/object/sign/", "/object/public/");
-            }
-          }
-
-          if (normalizedUrl.includes("supabase.co") && hasToken) {
-            console.log(
-              "[HomePage] Using direct signed URL:",
-              normalizedUrl.substring(0, 80) + "..."
-            );
-            return normalizedUrl;
-          }
-
-          try {
-            const isMesh = normalizedUrl
-              .toLowerCase()
-              .match(/\.(stl|obj|glb|gltf|bin)$/);
-
-            if (!isMesh && !normalizedUrl.includes("/object/sign/")) {
-              return normalizedUrl;
-            }
-
-            const parsed = new URL(normalizedUrl);
-            const protocol = parsed.protocol.replace(":", "");
-            const host = parsed.host;
-
-            const segments = parsed.pathname.substring(1).split("/");
-            const encodedPath = segments
-              .map((s) => encodeURIComponent(decodeURIComponent(s)))
-              .join("/");
-
-            const path = encodedPath + parsed.search;
-
-            const API_BASE =
-              window.location.origin.includes("localhost") ||
-              window.location.origin.includes("127.0.0.1")
-                ? "http://127.0.0.1:8000/api/v1"
-                : `${window.location.origin}/api/v1`;
-
-            const proxiedUrl = `${API_BASE}/proxy/${protocol}/${host}/${path}`;
-            console.log(
-              "[HomePage] Proxying URL:",
-              normalizedUrl.substring(0, 50),
-              "-> proxy"
-            );
-            return proxiedUrl;
-          } catch (e) {
-            console.warn("HomePage: Failed to proxify URL", normalizedUrl, e);
-            return normalizedUrl;
-          }
-        };
-
         const imported = await importer.importFromUrl(
-          proxify(shape.sdfUrl),
-          shape.yamlUrl ? proxify(shape.yamlUrl) : undefined,
+          proxifyUrl(shape.sdfUrl),
+          shape.yamlUrl ? proxifyUrl(shape.yamlUrl) : undefined,
           shape.specification,
-          shape.assets?.map((a) => ({ ...a, url: proxify(a.url) })) || []
+          shape.assets?.map((a) => ({ ...a, url: proxifyUrl(a.url) })) || []
         );
 
         console.log(
@@ -675,8 +621,11 @@ const HomePage = () => {
           const recoverModel = async () => {
             setIsImporting(true);
             try {
+              // Fetch assets for the job first
+              const assets = await assetService.fetchAssets((shape as any).jobId!);
               const recoveredShape = await assetService.mapToGeneratedShape(
-                (shape as any).jobId!
+                (shape as any).jobId!,
+                assets
               );
               if (recoveredShape) {
                 console.log("[HomePage] Model recovered successfully");

@@ -3,6 +3,7 @@ import axios from "axios";
 import { create } from "zustand";
 import { api } from "./api/client";
 import { STORAGE_KEYS } from "./constants";
+import { encryptPassword } from "./encryption";
 
 interface AuthStore extends AuthState {
   signIn: (email: string, password: string) => Promise<void>;
@@ -89,7 +90,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signIn: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      const payload = { username_or_email: email, password };
+      // Encrypt password before sending
+      const encryptedPassword = encryptPassword(password);
+
+      const payload = {
+        username_or_email: email,
+        password: encryptedPassword,
+        encrypted: true // Flag to tell backend this is encrypted
+      };
 
       const response = await api.post("/auth/login", payload);
 
@@ -125,8 +133,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
           typeof detail === "string"
             ? detail
             : detail
-            ? "Schema mismatch (see console)"
-            : message;
+              ? "Schema mismatch (see console)"
+              : message;
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -139,11 +147,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signUp: async (email: string, password: string, name: string) => {
     set({ isLoading: true, error: null });
     try {
+      // Encrypt password before sending
+      const encryptedPassword = encryptPassword(password);
+
       const payload = {
         username: email.split("@")[0],
         email: email,
-        password: password,
+        password: encryptedPassword,
         display_name: name,
+        encrypted: true // Flag to tell backend this is encrypted
       };
 
       // Register calls /auth/register
@@ -177,8 +189,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
           typeof detail === "string"
             ? detail
             : detail
-            ? "Backend Error (see console)"
-            : message;
+              ? "Backend Error (see console)"
+              : message;
       } else if (err instanceof Error) {
         message = err.message;
       }

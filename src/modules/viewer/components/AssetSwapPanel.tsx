@@ -2,7 +2,6 @@ import { Box, FileCode, Loader2, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Asset, assetService } from "../services/assetService";
 
-// Simple custom hook to avoid dependency
 function useDebounce<T>(value: T, delay: number): [T] {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -64,7 +63,8 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
         <div>
           <h3 className="text-sm font-medium text-white">Swap Part</h3>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Replacing: <span className="text-neutral-300">{currentPartName}</span>
+            Replacing:{" "}
+            <span className="text-neutral-300">{currentPartName}</span>
           </p>
         </div>
         <button
@@ -105,7 +105,7 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
               className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800 border border-transparent hover:border-neutral-700 transition-all group text-left"
             >
               <div className="w-10 h-10 bg-neutral-800 rounded flex items-center justify-center flex-shrink-0 group-hover:bg-neutral-700 transition-colors">
-                {asset.url.endsWith(".glb") || asset.url.endsWith(".gltf") ? (
+                {(asset.url || asset.uri)?.endsWith(".glb") || (asset.url || asset.uri)?.endsWith(".gltf") ? (
                   <Box className="w-5 h-5 text-blue-400" />
                 ) : (
                   <FileCode className="w-5 h-5 text-neutral-400 group-hover:text-neutral-300" />
@@ -113,11 +113,11 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-white truncate">
-                  {asset.name || asset.url.split("/").pop()}
+                  {asset.name || (asset.url || asset.uri)?.split("/").pop()}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[10px] text-neutral-500 uppercase">
-                    {asset.type || asset.url.split(".").pop()}
+                    {asset.type || (asset.url || asset.uri)?.split(".").pop()}
                   </span>
                   <span className="text-[10px] text-neutral-600">
                     {new Date(asset.created_at).toLocaleDateString()}
