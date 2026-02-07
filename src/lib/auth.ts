@@ -39,8 +39,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
           localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
 
           // Initialize chat service with user context
-          const { chatService } = await import('@/modules/ai/services/chatService');
-          const { useChatStore } = await import('@/modules/ai/stores/chatStore');
+          const { chatService } = await import(
+            "@/modules/ai/services/chatService"
+          );
+          const { useChatStore } = await import(
+            "@/modules/ai/stores/chatStore"
+          );
           const userId = user.id || user.user_id;
           if (userId) {
             chatService.setUserId(userId.toString());
@@ -64,7 +68,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
 
-  // Demo login - KEEPING FOR DEV/FALLBACK
   demoLogin: () => {
     const demoUser: User = {
       id: 1,
@@ -75,14 +78,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
     localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, "demo-token");
     localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(demoUser));
 
-    set({ user: demoUser, isAuthenticated: true, isLoading: false, error: null });
+    set({
+      user: demoUser,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
   },
 
-  // Sign in with API
   signIn: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Backend expects username_or_email
       const payload = { username_or_email: email, password };
 
       const response = await api.post("/auth/login", payload);
@@ -99,8 +105,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
 
       // Clear and re-initialize chat for new user
-      const { chatService } = await import('@/modules/ai/services/chatService');
-      const { useChatStore } = await import('@/modules/ai/stores/chatStore');
+      const { chatService } = await import("@/modules/ai/services/chatService");
+      const { useChatStore } = await import("@/modules/ai/stores/chatStore");
       useChatStore.getState().clearStore();
 
       const userId = user.id || user.user_id;
@@ -110,13 +116,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
       }
 
       set({ user, isAuthenticated: true, isLoading: false, error: null });
-
     } catch (err: unknown) {
       let message = "Sign in failed";
       if (axios.isAxiosError(err)) {
         const detail = err.response?.data?.detail;
         console.error("Sign in 422 DETAIL:", JSON.stringify(detail, null, 2));
-        message = typeof detail === 'string' ? detail : (detail ? "Schema mismatch (see console)" : message);
+        message =
+          typeof detail === "string"
+            ? detail
+            : detail
+            ? "Schema mismatch (see console)"
+            : message;
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -129,12 +139,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signUp: async (email: string, password: string, name: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Align with backend UserCreate schema (app/schemas/user.py)
       const payload = {
-        username: email.split('@')[0], // Use email prefix as username
+        username: email.split("@")[0],
         email: email,
         password: password,
-        display_name: name
+        display_name: name,
       };
 
       // Register calls /auth/register
@@ -145,8 +154,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
 
       // Clear and re-initialize chat for new user
-      const { chatService } = await import('@/modules/ai/services/chatService');
-      const { useChatStore } = await import('@/modules/ai/stores/chatStore');
+      const { chatService } = await import("@/modules/ai/services/chatService");
+      const { useChatStore } = await import("@/modules/ai/stores/chatStore");
       useChatStore.getState().clearStore();
 
       const userId = user.id || user.user_id;
@@ -159,9 +168,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
     } catch (err: unknown) {
       let message = "Sign up failed";
       if (axios.isAxiosError(err)) {
-        console.error("Sign up ERROR DETAIL:", JSON.stringify(err.response?.data, null, 2));
+        console.error(
+          "Sign up ERROR DETAIL:",
+          JSON.stringify(err.response?.data, null, 2)
+        );
         const detail = err.response?.data?.detail;
-        message = typeof detail === 'string' ? detail : (detail ? "Backend Error (see console)" : message);
+        message =
+          typeof detail === "string"
+            ? detail
+            : detail
+            ? "Backend Error (see console)"
+            : message;
       } else if (err instanceof Error) {
         message = err.message;
       }
@@ -174,34 +191,31 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signInWithProvider: async (provider: "google" | "github") => {
     set({ isLoading: true, error: null });
     try {
-      // Simulation for now, implementing real OAuth requires backend endpoints for callback
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
       // TODO: Implement Real OAuth Flow with Backend
-      // window.location.href = `http://localhost:8000/api/v1/auth/${provider}`;
       throw new Error("Social login not yet implemented on backend");
-
     } catch (err: any) {
-      set({ isLoading: false, error: err.message || `${provider} sign in failed` });
+      set({
+        isLoading: false,
+        error: err.message || `${provider} sign in failed`,
+      });
       throw err;
     }
   },
 
   // Sign out
-  signOut: () => {
+  signOut: async () => {
     localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER_DATA);
 
     // Clear chat service context locally
-    import('@/modules/ai/services/chatService').then(({ chatService }) => {
-      chatService.setUserId(null);
-      chatService.setActiveSession(null);
-    });
+    const { chatService } = await import("@/modules/ai/services/chatService");
+    const { useChatStore } = await import("@/modules/ai/stores/chatStore");
 
-    // Clear chat store
-    import('@/modules/ai/stores/chatStore').then(({ useChatStore }) => {
-      useChatStore.getState().clearStore();
-    });
+    chatService.setUserId(null);
+    chatService.setActiveSession(null);
+    useChatStore.getState().clearStore();
 
     set({ user: null, isAuthenticated: false, error: null });
   },
