@@ -55,9 +55,6 @@ class ChatService {
     // Initial restoration will be handled by setUserId when auth initializes
   }
 
-  /**
-   * Set the user ID for scoping local storage
-   */
   setUserId(id: string | null): void {
     this.currentUserId = id;
     if (id) {
@@ -174,7 +171,6 @@ class ChatService {
         action: action,
       };
 
-      // Handle content: Required for process_requirements, but backend might also take it as fallback
       if (action === "process_requirements" || !requirementsJson) {
         payload.content = content;
       }
@@ -236,9 +232,6 @@ class ChatService {
     }
   }
 
-  /**
-   * Send message (legacy placeholder, now handled via WebSocket flow)
-   */
   async sendMessage(params: SendMessageParams): Promise<{
     message: Message;
     generatedShape?: any;
@@ -248,9 +241,6 @@ class ChatService {
     );
   }
 
-  /**
-   * Get all sessions from backend - FIXED: Return strict type
-   */
   async getSessions(): Promise<SessionResponse[]> {
     try {
       const response = await api.get<SessionResponse[]>("/sessions");
@@ -261,9 +251,6 @@ class ChatService {
     }
   }
 
-  /**
-   * Get all chats for a specific session - FIXED: Return strict type
-   */
   async getChats(sessionId: string): Promise<ChatResponse[]> {
     try {
       const response = await api.get<ChatResponse[]>("/chats", {
