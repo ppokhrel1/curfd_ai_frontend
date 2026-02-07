@@ -8,9 +8,8 @@ const TypewriterEffect: React.FC<{ content: string }> = ({ content }) => {
   const [complete, setComplete] = useState(false);
 
   useEffect(() => {
-    // Hide model data for typewriter too
-    const cleanContent = content.split('|||JSON_DATA|||')[0].trim();
-    
+    const cleanContent = content.split("|||JSON_DATA|||")[0].trim();
+
     if (complete) {
       setDisplayedContent(cleanContent);
       return;
@@ -18,7 +17,7 @@ const TypewriterEffect: React.FC<{ content: string }> = ({ content }) => {
 
     let i = 0;
     setDisplayedContent("");
-    
+
     const interval = setInterval(() => {
       setDisplayedContent(cleanContent.slice(0, i));
       i++;
@@ -26,7 +25,7 @@ const TypewriterEffect: React.FC<{ content: string }> = ({ content }) => {
         clearInterval(interval);
         setComplete(true);
       }
-    }, 10); // Faster typing
+    }, 10);
 
     return () => clearInterval(interval);
   }, [content, complete]);
@@ -86,9 +85,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLatest }) => {
         className={`flex-1 max-w-[85%] flex flex-col ${isUser ? "items-end" : "items-start"}`}
       >
         {!isUser && (
-           <span className="text-[10px] font-bold text-green-500/80 mb-1 ml-1 uppercase tracking-wider">
-             CURFD
-           </span>
+          <span className="text-[10px] font-bold text-green-500/80 mb-1 ml-1 uppercase tracking-wider">
+            CURFD
+          </span>
         )}
         <div
           className={`rounded-2xl px-5 py-3.5 transition-all duration-300 leading-relaxed ${
@@ -111,7 +110,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLatest }) => {
             {formatTime(message.timestamp)}
           </p>
           {!isUser && isLatest && (
-             <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
+            <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
           )}
         </div>
       </div>
@@ -123,8 +122,7 @@ const FormattedContent: React.FC<{ content: string; isUser: boolean }> = ({
   content,
   isUser,
 }) => {
-  // Hide internal model data
-  const cleanContent = content.split('|||JSON_DATA|||')[0].trim();
+  const cleanContent = content.split("|||JSON_DATA|||")[0].trim();
   const lines = cleanContent.split("\n");
 
   return (
@@ -149,12 +147,10 @@ const FormattedContent: React.FC<{ content: string; isUser: boolean }> = ({
           );
         }
 
-        // Check for code blocks (simple implementation)
         if (line.trim().startsWith("```")) {
-           return null; // Handle in a more robust parser if needed, for now just skip markers
+          return null;
         }
 
-        // Check for bullet points
         if (
           line.trim().startsWith("•") ||
           line.trim().startsWith("-") ||
@@ -166,9 +162,11 @@ const FormattedContent: React.FC<{ content: string; isUser: boolean }> = ({
           const text = line.trim().slice(1).trim();
           return (
             <div key={index} className="flex gap-3 items-start pl-1 group">
-              <span className={`mt-1.5 flex-shrink-0 w-1.5 h-1.5 rounded-full ${isUser ? "bg-white/60" : "bg-green-500/60 group-hover:bg-green-400"}`} />
+              <span
+                className={`mt-1.5 flex-shrink-0 w-1.5 h-1.5 rounded-full ${isUser ? "bg-white/60" : "bg-green-500/60 group-hover:bg-green-400"}`}
+              />
               <span className="flex-1 opacity-90 group-hover:opacity-100 transition-opacity">
-                 {renderInlineFormatting(text, isUser)}
+                {renderInlineFormatting(text, isUser)}
               </span>
             </div>
           );
@@ -177,7 +175,10 @@ const FormattedContent: React.FC<{ content: string; isUser: boolean }> = ({
         // Check for numbered lists
         if (/^\d+\./.test(line.trim())) {
           const number = line.trim().match(/^\d+\./)?.[0];
-          const text = line.trim().replace(/^\d+\./, "").trim();
+          const text = line
+            .trim()
+            .replace(/^\d+\./, "")
+            .trim();
           return (
             <div key={index} className="flex gap-3 items-start pl-1">
               <span
@@ -188,7 +189,7 @@ const FormattedContent: React.FC<{ content: string; isUser: boolean }> = ({
                 {number}
               </span>
               <span className="flex-1 opacity-90">
-                 {renderInlineFormatting(text, isUser)}
+                {renderInlineFormatting(text, isUser)}
               </span>
             </div>
           );
@@ -209,7 +210,7 @@ const FormattedContent: React.FC<{ content: string; isUser: boolean }> = ({
 
 const renderInlineFormatting = (text: string, isUser: boolean) => {
   const parts = text.split(/(\*\*.*?\*\*|\`.*?\`)/);
-  
+
   return parts.map((part, i) => {
     // Bold
     if (part.startsWith("**") && part.endsWith("**")) {
@@ -228,8 +229,8 @@ const renderInlineFormatting = (text: string, isUser: boolean) => {
         <code
           key={i}
           className={`px-1.5 py-0.5 rounded text-[12px] font-mono ${
-            isUser 
-              ? "bg-white/20 text-white" 
+            isUser
+              ? "bg-white/20 text-white"
               : "bg-neutral-800 text-green-300 border border-neutral-700"
           }`}
         >

@@ -1,4 +1,13 @@
-import { AlertCircle, Bot, History, Menu, Plus, RefreshCcw, Sparkles, X } from "lucide-react";
+import {
+  AlertCircle,
+  Bot,
+  History,
+  Menu,
+  Plus,
+  RefreshCcw,
+  Sparkles,
+  X,
+} from "lucide-react";
 import {
   forwardRef,
   useCallback,
@@ -80,15 +89,15 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       [addMessageToConversation]
     );
 
-    const { 
-        isLoading, 
-        error, 
-        sendMessage, 
-        sendSystemMessage: persistSystemMessage, 
-        clearMessages, 
-        retryLastMessage, 
-        isGeneratingGlobally 
-    } = useChat(activeConversationId, handleInternalShapeGenerated, handleInternalMessageReceived);
+    const {
+      isLoading,
+      error,
+      sendMessage,
+      sendSystemMessage: persistSystemMessage,
+      clearMessages,
+      retryLastMessage,
+      isGeneratingGlobally,
+    } = useChat(activeConversationId);
 
     // Expose method to parent
     useImperativeHandle(ref, () => ({
@@ -101,7 +110,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
 
         // Also persist if requested
         if (shapeData) {
-           persistSystemMessage(message, shapeData);
+          persistSystemMessage(message, shapeData);
         }
       },
       sendUserMessage: (message: string) => {
@@ -111,15 +120,25 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
 
     useEffect(() => {
       // Sync messages from active conversation to the viewer/state
-      if (activeConversation && activeConversation.id !== lastActiveIdRef.current) {
+      if (
+        activeConversation &&
+        activeConversation.id !== lastActiveIdRef.current
+      ) {
         lastActiveIdRef.current = activeConversation.id;
-        
+
         // Find latest message with shape data to restore viewer state
-        const lastShapeMsg = activeConversation.messages.slice().reverse().find((m: Message) => m.shapeData);
-        const shapeToLoad = lastShapeMsg?.shapeData || activeConversation.generatedShape || null;
-        
+        const lastShapeMsg = activeConversation.messages
+          .slice()
+          .reverse()
+          .find((m: Message) => m.shapeData);
+        const shapeToLoad =
+          lastShapeMsg?.shapeData || activeConversation.generatedShape || null;
+
         onShapeGenerated?.(shapeToLoad);
-      } else if (!activeConversation && activeConversationId !== lastActiveIdRef.current) {
+      } else if (
+        !activeConversation &&
+        activeConversationId !== lastActiveIdRef.current
+      ) {
         lastActiveIdRef.current = activeConversationId;
         onShapeGenerated?.(null);
       }
@@ -135,8 +154,14 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
 
     // Update conversation title on first user message
     useEffect(() => {
-      const firstUserMsg = displayMessages.find((m: Message) => m.role === "user");
-      if (activeConversationId && firstUserMsg && activeConversation?.title === "New Chat") {
+      const firstUserMsg = displayMessages.find(
+        (m: Message) => m.role === "user"
+      );
+      if (
+        activeConversationId &&
+        firstUserMsg &&
+        activeConversation?.title === "New Chat"
+      ) {
         renameConversation(
           activeConversationId,
           generateTitle(firstUserMsg.content)
@@ -152,7 +177,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
     const handleSend = useCallback(
       async (content: string) => {
         if (!content.trim()) return;
-        
+
         await sendMessage(content);
       },
       [sendMessage, addMessageToConversation]
@@ -160,7 +185,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
 
     const handleNewChat = useCallback(async () => {
       // Lazy creation: Don't create backend chat until first message
-      setActiveConversation(null); 
+      setActiveConversation(null);
       clearMessages();
       onShapeGenerated?.(null);
       setShowSidebar(false);
@@ -216,18 +241,25 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
               {isLoadingChats ? (
                 <div className="space-y-2 animate-pulse">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="p-2.5 rounded-lg bg-neutral-900/50 border border-neutral-800">
+                    <div
+                      key={i}
+                      className="p-2.5 rounded-lg bg-neutral-900/50 border border-neutral-800"
+                    >
                       <div className="h-3 bg-neutral-800 rounded w-3/4 mb-2"></div>
                       <div className="h-2 bg-neutral-800 rounded w-1/2"></div>
                     </div>
                   ))}
-                  <p className="text-center text-[10px] text-neutral-500 mt-4">Loading your chats...</p>
+                  <p className="text-center text-[10px] text-neutral-500 mt-4">
+                    Loading your chats...
+                  </p>
                 </div>
               ) : loadError ? (
                 /* Error State */
                 <div className="text-center py-6">
                   <AlertCircle className="w-6 h-6 text-red-500 mx-auto mb-2" />
-                  <p className="text-[10px] text-red-400 mb-1">Failed to load chats</p>
+                  <p className="text-[10px] text-red-400 mb-1">
+                    Failed to load chats
+                  </p>
                   <p className="text-[9px] text-neutral-600">{loadError}</p>
                 </div>
               ) : conversations.length === 0 ? (
@@ -235,12 +267,13 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                 <div className="text-center py-6">
                   <History className="w-6 h-6 text-neutral-600 mx-auto mb-2" />
                   <p className="text-[10px] text-neutral-500">No chats yet</p>
-                  <p className="text-[9px] text-neutral-600 mt-1">Start a new conversation</p>
+                  <p className="text-[9px] text-neutral-600 mt-1">
+                    Start a new conversation
+                  </p>
                 </div>
               ) : (
                 /* Chat List */
-                conversations
-                  .map((conv) => (
+                conversations.map((conv) => (
                   <div
                     key={conv.id}
                     onClick={() => handleSelect(conv.id)}
@@ -267,7 +300,9 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                           <span className="flex flex-col gap-1 mt-1">
                             <span className="flex items-center gap-1.5 text-green-500 animate-pulse">
                               <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                              <span className="text-[9px] uppercase font-bold tracking-tighter">Generating...</span>
+                              <span className="text-[9px] uppercase font-bold tracking-tighter">
+                                Generating...
+                              </span>
                             </span>
                             {generatingChatStatus[conv.id] && (
                               <span className="text-[8px] text-neutral-500 italic truncate max-w-[120px]">
@@ -367,7 +402,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
             ) : (
               <div className="flex flex-col min-h-full">
                 <MessageList messages={displayMessages} />
-                
+
                 {/* Suggestions removed as per user request */}
 
                 {isLoading && (
@@ -380,27 +415,30 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                         </div>
                         <div className="flex-1 min-w-[280px]">
                           <div className="flex items-center gap-2 mb-2">
-                             <div className="flex gap-1">
-                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                               <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce" />
-                             </div>
-                             <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">
-                               CURFD Intelligence
-                             </span>
+                            <div className="flex gap-1">
+                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-bounce" />
+                            </div>
+                            <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">
+                              CURFD Intelligence
+                            </span>
                           </div>
                           <p className="text-neutral-300 text-sm leading-relaxed mb-3">
-                             {generatingChatStatus[activeConversationId || ''] || 'Analyzing requirements and architecting your 3D model...'}
+                            {generatingChatStatus[activeConversationId || ""] ||
+                              "Analyzing requirements and architecting your 3D model..."}
                           </p>
                           <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
                             <div className="h-full bg-gradient-to-r from-green-500 to-emerald-500 animate-progress origin-left" />
                           </div>
                           <div className="flex items-center justify-between mt-2">
                             <p className="text-[10px] text-neutral-500 italic">
-                               Usually takes 60-90 seconds for mesh generation
+                              Usually takes 60-90 seconds for mesh generation
                             </p>
                             <span className="text-[9px] text-neutral-600 font-mono">
-                              {generatingChatStatus[activeConversationId || ''] ? 'LIVE FEED' : 'QUEUED'}
+                              {generatingChatStatus[activeConversationId || ""]
+                                ? "LIVE FEED"
+                                : "QUEUED"}
                             </span>
                           </div>
                         </div>
@@ -412,27 +450,27 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                 {error && (
                   <div className="mt-4 max-w-4xl mx-auto w-full px-4 animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="bg-red-500/10 border border-red-500/20 rounded-2xl px-5 py-4 flex items-start gap-4">
-                       <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
-                       <div className="flex-1">
-                          <p className="text-sm font-medium text-red-400 mb-1">
-                             Generation Interrupted
-                          </p>
-                          <p className="text-xs text-neutral-400 leading-relaxed mb-2">
-                             {error}
-                          </p>
-                          <div className="flex items-center gap-3">
-                            <button 
-                              onClick={() => retryLastMessage()}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-400 text-[10px] font-bold uppercase tracking-wider transition-all"
-                            >
-                               <RefreshCcw className="w-3 h-3" />
-                               Retry Generation
-                            </button>
-                            <span className="text-[10px] text-neutral-600 italic">
-                               Refreshes the current request pipeline
-                            </span>
-                          </div>
-                       </div>
+                      <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-red-400 mb-1">
+                          Generation Interrupted
+                        </p>
+                        <p className="text-xs text-neutral-400 leading-relaxed mb-2">
+                          {error}
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => retryLastMessage()}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-lg text-red-400 text-[10px] font-bold uppercase tracking-wider transition-all"
+                          >
+                            <RefreshCcw className="w-3 h-3" />
+                            Retry Generation
+                          </button>
+                          <span className="text-[10px] text-neutral-600 italic">
+                            Refreshes the current request pipeline
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
