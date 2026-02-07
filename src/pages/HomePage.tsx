@@ -1,11 +1,14 @@
 import { ResizablePanels } from "@/components/common/ResizablePanels";
 import { StatusBar } from "@/components/common/StatusBar";
 import {
-    getDefaultShortcuts,
-    useKeyboardShortcuts,
+  getDefaultShortcuts,
+  useKeyboardShortcuts,
 } from "@/hooks/useKeyboardShortcuts";
 import { useAuthStore } from "@/lib/auth";
-import { ChatInterface, ChatInterfaceRef } from "@/modules/ai/components/ChatInterface";
+import {
+  ChatInterface,
+  ChatInterfaceRef,
+} from "@/modules/ai/components/ChatInterface";
 import { useChatSocket } from "@/modules/ai/hooks/useChatSocket";
 import { chatService } from "@/modules/ai/services/chatService";
 import { jobService } from "@/modules/ai/services/jobService";
@@ -13,22 +16,31 @@ import { useChatStore } from "@/modules/ai/stores/chatStore";
 import { GeneratedShape } from "@/modules/ai/types/chat.type";
 import { CADEditor } from "@/modules/editor/components/CADEditor";
 import { useEditorStore } from "@/modules/editor/stores/editorStore";
-import { ImportStage, ModelImportOverlay } from "@/modules/viewer/components/ModelImportOverlay";
+import {
+  ImportStage,
+  ModelImportOverlay,
+} from "@/modules/viewer/components/ModelImportOverlay";
 import { Viewer3D } from "@/modules/viewer/components/Viewer3D";
 import { ModelImporter } from "@/modules/viewer/services/ModelImporter";
 import { Asset, assetService } from "@/modules/viewer/services/assetService";
 import { disposeObject3D } from "@/modules/viewer/utils/dispose";
 import {
-    Code2,
-    LogOut,
-    MessageSquare,
-    Minimize2,
-    Play,
-    Wifi,
-    WifiOff,
-    Zap
+  Code2,
+  LogOut,
+  MessageSquare,
+  Minimize2,
+  Play,
+  Wifi,
+  WifiOff,
+  Zap,
 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import toast from "react-hot-toast";
 import * as THREE from "three";
 
@@ -46,7 +58,12 @@ interface ModelStats {
 
 const HomePage = () => {
   const { user, signOut } = useAuthStore();
-  const { activeConversationId, conversations, jobHistory, updateConversation } = useChatStore();
+  const {
+    activeConversationId,
+    conversations,
+    jobHistory,
+    updateConversation,
+  } = useChatStore();
   const [currentShape, setCurrentShape] = useState<GeneratedShape | null>(null);
   const [activeView, setActiveView] = useState<ViewMode>("chat-viewer");
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("chat");
@@ -58,12 +75,11 @@ const HomePage = () => {
   // WebSocket connection status
   const { isConnected: wsConnected } = useChatSocket({
     chatId: activeConversationId,
-    onEvent: () => {} // Events handled in useChat hook
+    onEvent: () => {}, // Events handled in useChat hook
   });
 
   const [loadedModel, setLoadedModel] = useState<THREE.Group | null>(null);
   const [modelStats, setModelStats] = useState<ModelStats | undefined>();
-
 
   const handlePartSwap = async (partId: string, asset: Asset) => {
     if (!loadedModel || !currentShape) return;
@@ -78,8 +94,11 @@ const HomePage = () => {
 
       // 2. Parse geometry
       const importer = new ModelImporter();
-      const newObject = await importer.loadSingleAsset(localUrl, asset.name || "New Part");
-      
+      const newObject = await importer.loadSingleAsset(
+        localUrl,
+        asset.name || "New Part"
+      );
+
       // 3. Find target part in loadedModel
       let targetMesh: THREE.Mesh | null = null;
       let targetParent: THREE.Object3D | null = null;
@@ -92,57 +111,56 @@ const HomePage = () => {
       });
 
       if (!targetMesh || !targetParent) {
-         throw new Error("Target part not found in scene");
+        throw new Error("Target part not found in scene");
       }
-      
+
       // 4. Transform new object to match old object (preserve position/rotation/scale)
       const mesh = targetMesh as THREE.Mesh;
       newObject.position.copy(mesh.position);
       newObject.quaternion.copy(mesh.quaternion);
       newObject.scale.copy(mesh.scale);
-      
+
       // Replace in scene
       (targetParent as THREE.Object3D).remove(mesh);
       (targetParent as THREE.Object3D).add(newObject);
-      
+
       // 5. Update GeneratedShape
       const updatedParts = currentShape.geometry.parts.map((p: any) => {
         if (p.id === partId) {
-             return {
-                 ...p,
-                 id: newObject.uuid, // Use NEW UUID
-                 name: newObject.name,
-                 assetName: asset.name, // Link to new asset
-                 assetUrl: asset.url
-             };
+          return {
+            ...p,
+            id: newObject.uuid, // Use NEW UUID
+            name: newObject.name,
+            assetName: asset.name, // Link to new asset
+            assetUrl: asset.url,
+          };
         }
         return p;
       });
 
       const newAssetEntry = {
-          filename: asset.name,
-          url: localUrl,
-          blob: blob
+        filename: asset.name,
+        url: localUrl,
+        blob: blob,
       };
-      
+
       const updatedAssets = [...(currentShape.assets || []), newAssetEntry];
-      
+
       const updatedShape = {
-          ...currentShape,
-          geometry: {
-              ...currentShape.geometry,
-              parts: updatedParts
-          },
-          assets: updatedAssets
+        ...currentShape,
+        geometry: {
+          ...currentShape.geometry,
+          parts: updatedParts,
+        },
+        assets: updatedAssets,
       };
-      
+
       setCurrentShape(updatedShape);
-      
+
       // Trigger scene update
       setLoadedModel(loadedModel);
 
       toast.success("Part swapped successfully!", { id: toastId });
-
     } catch (e) {
       console.error(e);
       toast.error("Failed to swap part", { id: toastId });
@@ -169,7 +187,9 @@ const HomePage = () => {
     if (cacheOrder.current.length >= MAX_CACHE_SIZE) {
       const oldestId = cacheOrder.current.pop();
       if (oldestId && meshCache.current[oldestId]) {
-        console.log(`[HomePage] Evicting and disposing model from cache: ${oldestId}`);
+        console.log(
+          `[HomePage] Evicting and disposing model from cache: ${oldestId}`
+        );
         disposeObject3D(meshCache.current[oldestId]);
         delete meshCache.current[oldestId];
       }
@@ -184,8 +204,8 @@ const HomePage = () => {
   const importer = useMemo(() => new ModelImporter(), []);
 
   // Track shape that needs to be fetched after initial render
-  const [pendingFetchShape, setPendingFetchShape] = useState<GeneratedShape | null>(null);
-
+  const [pendingFetchShape, setPendingFetchShape] =
+    useState<GeneratedShape | null>(null);
 
   // Check for pending messages from Landing Page
   useEffect(() => {
@@ -211,61 +231,58 @@ const HomePage = () => {
 
     setImportFileName(file.name);
     setIsImporting(true);
-    setImportStage('reading');
-
-    // Clear everything first
-    // Note: We don't dispose here because the current loadedModel might be in cache.
-    // The cache management logic in addToCache and useEffect handles disposal.
+    setImportStage("reading");
     setLoadedModel(null);
     setCurrentShape(null);
     setModelStats(undefined);
 
     try {
       if (file.name.endsWith(".zip")) {
-        // 1. Create Job in Backend (Mission Log)
-        setImportStage('registering');
+        setImportStage("registering");
         const sessionId = chatService.getCurrentSessionId();
         let jobId = `local-${Date.now()}`;
-        
+
         if (sessionId) {
           try {
             // Deduplicate: Check if a mission for this file already exists in this chat
-            const existingJob = (jobHistory[activeConversationId || ""] || []).find(
-                j => j.prompt === `Imported Model: ${file.name}`
-            );
+            const existingJob = (
+              jobHistory[activeConversationId || ""] || []
+            ).find((j) => j.prompt === `Imported Model: ${file.name}`);
 
             if (existingJob) {
-                jobId = existingJob.id;
-                console.log("Reusing existing mission record:", jobId);
+              jobId = existingJob.id;
+              console.log("Reusing existing mission record:", jobId);
             } else {
-                const job = await jobService.createJob({
-                    session_id: sessionId,
-                    prompt: `Imported Model: ${file.name}`,
-                    output_format: 'glb',
-                    status: 'succeeded'
+              const job = await jobService.createJob({
+                session_id: sessionId,
+                prompt: `Imported Model: ${file.name}`,
+                output_format: "glb",
+                status: "succeeded",
+              });
+              jobId = job.id;
+
+              // Add to store history
+              const { addJobToHistory } = useChatStore.getState();
+              if (activeConversationId) {
+                addJobToHistory(activeConversationId, {
+                  ...job,
+                  status: "succeeded",
+                  createdAt: new Date(),
                 });
-                jobId = job.id;
-                
-                // Add to store history
-                const { addJobToHistory } = useChatStore.getState();
-                if (activeConversationId) {
-                    addJobToHistory(activeConversationId, {
-                        ...job,
-                        status: 'succeeded',
-                        createdAt: new Date()
-                    });
-                }
+              }
             }
           } catch (e) {
-            console.warn("Failed to register job in backend, using local ID", e);
+            console.warn(
+              "Failed to register job in backend, using local ID",
+              e
+            );
           }
         }
 
-        // 2. Local Extraction & Analysis
-        setImportStage('extracting');
+        setImportStage("extracting");
         const imported = await importer.importZip(file);
-        
-        setImportStage('analyzing');
+
+        setImportStage("analyzing");
         setLoadedModel(imported.group);
 
         if (imported.scad) {
@@ -295,74 +312,73 @@ const HomePage = () => {
         });
 
         const bbox = new THREE.Box3().setFromObject(imported.group);
-        
-        // 3. Register Assets & Parts in Backend (Deep Link)
-        setImportStage('registering');
+
+        setImportStage("registering");
         let assetId = `imported-${Date.now()}`;
-        
-        // Only register if it's a new mission
-        const isNewMission = !jobHistory[activeConversationId || ""]?.some(j => j.id === jobId);
 
-        if (jobId && !jobId.startsWith('local-') && isNewMission) {
-            try {
-                // Persistent Storage Hack: Store ZIP contents as Base64 in metadata_json
-                // since we cannot modify the backend to support direct file uploads right now.
-                const reader = new FileReader();
-                const base64Promise = new Promise<string>((resolve) => {
-                    reader.onload = () => {
-                        const base64 = (reader.result as string).split(',')[1];
-                        resolve(base64);
-                    };
-                    reader.readAsDataURL(file);
-                });
-                
-                const base64Data = await base64Promise;
+        const isNewMission = !jobHistory[activeConversationId || ""]?.some(
+          (j) => j.id === jobId
+        );
 
-                const asset = await assetService.createAsset({
-                    job_id: jobId,
-                    asset_type: 'zip',
-                    uri: file.name,
-                    storage_provider: 'base64', // Special marker for frontend recovery
-                    metadata_json: {
-                        data: base64Data, // COMPRESSED DATA
-                        stats: { triangles: triCount, vertices: vertCount },
-                        originalName: file.name
-                    }
-                });
-                assetId = asset.id;
+        if (jobId && !jobId.startsWith("local-") && isNewMission) {
+          try {
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve) => {
+              reader.onload = () => {
+                const base64 = (reader.result as string).split(",")[1];
+                resolve(base64);
+              };
+              reader.readAsDataURL(file);
+            });
 
-                // Register all parts extracted
-                const partPromises: Promise<any>[] = [];
-                imported.group.traverse((child) => {
-                    if ((child as THREE.Mesh).isMesh) {
-                        partPromises.push(assetService.createAssetMeta({
-                            asset_id: assetId,
-                            part_name: child.name || "Solid Part",
-                            component_of: undefined,
-                            position_json: {
-                                x: child.position.x,
-                                y: child.position.y,
-                                z: child.position.z
-                            }
-                        }));
-                    }
-                });
-                // Wait for meta registration (optional: cap it to avoid overwhelming backend)
-                if (partPromises.length > 0) {
-                    await Promise.all(partPromises.slice(0, 50)); // Cap at 50 for safety
-                }
-            } catch (e) {
-                console.warn("Failed to register assets in backend", e);
+            const base64Data = await base64Promise;
+
+            const asset = await assetService.createAsset({
+              job_id: jobId,
+              asset_type: "zip",
+              uri: file.name,
+              storage_provider: "base64",
+              metadata_json: {
+                data: base64Data,
+                stats: { triangles: triCount, vertices: vertCount },
+                originalName: file.name,
+              },
+            });
+            assetId = asset.id;
+
+            const partPromises: Promise<any>[] = [];
+            imported.group.traverse((child) => {
+              if ((child as THREE.Mesh).isMesh) {
+                partPromises.push(
+                  assetService.createAssetMeta({
+                    asset_id: assetId,
+                    part_name: child.name || "Solid Part",
+                    component_of: undefined,
+                    position_json: {
+                      x: child.position.x,
+                      y: child.position.y,
+                      z: child.position.z,
+                    },
+                  })
+                );
+              }
+            });
+            if (partPromises.length > 0) {
+              await Promise.all(partPromises.slice(0, 50));
             }
+          } catch (e) {
+            console.warn("Failed to register assets in backend", e);
+          }
         }
 
-        setImportStage('finalizing');
-        
-        // Extract parts for frontend state - traverse the actual contents group
+        setImportStage("finalizing");
+
         const parts: any[] = [];
-        const contentsGroup = imported.group.children.find(c => c.name === "Model Contents");
+        const contentsGroup = imported.group.children.find(
+          (c) => c.name === "Model Contents"
+        );
         const groupToTraverse = contentsGroup || imported.group;
-        
+
         groupToTraverse.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.Mesh;
@@ -386,8 +402,8 @@ const HomePage = () => {
           description: `Imported model: ${imported.name}.`,
           hasSimulation: false,
           scadCode: imported.scad,
-          jobId: jobId && !jobId.startsWith('local-') ? jobId : undefined,
-          sdfUrl: URL.createObjectURL(file), // Local blob URL for immediate render
+          jobId: jobId && !jobId.startsWith("local-") ? jobId : undefined,
+          sdfUrl: URL.createObjectURL(file),
           geometry: {
             parts: parts,
             physics: imported.physics,
@@ -407,25 +423,25 @@ const HomePage = () => {
         };
 
         setCurrentShape(shapeData);
-        
-        // Add to cache with eviction logic
+
         addToCache(shapeData.id, imported.group);
 
-        // Persist to store so it restores on chat switch
         if (activeConversationId) {
-            updateConversation(activeConversationId, { generatedShape: shapeData });
+          updateConversation(activeConversationId, {
+            generatedShape: shapeData,
+          });
         }
 
         setModelStats({
-            triangles: Math.round(triCount),
-            vertices: vertCount,
-            faces: Math.round(triCount),
-            materials: materialSet.size || 1,
-            fps: 60,
-            drawCalls: 10,
+          triangles: Math.round(triCount),
+          vertices: vertCount,
+          faces: Math.round(triCount),
+          materials: materialSet.size || 1,
+          fps: 60,
+          drawCalls: 10,
         });
 
-        setImportStage('complete');
+        setImportStage("complete");
         setTimeout(() => setIsImporting(false), 1000);
 
         let message = `📁 **Imported Model: ${imported.name}**\n\n`;
@@ -460,8 +476,6 @@ const HomePage = () => {
         const proxify = (url: string) => {
           if (!url) return url;
           if (url.startsWith("blob:") || url.startsWith("data:")) return url;
-
-          // Normalize Supabase URLs
           let normalizedUrl = url;
           const hasToken = url.includes("token=");
 
@@ -473,19 +487,19 @@ const HomePage = () => {
             }
           }
 
-          // Direct loading for signed URLs with tokens (browsers handle CORS better)
           if (normalizedUrl.includes("supabase.co") && hasToken) {
-            console.log('[HomePage] Using direct signed URL:', normalizedUrl.substring(0, 80) + '...');
+            console.log(
+              "[HomePage] Using direct signed URL:",
+              normalizedUrl.substring(0, 80) + "..."
+            );
             return normalizedUrl;
           }
 
           try {
-            // Determine if we should proxy (mesh files need CORS handling)
             const isMesh = normalizedUrl
               .toLowerCase()
               .match(/\.(stl|obj|glb|gltf|bin)$/);
 
-            // Don't proxy SDF/YAML if they're public
             if (!isMesh && !normalizedUrl.includes("/object/sign/")) {
               return normalizedUrl;
             }
@@ -494,7 +508,6 @@ const HomePage = () => {
             const protocol = parsed.protocol.replace(":", "");
             const host = parsed.host;
 
-            // Robustly encode path segments
             const segments = parsed.pathname.substring(1).split("/");
             const encodedPath = segments
               .map((s) => encodeURIComponent(decodeURIComponent(s)))
@@ -502,7 +515,6 @@ const HomePage = () => {
 
             const path = encodedPath + parsed.search;
 
-            // Dynamic API Base
             const API_BASE =
               window.location.origin.includes("localhost") ||
               window.location.origin.includes("127.0.0.1")
@@ -510,7 +522,11 @@ const HomePage = () => {
                 : `${window.location.origin}/api/v1`;
 
             const proxiedUrl = `${API_BASE}/proxy/${protocol}/${host}/${path}`;
-            console.log('[HomePage] Proxying URL:', normalizedUrl.substring(0, 50), '-> proxy');
+            console.log(
+              "[HomePage] Proxying URL:",
+              normalizedUrl.substring(0, 50),
+              "-> proxy"
+            );
             return proxiedUrl;
           } catch (e) {
             console.warn("HomePage: Failed to proxify URL", normalizedUrl, e);
@@ -525,10 +541,12 @@ const HomePage = () => {
           shape.assets?.map((a) => ({ ...a, url: proxify(a.url) })) || []
         );
 
-        console.log('[HomePage] Model imported successfully, meshes:', imported.group.children.length);
+        console.log(
+          "[HomePage] Model imported successfully, meshes:",
+          imported.group.children.length
+        );
         setLoadedModel(imported.group);
 
-        // Calculate stats for the loaded model
         let triCount = 0;
         let vertCount = 0;
         let materialSet = new Set<string>();
@@ -549,7 +567,6 @@ const HomePage = () => {
           }
         });
 
-        // Extract parts with better names from the actual meshes
         const parts: any[] = [];
         imported.group.traverse((child: THREE.Object3D) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -564,27 +581,29 @@ const HomePage = () => {
           }
         });
 
-        // Update currentShape with the new parts and metadata
-        setCurrentShape(prev => {
-          const updated = prev ? {
-            ...prev,
-            scadCode: imported.scad || prev.scadCode,
-            geometry: {
-              ...prev.geometry,
-              parts: parts,
-              totalVertices: vertCount,
-            }
-          } : null;
-          
+        setCurrentShape((prev) => {
+          const updated = prev
+            ? {
+                ...prev,
+                scadCode: imported.scad || prev.scadCode,
+                geometry: {
+                  ...prev.geometry,
+                  parts: parts,
+                  totalVertices: vertCount,
+                },
+              }
+            : null;
+
           if (imported.scad) {
             setOriginalCode(imported.scad);
           }
 
-          // Sync back to store for persistent viewer state
           if (updated && activeConversationId) {
-            updateConversation(activeConversationId, { generatedShape: updated });
+            updateConversation(activeConversationId, {
+              generatedShape: updated,
+            });
           }
-          
+
           return updated;
         });
 
@@ -597,7 +616,6 @@ const HomePage = () => {
           drawCalls: imported.group.children.length,
         });
 
-        // Cache the loaded mesh for quick restoration on chat switch
         if (shape.id) {
           addToCache(shape.id, imported.group);
         }
@@ -613,111 +631,129 @@ const HomePage = () => {
     [importer, addToCache]
   );
 
-  // Restore model and editor state when switching conversations
   useEffect(() => {
-    // Clear current state first
     setLoadedModel(null);
     setCurrentShape(null);
     setModelStats(undefined);
     setPendingFetchShape(null);
 
     if (!activeConversationId) {
-      // Clear editor when no active chat
       useEditorStore.getState().clear();
       return;
     }
 
-    const activeConv = conversations.find(c => c.id === activeConversationId);
-    
-    // Sync Editor with current chat's SCAD code
+    const activeConv = conversations.find((c) => c.id === activeConversationId);
+
     if (activeConv?.generatedShape?.scadCode) {
-      console.log('[HomePage] Syncing editor with chat SCAD code');
+      console.log("[HomePage] Syncing editor with chat SCAD code");
       setOriginalCode(activeConv.generatedShape.scadCode);
     } else {
-      console.log('[HomePage] Clearing editor for new/empty chat');
+      console.log("[HomePage] Clearing editor for new/empty chat");
       useEditorStore.getState().clear();
     }
 
     if (activeConv?.generatedShape) {
       const shape = activeConv.generatedShape;
-      console.log('[HomePage] Attempting to restore shape:', shape.name, shape.id);
-      
-      // Check if we have the mesh in cache
+      console.log(
+        "[HomePage] Attempting to restore shape:",
+        shape.name,
+        shape.id
+      );
+
       if (shape.id && meshCache.current[shape.id]) {
-        console.log('[HomePage] Restoring model from cache:', shape.name);
+        console.log("[HomePage] Restoring model from cache:", shape.name);
         setLoadedModel(meshCache.current[shape.id]);
         setCurrentShape(shape);
       } else if (shape.sdfUrl || (shape as any).jobId) {
-        // Recovery logic: if it's a blob URL that is dead (post-refresh) or we have a jobId but no URL
-        const isStaleBlob = shape.sdfUrl?.startsWith('blob:');
-        
+        const isStaleBlob = shape.sdfUrl?.startsWith("blob:");
+
         if (isStaleBlob && (shape as any).jobId) {
-          console.log('[HomePage] Detected stale blob URL, recovering model from backend:', (shape as any).jobId);
+          console.log(
+            "[HomePage] Detected stale blob URL, recovering model from backend:",
+            (shape as any).jobId
+          );
           const recoverModel = async () => {
             setIsImporting(true);
             try {
-              const recoveredShape = await assetService.mapToGeneratedShape((shape as any).jobId!);
+              const recoveredShape = await assetService.mapToGeneratedShape(
+                (shape as any).jobId!
+              );
               if (recoveredShape) {
-                console.log('[HomePage] Model recovered successfully');
+                console.log("[HomePage] Model recovered successfully");
                 setCurrentShape(recoveredShape);
                 fetchModelFiles(recoveredShape);
               }
             } catch (e) {
-              console.error('[HomePage] Failed to recover model:', e);
+              console.error("[HomePage] Failed to recover model:", e);
             } finally {
               setIsImporting(false);
             }
-          }
+          };
           recoverModel();
         } else if (shape.sdfUrl) {
-          // Shape exists but mesh not in cache - fetch it
-          console.log('[HomePage] Re-fetching model for chat session:', shape.name);
+          console.log(
+            "[HomePage] Re-fetching model for chat session:",
+            shape.name
+          );
           setCurrentShape(shape);
-          // Fetch the model
           fetchModelFiles(shape);
         }
       } else if (shape.id) {
-        // Imported model without sdfUrl AND not in cache
-        console.log('[HomePage] Session expired for imported model:', shape.name);
+        console.log(
+          "[HomePage] Session expired for imported model:",
+          shape.name
+        );
         setCurrentShape(shape);
-        
+
         if (!warningShownRef.current.has(shape.id)) {
-            toast.error("Imported model session expired. Please re-import the file.", {
-                duration: 5000,
-                icon: '⚠️',
-                id: `expiry-${shape.id}` // Deduplicate by ID
-            });
-            warningShownRef.current.add(shape.id);
+          toast.error(
+            "Imported model session expired. Please re-import the file.",
+            {
+              duration: 5000,
+              icon: "⚠️",
+              id: `expiry-${shape.id}`,
+            }
+          );
+          warningShownRef.current.add(shape.id);
         }
       }
     } else {
-        // Reset warning ref when switching to a chat without a shape or empty state
-        warningShownRef.current.clear();
+      warningShownRef.current.clear();
     }
-  }, [activeConversationId, conversations, fetchModelFiles, setOriginalCode, addToCache]);
+  }, [
+    activeConversationId,
+    conversations,
+    fetchModelFiles,
+    setOriginalCode,
+    addToCache,
+  ]);
 
-  // Persist Editor changes back to Chat Store
-  const editorCode = useEditorStore(state => state.code);
+  const editorCode = useEditorStore((state) => state.code);
   useEffect(() => {
     if (!activeConversationId || !currentShape) return;
-    
-    // Only persist if the code actually changed from what's in the shape
+
     if (editorCode === currentShape.scadCode) return;
 
     const timer = setTimeout(() => {
-      console.log('[HomePage] Persisting editor code back to chat store');
+      console.log("[HomePage] Persisting editor code back to chat store");
       const updatedShape = { ...currentShape, scadCode: editorCode };
       setCurrentShape(updatedShape);
-      updateConversation(activeConversationId, { generatedShape: updatedShape });
-    }, 1000); // 1s debounce
+      updateConversation(activeConversationId, {
+        generatedShape: updatedShape,
+      });
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [editorCode, activeConversationId, currentShape, updateConversation]);
 
   const handleShapeGenerated = useCallback(
     (shape: GeneratedShape | null) => {
-      console.log('[HomePage] handleShapeGenerated called with:', shape?.name, shape?.id);
-      
+      console.log(
+        "[HomePage] handleShapeGenerated called with:",
+        shape?.name,
+        shape?.id
+      );
+
       if (!shape) {
         setCurrentShape(null);
         setLoadedModel(null);
@@ -726,15 +762,12 @@ const HomePage = () => {
         return;
       }
 
-      // If we have this model in cache, use it immediately
       if (shape?.id && meshCache.current[shape.id]) {
-        console.log('[HomePage] Restoring from cache:', shape.name);
+        console.log("[HomePage] Restoring from cache:", shape.name);
         setLoadedModel(meshCache.current[shape.id]);
         setCurrentShape(shape);
-        // Update its position in the cache eviction queue
         addToCache(shape.id, meshCache.current[shape.id]);
-        
-        // Still set SCAD code even if cached
+
         if (shape.scadCode) {
           setOriginalCode(shape.scadCode);
         }
@@ -743,37 +776,31 @@ const HomePage = () => {
 
       setCurrentShape(shape);
 
-      // Process newly generated shapes (not imported)
       if (shape && shape.id && !shape.id.startsWith("imported-")) {
-        console.log('[HomePage] Processing generated shape:', shape.name);
+        console.log("[HomePage] Processing generated shape:", shape.name);
         setLoadedModel(null);
         setModelStats(undefined);
 
-        // Load SCAD code into editor
         if (shape.scadCode) {
-          console.log('[HomePage] Setting SCAD code in editor');
+          console.log("[HomePage] Setting SCAD code in editor");
           setOriginalCode(shape.scadCode);
-          setActiveView("editor"); // Explicitly switch to show editor upon generation
+          setActiveView("editor");
         }
 
-        // Fetch 3D model
         if (shape.sdfUrl) {
-          console.log('[HomePage] Fetching model from:', shape.sdfUrl);
+          console.log("[HomePage] Fetching model from:", shape.sdfUrl);
           fetchModelFiles(shape);
         } else {
-          console.warn('[HomePage] No sdfUrl provided for shape:', shape.name);
+          console.warn("[HomePage] No sdfUrl provided for shape:", shape.name);
         }
       }
 
-      // Auto-switch to viewer on mobile
       if (shape && window.innerWidth < 1024) {
         setMobilePanel("viewer");
       }
     },
     [fetchModelFiles, addToCache, setOriginalCode]
   );
-
-
 
   const handleOpenSimulation = useCallback(() => {
     toast("Simulation module is Coming Soon!", {
@@ -820,7 +847,6 @@ const HomePage = () => {
 
   return (
     <div className="h-screen bg-neutral-950 flex flex-col overflow-hidden">
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -892,24 +918,28 @@ const HomePage = () => {
           <div className="flex items-center gap-2">
             {/* Connection Status */}
             {activeConversationId && (
-              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${
-                wsConnected 
-                  ? 'bg-green-500/10 border border-green-500/20' 
-                  : 'bg-red-500/10 border border-red-500/20'
-              }`}>
+              <div
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${
+                  wsConnected
+                    ? "bg-green-500/10 border border-green-500/20"
+                    : "bg-red-500/10 border border-red-500/20"
+                }`}
+              >
                 {wsConnected ? (
                   <Wifi className="w-3 h-3 text-green-400" />
                 ) : (
                   <WifiOff className="w-3 h-3 text-red-400" />
                 )}
-                <span className={`text-[10px] font-medium ${
-                  wsConnected ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {wsConnected ? 'Live' : 'Offline'}
+                <span
+                  className={`text-[10px] font-medium ${
+                    wsConnected ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {wsConnected ? "Live" : "Offline"}
                 </span>
               </div>
             )}
-            
+
             {currentShape && (
               <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
@@ -933,9 +963,7 @@ const HomePage = () => {
         className={`flex-1 overflow-hidden transition-opacity duration-150 relative ${isTransitioning ? "opacity-0" : "opacity-100"}`}
       >
         {/* Main Interface Flow */}
-        <div
-          className={`absolute inset-0 z-0 block opacity-100`}
-        >
+        <div className={`absolute inset-0 z-0 block opacity-100`}>
           {/* Desktop: 3-Panel Layout */}
           <div className="hidden lg:block h-full">
             <ResizablePanels
@@ -956,7 +984,9 @@ const HomePage = () => {
                       storageKey="editor-viewer-split"
                       defaultLeftWidth={40}
                       minLeftWidth={20}
-                      leftVisible={!!currentShape?.scadCode || activeView === "editor"}
+                      leftVisible={
+                        !!currentShape?.scadCode || activeView === "editor"
+                      }
                       leftPanel={
                         <div className="h-full border-r border-neutral-800">
                           <CADEditor />
