@@ -1,16 +1,13 @@
 import { AuthState, User } from "@/types/global";
-import axios from "axios";
 import { create } from "zustand";
-import { api } from "./api/client";
-import { STORAGE_KEYS } from "./constants";
-import { encryptPassword } from "./encryption";
+import { supabaseAuth } from "./supabaseAuth";
 
 interface AuthStore extends AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => void;
   initAuth: () => Promise<void>;
-  demoLogin: () => void; // Keep for fallback if needed
+  demoLogin: () => void;
   signInWithProvider: (provider: "google" | "github") => Promise<void>;
 }
 
@@ -20,49 +17,31 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isLoading: true,
   error: null,
 
-  // Initialize auth from localStorage and verify token
   initAuth: async () => {
     try {
-      const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+      const { user, session } = await supabaseAuth.getSession();
 
-      if (token) {
-        // optimistically set user if data exists
-        const userData = localStorage.getItem(STORAGE_KEYS.USER_DATA);
-        if (userData) {
-          set({ user: JSON.parse(userData), isAuthenticated: true });
-        }
+      if (user && session) {
+        const { chatService } = await import(
+          "@/modules/ai/services/chatService"
+        );
+        const { useChatStore } = await import("@/modules/ai/stores/chatStore");
 
-        // Verify token with backend
-        try {
-          const response = await api.get("/auth/me");
-          const user = response.data;
+        chatService.setUserId(user.id.toString());
+        useChatStore.getState().setCurrentUserId(user.id.toString());
 
-          localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
-
-          // Initialize chat service with user context
-          const { chatService } = await import(
-            "@/modules/ai/services/chatService"
-          );
-          const { useChatStore } = await import(
-            "@/modules/ai/stores/chatStore"
-          );
-          const userId = user.id || user.user_id;
-          if (userId) {
-            chatService.setUserId(userId.toString());
-            useChatStore.getState().setCurrentUserId(userId.toString());
-          }
-
-          set({ user, isAuthenticated: true, isLoading: false });
-        } catch (error) {
-          // Token invalid
-          console.error("Token verification failed:", error);
-          localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-          localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-          set({ user: null, isAuthenticated: false, isLoading: false });
-        }
+        set({ user, isAuthenticated: true, isLoading: false });
       } else {
-        set({ isLoading: false });
+        set({ user: null, isAuthenticated: false, isLoading: false });
       }
+
+      supabaseAuth.onAuthStateChange((user: User | null) => {
+        if (user) {
+          set({ user, isAuthenticated: true });
+        } else {
+          set({ user: null, isAuthenticated: false });
+        }
+      });
     } catch (err) {
       console.error("Auth initialization error:", err);
       set({ isLoading: false, error: "Failed to initialize authentication" });
@@ -71,13 +50,10 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   demoLogin: () => {
     const demoUser: User = {
-      id: 1,
+      id: "demo-user-id",
       name: "Demo User",
       email: "demo@curfd.ai",
     };
-
-    localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, "demo-token");
-    localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(demoUser));
 
     set({
       user: demoUser,
@@ -90,123 +66,57 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signIn: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Encrypt password before sending
-      const encryptedPassword = encryptPassword(password);
+      const { user } = await supabaseAuth.signIn(email, password);
 
-      const payload = {
-        username_or_email: email,
-        password: encryptedPassword,
-        encrypted: true // Flag to tell backend this is encrypted
-      };
+      if (!user) {
+        throw new Error("Sign in failed");
+      }
 
-      const response = await api.post("/auth/login", payload);
-
-      const { access_token } = response.data;
-
-      // Save token
-      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, access_token);
-
-      // Get User Profile immediately
-      const profileResponse = await api.get("/auth/me");
-      const user = profileResponse.data;
-
-      localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
-
-      // Clear and re-initialize chat for new user
       const { chatService } = await import("@/modules/ai/services/chatService");
       const { useChatStore } = await import("@/modules/ai/stores/chatStore");
       useChatStore.getState().clearStore();
 
-      const userId = user.id || user.user_id;
-      if (userId) {
-        chatService.setUserId(userId.toString());
-        useChatStore.getState().setCurrentUserId(userId.toString());
-      }
+      chatService.setUserId(user.id.toString());
+      useChatStore.getState().setCurrentUserId(user.id.toString());
 
       set({ user, isAuthenticated: true, isLoading: false, error: null });
     } catch (err: unknown) {
-      let message = "Sign in failed";
-      if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail;
-        console.error("Sign in 422 DETAIL:", JSON.stringify(detail, null, 2));
-        message =
-          typeof detail === "string"
-            ? detail
-            : detail
-              ? "Schema mismatch (see console)"
-              : message;
-      } else if (err instanceof Error) {
-        message = err.message;
-      }
+      const message = err instanceof Error ? err.message : "Sign in failed";
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
   },
 
-  // Sign up with API
   signUp: async (email: string, password: string, name: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Encrypt password before sending
-      const encryptedPassword = encryptPassword(password);
+      const { user } = await supabaseAuth.signUp(email, password, name);
 
-      const payload = {
-        username: email.split("@")[0],
-        email: email,
-        password: encryptedPassword,
-        display_name: name,
-        encrypted: true // Flag to tell backend this is encrypted
-      };
+      if (!user) {
+        throw new Error(
+          "Sign up failed - please check your email for confirmation"
+        );
+      }
 
-      // Register calls /auth/register
-      const response = await api.post("/auth/register", payload);
-      const { access_token, user } = response.data;
-
-      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, access_token);
-      localStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
-
-      // Clear and re-initialize chat for new user
       const { chatService } = await import("@/modules/ai/services/chatService");
       const { useChatStore } = await import("@/modules/ai/stores/chatStore");
       useChatStore.getState().clearStore();
 
-      const userId = user.id || user.user_id;
-      if (userId) {
-        chatService.setUserId(userId.toString());
-        useChatStore.getState().setCurrentUserId(userId.toString());
-      }
+      chatService.setUserId(user.id.toString());
+      useChatStore.getState().setCurrentUserId(user.id.toString());
 
       set({ user, isAuthenticated: true, isLoading: false, error: null });
     } catch (err: unknown) {
-      let message = "Sign up failed";
-      if (axios.isAxiosError(err)) {
-        console.error(
-          "Sign up ERROR DETAIL:",
-          JSON.stringify(err.response?.data, null, 2)
-        );
-        const detail = err.response?.data?.detail;
-        message =
-          typeof detail === "string"
-            ? detail
-            : detail
-              ? "Backend Error (see console)"
-              : message;
-      } else if (err instanceof Error) {
-        message = err.message;
-      }
+      const message = err instanceof Error ? err.message : "Sign up failed";
       set({ isLoading: false, error: message });
       throw new Error(message);
     }
   },
 
-  // Sign in with Provider (Google/GitHub)
   signInWithProvider: async (provider: "google" | "github") => {
     set({ isLoading: true, error: null });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // TODO: Implement Real OAuth Flow with Backend
-      throw new Error("Social login not yet implemented on backend");
+      await supabaseAuth.signInWithProvider(provider);
     } catch (err: any) {
       set({
         isLoading: false,
@@ -216,19 +126,20 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
 
-  // Sign out
   signOut: async () => {
-    localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+    try {
+      await supabaseAuth.signOut();
+      const { chatService } = await import("@/modules/ai/services/chatService");
+      const { useChatStore } = await import("@/modules/ai/stores/chatStore");
 
-    // Clear chat service context locally
-    const { chatService } = await import("@/modules/ai/services/chatService");
-    const { useChatStore } = await import("@/modules/ai/stores/chatStore");
+      chatService.setUserId(null);
+      chatService.setActiveSession(null);
+      useChatStore.getState().clearStore();
 
-    chatService.setUserId(null);
-    chatService.setActiveSession(null);
-    useChatStore.getState().clearStore();
-
-    set({ user: null, isAuthenticated: false, error: null });
+      set({ user: null, isAuthenticated: false, error: null });
+    } catch (err) {
+      console.error("Sign out error:", err);
+      set({ user: null, isAuthenticated: false, error: null });
+    }
   },
 }));
