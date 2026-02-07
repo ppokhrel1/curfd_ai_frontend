@@ -41,8 +41,19 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
         antialias: true,
         alpha: false,
         powerPreference: "high-performance",
+        stencil: false,
       }}
       dpr={[1, 2]}
+      onCreated={({ gl }) => {
+        const canvas = gl.domElement;
+        canvas.addEventListener("webglcontextlost", (event) => {
+          event.preventDefault();
+          console.warn("[ViewerCanvas] WebGL Context Lost!");
+        });
+        canvas.addEventListener("webglcontextrestored", () => {
+          console.log("[ViewerCanvas] WebGL Context Restored.");
+        });
+      }}
     >
       {/* Camera */}
       <PerspectiveCamera makeDefault position={[5, 5, 5]} fov={50} />
@@ -58,15 +69,12 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
         makeDefault
       />
 
-      {/* Lighting Setup */}
       <Suspense fallback={null}>
         <Lighting />
       </Suspense>
 
-      {/* Environment */}
       <Environment preset="city" />
 
-      {/* Professional CAD Grid */}
       <Grid
         infiniteGrid
         fadeDistance={50}
@@ -118,7 +126,6 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
   );
 };
 
-// Component to handle auto-fitting the camera
 const AutoFit: React.FC<{ camera: boolean; object: THREE.Object3D | null }> = ({
   object,
 }) => {
@@ -155,7 +162,6 @@ const AutoFit: React.FC<{ camera: boolean; object: THREE.Object3D | null }> = ({
   return null;
 };
 
-// Component to apply animations during simulation
 const SimulationEffects: React.FC<{
   model: THREE.Object3D;
   simState: string;
@@ -164,7 +170,6 @@ const SimulationEffects: React.FC<{
     if (simState !== "running") return;
 
     model.traverse((child) => {
-      // Rotate things that look like propellers
       if (
         child.name.toLowerCase().includes("propeller") ||
         child.name.toLowerCase().includes("rotor")
@@ -173,7 +178,6 @@ const SimulationEffects: React.FC<{
       }
     });
 
-    // Subtle hover effect for drones
     if (
       model.name.toLowerCase().includes("drone") ||
       model.name.toLowerCase().includes("uav")
@@ -185,7 +189,6 @@ const SimulationEffects: React.FC<{
   return null;
 };
 
-// Lighting Component
 const Lighting: React.FC = () => {
   return (
     <>
@@ -194,8 +197,8 @@ const Lighting: React.FC = () => {
         position={[10, 10, 5]}
         intensity={1}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
         shadow-camera-far={50}
         shadow-camera-left={-10}
         shadow-camera-right={10}
@@ -209,7 +212,6 @@ const Lighting: React.FC = () => {
   );
 };
 
-// Loading placeholder
 const LoadingModel: React.FC = () => {
   return (
     <mesh position={[0, 0, 0]}>
@@ -219,7 +221,6 @@ const LoadingModel: React.FC = () => {
   );
 };
 
-// Empty state - just show text
 const EmptyState: React.FC = () => {
   return (
     <group>
@@ -236,14 +237,12 @@ const EmptyState: React.FC = () => {
   );
 };
 
-// Model with selection highlighting
 const ModelWithSelection: React.FC<{
   model: THREE.Object3D;
   selectedPart: string | null;
   onSelectPart?: (partId: string | null) => void;
   highlightedParts: Set<string>;
 }> = ({ model, selectedPart, onSelectPart, highlightedParts }) => {
-  // Apply selection highlighting
   useEffect(() => {
     if (!model) return;
 
@@ -309,7 +308,6 @@ const ModelWithSelection: React.FC<{
     }
   }, [model, selectedPart, highlightedParts]);
 
-  // Subtle pulsing animation for selected part
   useFrame((state) => {
     if (!model || !selectedPart) return;
 
@@ -319,7 +317,6 @@ const ModelWithSelection: React.FC<{
         const material = mesh.material as THREE.MeshStandardMaterial;
 
         if (material) {
-          // Pulsing emissive effect
           const pulse = Math.sin(state.clock.elapsedTime * 2) * 0.2 + 0.6;
           material.emissiveIntensity = pulse;
         }
@@ -333,7 +330,6 @@ const ModelWithSelection: React.FC<{
       onClick={(e: any) => {
         e.stopPropagation();
         if (onSelectPart && e.object.uuid) {
-          // If clicking the same part, deselect it
           onSelectPart(selectedPart === e.object.uuid ? null : e.object.uuid);
         }
       }}

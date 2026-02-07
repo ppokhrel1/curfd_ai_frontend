@@ -1,7 +1,7 @@
 import { chatService } from "@/modules/ai/services/chatService";
 import { jobService } from "@/modules/ai/services/jobService";
 import { assetService } from "@/modules/viewer/services/assetService";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useChatStore } from "../stores/chatStore";
 import { GeneratedShape, Message } from "../types/chat.type";
 import { RunpodEvent, useChatSocket } from "./useChatSocket";
@@ -44,6 +44,227 @@ export const useChat = (
   // Derived loading state for THIS specific chat
   const isLoading = chatId ? generatingChatIds.has(chatId) : false;
 
+  // Shared completion handler to avoid duplication & race conditions
+  const completionHandledRef = useRef<Set<string>>(new Set());
+  const generateScadTriggeredRef = useRef<Set<string>>(new Set());
+
+  const handleJobCompletion = useCallback(async (event: RunpodEvent) => {
+    console.log('[useChat] handleJobCompletion called with event:', {
+      type: event.type,
+      action: event.action,
+      job_id: event.job_id,
+      runpod_id: event.runpod_id,
+      hasOutput: !!event.output,
+      hasMessage: !!event.message,
+      status: event.status
+    });
+
+    if (!chatId) {
+      console.warn('[useChat] No chatId, skipping completion');
+      return;
+    }
+
+    const jobId = event.job_id || event.runpod_id;
+    if (!jobId) {
+      console.warn('[useChat] No jobId or runpodId in event');
+      return;
+    }
+
+    const eventKey = `${jobId}-${event.action || 'unknown'}`;
+
+    // Strict deduplication
+    if (completionHandledRef.current.has(eventKey)) {
+      console.log('[useChat] ⏭️ Already handled completion for:', eventKey);
+      return;
+    }
+
+    // Mark as handled *immediately* to prevent race
+    completionHandledRef.current.add(eventKey);
+    console.log('[useChat]  Handling job completion for:', eventKey);
+
+    // 1. Add Message if present
+    if (event.message) {
+      const msgId = event.message.id || `msg-${Date.now()}`;
+      // Check if we already have this message to avoid dups in UI
+      const exists = messages.some(m => m.id === msgId);
+      if (!exists) {
+        const newMessage: Message = {
+          id: msgId,
+          role: (event.message.role as any) || 'assistant',
+          content: event.message.content || 'Model generation completed!',
+          timestamp: new Date(),
+        };
+        onMessageReceived?.(newMessage);
+      }
+    }
+
+    // 2. Check for process_requirements (Chaining Flow)
+    if (event.action === 'process_requirements' && event.output) {
+      console.log('[useChat] process_requirements completed, checking for requirements...');
+      const requirements = event.output.requirements || event.output.data?.requirements || event.output;
+
+      if (requirements && typeof requirements === 'object' && Object.keys(requirements).length > 0) {
+        // Check if we already triggered generate_scad for this job
+        const generateKey = `generate-${jobId}`;
+        if (generateScadTriggeredRef.current.has(generateKey)) {
+          console.log('[useChat] generate_scad already triggered for job:', jobId);
+          return;
+        }
+
+        generateScadTriggeredRef.current.add(generateKey);
+        console.log('[useChat]  Valid requirements found! Auto-triggering generate_scad...');
+        console.log('[useChat] Requirements:', JSON.stringify(requirements, null, 2));
+
+        // Update job status
+        if (jobId) updateJobInHistory(chatId, jobId, { status: 'succeeded', finishedAt: new Date() });
+
+        // Trigger generate_scad
+        setGenerating(chatId, true, 'Generating 3D model...', 'generate_scad');
+
+        try {
+          const assetType = 'scad_zip'; 
+
+          console.log('[useChat]  Sending generate_scad request to backend...');
+          await chatService.startRunpodRequest(
+            chatId,
+            'Generating 3D model from requirements',
+            'generate_scad',
+            requirements,
+            {
+              source: 'auto-trigger',
+              job_id: jobId,
+              asset_type: assetType,
+              storage_provider: 'b2',
+            }
+          );
+          console.log('[useChat] generate_scad request sent successfully');
+
+          (async () => {
+            console.log(`[useChat]  Starting polling fallback for job: ${jobId}`);
+            const maxPolls = 40; 
+            const pollInterval = 3000;
+
+            for (let i = 0; i < maxPolls; i++) {
+              // Stop if already handled (socket event arrived)
+              const completionKey = `${jobId}-generate_scad`;
+              if (completionHandledRef.current.has(completionKey)) {
+                console.log('[useChat] Polling stopped, completion already handled via socket');
+                return;
+              }
+
+              await new Promise(r => setTimeout(r, pollInterval));
+
+              try {
+                const assets = await assetService.fetchAssets(jobId);
+                if (assets && assets.length > 0) {
+                  if (completionHandledRef.current.has(completionKey)) return;
+
+                  console.log('[useChat] Polling found assets! Triggering synthetic completion.');
+                  // Create synthetic event
+                  const syntheticEvent: RunpodEvent = {
+                    type: 'runpod.completed',
+                    status: 'COMPLETED',
+                    job_id: jobId,
+                    chat_id: chatId!, // Fixed: Added chat_id requirement
+                    action: 'generate_scad',
+                    output: { status: 'completed_via_polling' },
+                    runpod_id: event.runpod_id
+                  };
+
+                  await handleJobCompletion(syntheticEvent);
+                  return;
+                }
+              } catch (pollErr) {
+              }
+            }
+            console.log('[useChat] Polling timed out without finding assets');
+          })();
+
+        } catch (err) {
+          console.error('[useChat] ❌ Failed to trigger generate_scad:', err);
+          setError('Failed to start model generation');
+          setGenerating(chatId, false);
+          // Remove from triggered set on error so it can be retried
+          generateScadTriggeredRef.current.delete(generateKey);
+        }
+        return;
+      } else {
+        console.warn('[useChat] ⚠️ No valid requirements in output');
+      }
+    }
+
+    console.log('[useChat] Proceeding to asset loading phase for action:', event.action);
+
+    if (jobId) {
+      if (chatId) updateJobInHistory(chatId, jobId, { status: 'succeeded', finishedAt: new Date() });
+
+      try {
+        console.log('[useChat]  Fetching assets for job:', jobId);
+
+        // Retry fetching assets up to 5 times with increasing delays
+        let assets: any[] = [];
+        let retryCount = 0;
+        const maxRetries = 5;
+
+        while (retryCount < maxRetries && assets.length === 0) {
+          if (retryCount > 0) {
+            const delay = retryCount * 2000;
+            console.log(`[useChat] Retry ${retryCount}/${maxRetries} - waiting ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+          }
+
+          assets = await assetService.fetchAssets(jobId);
+          console.log(`[useChat] Attempt ${retryCount + 1}: Fetched ${assets.length} assets`);
+          if (assets.length > 0) {
+            console.log('[useChat] Assets found:', assets.map(a => ({ id: a.id, type: a.asset_type, uri: a.uri })));
+            break;
+          }
+          retryCount++;
+        }
+
+        if (assets.length === 0) {
+          console.error('[useChat] ❌ No assets found after', maxRetries, 'retries');
+          throw new Error('No assets found after polling.');
+        }
+
+        console.log(`[useChat] Fetched ${assets.length} assets, mapping to GeneratedShape...`);
+        const shape = await assetService.mapToGeneratedShape(jobId, assets);
+
+        console.log('[useChat] Mapped shape result:', {
+          hasShape: !!shape,
+          shapeName: shape?.name,
+          shapeId: shape?.id,
+          hasSdfUrl: !!shape?.sdfUrl,
+          hasScadCode: !!shape?.scadCode,
+          scadCodeLength: shape?.scadCode?.length || 0
+        });
+
+        if (shape && onShapeGenerated) {
+          console.log('[useChat] Calling onShapeGenerated callback');
+          onShapeGenerated(shape);
+        } else {
+          console.warn('[useChat]  Shape is null or no callback:', { hasShape: !!shape, hasCallback: !!onShapeGenerated });
+          // Don't error hard if we have assets but mapping failed, just warn
+          if (assets.length > 0 && !shape) {
+            setError('Model generated but could not be displayed (format issue).');
+          }
+        }
+      } catch (err) {
+        console.error('[useChat] ❌ Failed to load assets:', err);
+        // Don't show error if we're just handling a text response
+        if (event.action === 'generate_scad') {
+          setError('Model generated but failed to load assets.');
+        }
+      } finally {
+        console.log('[useChat] Clearing generating status');
+        setGenerating(chatId, false);
+      }
+    } else {
+      console.log('[useChat] No jobId, just clearing generating status');
+      setGenerating(chatId, false);
+    }
+  }, [chatId, messages, onMessageReceived, onShapeGenerated, setGenerating, updateJobInHistory]);
+
   const handleSocketEvent = useCallback(async (event: RunpodEvent) => {
     if (!chatId) return;
 
@@ -58,82 +279,16 @@ export const useChat = (
       case 'runpod.status':
         console.log('[useChat] runpod.status:', event.status);
 
-        // Check if status is COMPLETED - backend sends this instead of runpod.completed
         if (event.status === 'COMPLETED') {
           console.log('[useChat] Status is COMPLETED, triggering completion flow');
 
-          // Add completion message to chat if provided
-          if (event.message) {
-            const newMessage: Message = {
-              id: event.message.id || `msg-${Date.now()}`,
-              role: (event.message.role as any) || 'assistant',
-              content: event.message.content || 'Model generation completed!',
-              timestamp: new Date(),
-            };
-            console.log('[useChat] Adding completion message to chat');
-            onMessageReceived?.(newMessage);
-          }
-
-          // Fetch assets with retry logic
-          const jobId = event.job_id || event.runpod_id;
-          if (jobId) {
-            console.log('[useChat] Fetching assets for job:', jobId);
-            if (chatId) updateJobInHistory(chatId, jobId, { status: 'succeeded', finishedAt: new Date() });
-
-            try {
-              // Retry fetching assets up to 3 times with delays
-              let assets: any[] = [];
-              let retryCount = 0;
-              const maxRetries = 3;
-
-              while (retryCount < maxRetries && assets.length === 0) {
-                if (retryCount > 0) {
-                  const delay = retryCount * 2000; // 2s, 4s delays
-                  console.log(`[useChat] Retry ${retryCount}/${maxRetries} - waiting ${delay}ms before fetching assets...`);
-                  await new Promise(resolve => setTimeout(resolve, delay));
-                }
-
-                assets = await assetService.fetchAssets(jobId);
-                console.log(`[useChat] Attempt ${retryCount + 1}: Fetched ${assets.length} assets`);
-                retryCount++;
-              }
-
-              if (assets.length === 0) {
-                console.error('[useChat] No assets found after', maxRetries, 'attempts');
-                setError('Model generated but no assets were created. Please check the backend logs.');
-                setGenerating(chatId, false);
-                return;
-              }
-
-              const shape = await assetService.mapToGeneratedShape(jobId, assets);
-              console.log('[useChat] Mapped shape:', shape?.name, 'ID:', shape?.id, 'sdfUrl:', shape?.sdfUrl, 'scadCode length:', shape?.scadCode?.length);
-
-              if (shape && onShapeGenerated) {
-                console.log('[useChat] Calling onShapeGenerated callback');
-                onShapeGenerated(shape);
-              } else {
-                console.warn('[useChat] Shape or callback missing:', { hasShape: !!shape, hasCallback: !!onShapeGenerated });
-                setError('Failed to process generated model. No valid model file found in assets.');
-              }
-            } catch (err) {
-              console.error('[useChat] Failed to load assets after completion:', err);
-              setError('Model generated but failed to load assets.');
-            } finally {
-              console.log('[useChat] Clearing generating status');
-              setGenerating(chatId, false);
-            }
-          } else {
-            console.warn('[useChat] No jobId in COMPLETED status event');
-            setGenerating(chatId, false);
-          }
+          await handleJobCompletion(event);
         } else {
-          // Regular status update
           setGenerating(chatId, true, event.status);
           if (event.job_id) {
             updateJobInHistory(chatId, event.job_id, { currentStatus: event.status });
           }
 
-          // Display status messages in chat for better UX
           if (event.message && event.message.content) {
             const statusMessage: Message = {
               id: `status-${Date.now()}`,
@@ -145,50 +300,10 @@ export const useChat = (
           }
         }
         break;
+
       case 'runpod.completed':
         console.log('[useChat] runpod.completed event received:', event);
-
-        if (event.message) {
-          const newMessage: Message = {
-            id: event.message.id,
-            role: event.message.role as any,
-            content: event.message.content,
-            timestamp: new Date(),
-          };
-          console.log('[useChat] Adding completion message to chat');
-          onMessageReceived?.(newMessage);
-        }
-
-        // Fetch assets if we have a job_id or runpod_id
-        const jobId = event.job_id || event.runpod_id;
-        if (jobId) {
-          console.log('[useChat] Fetching assets for job:', jobId);
-          if (chatId) updateJobInHistory(chatId, jobId, { status: 'succeeded', finishedAt: new Date() });
-          try {
-            // Don't set generating to true here - we're about to complete
-            const assets = await assetService.fetchAssets(jobId);
-            console.log('[useChat] Fetched assets:', assets.length, 'files');
-
-            const shape = await assetService.mapToGeneratedShape(jobId, assets);
-            console.log('[useChat] Mapped shape:', shape?.name, 'ID:', shape?.id, 'sdfUrl:', shape?.sdfUrl, 'scadCode length:', shape?.scadCode?.length);
-
-            if (shape && onShapeGenerated) {
-              console.log('[useChat] Calling onShapeGenerated callback');
-              onShapeGenerated(shape);
-            } else {
-              console.warn('[useChat] Shape or callback missing:', { hasShape: !!shape, hasCallback: !!onShapeGenerated });
-            }
-          } catch (err) {
-            console.error('[useChat] Failed to load assets after completion:', err);
-            setError('Model generated but failed to load assets.');
-          } finally {
-            console.log('[useChat] Clearing generating status');
-            setGenerating(chatId, false);
-          }
-        } else {
-          console.warn('[useChat] No jobId in completion event');
-          setGenerating(chatId, false);
-        }
+        await handleJobCompletion(event);
         break;
       case 'runpod.failed':
       case 'runpod.timeout':
@@ -210,30 +325,37 @@ export const useChat = (
     onEvent: handleSocketEvent
   });
 
+  const sendingRef = useRef(false);
+
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim()) return;
+
+      // Prevent duplicate sends
+      if (sendingRef.current) {
+        console.warn('[useChat]  Message send already in progress, ignoring duplicate request');
+        return;
+      }
+
+      sendingRef.current = true;
+      console.log('[useChat]  Sending message:', content.substring(0, 50) + '...');
 
       setError(null);
       setLastUserMessage(content.trim());
 
       try {
-        // 1. Ensure Session & Get/Create Chat
         let targetId = chatId;
         const { setActiveConversationId, setConversations, conversations } = useChatStore.getState();
 
-        // LAZY CREATION: If no chat ID, create one now (first message)
         if (!targetId) {
           console.log('[useChat] Creating new chat on first message...');
           targetId = await chatService.createChat(content.trim().slice(0, 30) + "...");
 
-          // Note: We do NOT save an AI greeting to the database per user request
-          // The "Greeting" is handled by the UI empty state.
 
           const newConv = {
             id: targetId,
             title: content.trim().slice(0, 30),
-            messages: [], // Start empty, user message will be added via optimistic update or socket
+            messages: [], 
             createdAt: new Date(),
             updatedAt: new Date()
           };
@@ -271,19 +393,20 @@ export const useChat = (
           console.warn("Failed to create job record, proceeding with volatile generation:", jobErr);
         }
 
-        // 4. Start Runpod Request with Job tracking
         await chatService.startRunpodRequest(targetId, content.trim(), 'process_requirements', {
           job_id: jobId,
           source: 'curfd-chat'
         });
-
-        // Note: Response will be handled via WebSocket (handleSocketEvent)
       } catch (err) {
         console.error('[useChat] Failed to send message:', err);
         const errorMessage =
           err instanceof Error ? err.message : "Failed to send message";
         setError(errorMessage);
         if (chatId) setGenerating(chatId, false);
+      } finally {
+           setTimeout(() => {
+          sendingRef.current = false;
+        }, 1000);
       }
     },
     [chatId, setGenerating, addJobToHistory]

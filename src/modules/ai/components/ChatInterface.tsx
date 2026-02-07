@@ -63,18 +63,19 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
     }, [activeConversationId]);
 
     const handleInternalShapeGenerated = useCallback(
-      (shape: GeneratedShape) => {
-        if (activeIdRef.current) {
-          setConversationShape(activeIdRef.current, shape);
+      (shape: GeneratedShape, chatId: string) => {
+        setConversationShape(chatId, shape);
+        // Only trigger global callback if it's the active chat
+        if (chatId === activeConversationId) {
+          onShapeGenerated?.(shape);
         }
-        onShapeGenerated?.(shape);
       },
-      [setConversationShape, onShapeGenerated]
+      [setConversationShape, onShapeGenerated, activeConversationId]
     );
 
     const handleInternalMessageReceived = useCallback(
-      (message: Message) => {
-        addMessageToConversation(message);
+      (message: Message, chatId: string) => {
+        addMessageToConversation(message, chatId);
       },
       [addMessageToConversation]
     );
@@ -151,21 +152,6 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
     const handleSend = useCallback(
       async (content: string) => {
         if (!content.trim()) return;
-        
-        // Optimistic local update
-        const userMsg: Message = {
-          id: Math.random().toString(36).substring(7),
-          content: content.trim(),
-          role: "user",
-          timestamp: new Date(),
-        };
-        // If we have an active chat, add immediately. If not, useChat will add it after creation.
-        if (activeConversationId) {
-             addMessageToConversation(userMsg);
-        } else {
-             // For new chats, we let useChat handle the state update to avoid flickering
-             // But we can manually set it to local state if needed
-        }
         
         await sendMessage(content);
       },
@@ -455,7 +441,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
             )}
           </div>
 
-          <MessageInput onSendMessage={handleSend} disabled={isGeneratingGlobally} />
+          <MessageInput onSendMessage={handleSend} disabled={isLoading} />
         </div>
       </div>
     );

@@ -119,13 +119,11 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           }
         }
 
-        // Direct loading for signed URLs with tokens
         if (normalizedUrl.includes("supabase.co") && hasToken) {
           return normalizedUrl;
         }
 
         try {
-          // Determine if we should proxy (meshes only)
           const isMesh = normalizedUrl
             .toLowerCase()
             .match(/\.(stl|obj|glb|gltf|bin)$/);
@@ -137,7 +135,6 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           const protocol = parsed.protocol.replace(":", "");
           const host = parsed.host;
 
-          // Robustly encode path segments
           const segments = parsed.pathname.substring(1).split("/");
           const encodedPath = segments
             .map((s) => encodeURIComponent(decodeURIComponent(s)))
@@ -145,7 +142,6 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
 
           const path = encodedPath + parsed.search;
 
-          // Dynamic API Base
           const API_BASE =
             window.location.origin.includes("localhost") ||
             window.location.origin.includes("127.0.0.1")
@@ -201,13 +197,11 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     (recalledShape: GeneratedShape) => {
       if (!activeConversationId) return;
 
-      // Update the conversation in the store so the prop updates
       const { updateConversation } = useChatStore.getState();
       updateConversation(activeConversationId, {
         generatedShape: recalledShape,
       });
 
-      // Auto-open parts panel for the new shape
       setActivePanel("parts");
     },
     [activeConversationId]
@@ -239,7 +233,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     setSelectedPart(partId);
     if (partId) {
       setActivePanel("parts");
-      if (!isSidebarOpen) setIsSidebarOpen(false); // Ensure sidebar doesn't conflict? Actually irrelevant.
+      if (!isSidebarOpen) setIsSidebarOpen(false);
     }
   };
 
@@ -259,7 +253,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         />
       </div>
 
-      {/* Top Left: Toolbar */}
+      {/* Top Left: Toolbar   */}
       <div className="absolute top-3 left-3 z-10">
         <Toolbar
           state={state}

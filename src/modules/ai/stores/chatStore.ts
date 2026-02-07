@@ -8,6 +8,7 @@ interface ChatState {
     activeConversationId: string | null;
     generatingChatIds: Set<string>;
     generatingChatStatus: Record<string, string>;
+    generatingChatActions: Record<string, string>; // chatId -> action
     jobHistory: Record<string, any[]>; // chatId -> Job[]
     currentUserId: string | null; // Track current user for scoped storage
 
@@ -16,7 +17,7 @@ interface ChatState {
     setActiveConversationId: (id: string | null) => void;
     addMessage: (chatId: string, message: Message) => void;
     updateConversation: (id: string, updates: Partial<Conversation>) => void;
-    setGenerating: (chatId: string, isGenerating: boolean, status?: string) => void;
+    setGenerating: (chatId: string, isGenerating: boolean, status?: string, action?: string) => void;
     addJobToHistory: (chatId: string, job: any) => void;
     updateJobInHistory: (chatId: string, jobId: string, updates: any) => void;
     isGeneratingGlobally: () => boolean;
@@ -48,6 +49,7 @@ export const useChatStore = create<ChatState>()(
             activeConversationId: null,
             generatingChatIds: new Set<string>(),
             generatingChatStatus: {},
+            generatingChatActions: {},
             jobHistory: {},
             currentUserId: null,
 
@@ -87,21 +89,25 @@ export const useChatStore = create<ChatState>()(
                 )
             })),
 
-            setGenerating: (chatId, isGenerating, status) => set((state) => {
+            setGenerating: (chatId, isGenerating, status, action) => set((state) => {
                 const nextIds = new Set(state.generatingChatIds);
                 const nextStatus = { ...state.generatingChatStatus };
+                const nextActions = { ...state.generatingChatActions };
 
                 if (isGenerating) {
                     nextIds.add(chatId);
                     if (status) nextStatus[chatId] = status;
+                    if (action) nextActions[chatId] = action;
                 } else {
                     nextIds.delete(chatId);
                     delete nextStatus[chatId];
+                    delete nextActions[chatId];
                 }
 
                 return {
                     generatingChatIds: nextIds,
-                    generatingChatStatus: nextStatus
+                    generatingChatStatus: nextStatus,
+                    generatingChatActions: nextActions
                 };
             }),
 
@@ -130,6 +136,7 @@ export const useChatStore = create<ChatState>()(
                     activeConversationId: null,
                     generatingChatIds: new Set(),
                     generatingChatStatus: {},
+                    generatingChatActions: {},
                     jobHistory: {},
                     currentUserId: null
                 });
@@ -145,6 +152,7 @@ export const useChatStore = create<ChatState>()(
                 conversations: state.conversations,
                 activeConversationId: state.activeConversationId,
                 generatingChatStatus: state.generatingChatStatus,
+                generatingChatActions: state.generatingChatActions,
                 jobHistory: state.jobHistory,
                 generatingChatIds: Array.from(state.generatingChatIds) as any,
                 currentUserId: state.currentUserId
@@ -167,6 +175,7 @@ export const useChatStore = create<ChatState>()(
                                     rehydratedState.activeConversationId = null;
                                     rehydratedState.generatingChatIds = new Set();
                                     rehydratedState.generatingChatStatus = {};
+                                    rehydratedState.generatingChatActions = {};
                                     rehydratedState.jobHistory = {};
                                 }
 

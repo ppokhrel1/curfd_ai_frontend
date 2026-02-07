@@ -13,7 +13,7 @@ interface UseConversationsReturn {
     createConversation: () => Promise<string>;
     setActiveConversation: (id: string | null) => void;
     deleteConversation: (id: string) => Promise<void>;
-    addMessageToConversation: (message: Message) => void;
+    addMessageToConversation: (message: Message, id?: string) => void;
     setConversationShape: (id: string, shape: GeneratedShape) => void;
     clearActiveConversation: () => void;
     renameConversation: (id: string, title: string) => Promise<void>;
@@ -70,7 +70,8 @@ export const useConversations = (): UseConversationsReturn => {
         migrateLocalStore();
     }, [isAuthenticated, user?.id, setConversations]);
 
-    // 1. Initial Load & Auth Sync - FIXED: Reload on user change
+    // 1. Initial Load & Auth Sync - FIXED: Reload on user change with deduplication
+    const loadingRef = useRef(false);
     useEffect(() => {
         const loadWorkspaces = async () => {
             // Clear state when user logs out
@@ -102,8 +103,15 @@ export const useConversations = (): UseConversationsReturn => {
 
             // CRITICAL FIX: Reload when user changes (login/logout/switch)
             if (lastUserIdRef.current !== currentUserId) {
+                // Prevent duplicate requests
+                if (loadingRef.current) {
+                    console.log('[useConversations] Already loading, skipping duplicate request');
+                    return;
+                }
+
                 console.log(`[useConversations] User changed from ${lastUserIdRef.current} to ${currentUserId}, reloading chats...`);
                 lastUserIdRef.current = currentUserId;
+                loadingRef.current = true;
                 setIsLoadingChats(true);
                 setLoadError(null);
 
@@ -175,6 +183,7 @@ export const useConversations = (): UseConversationsReturn => {
                     // Don't clear conversations on error - keep what we have
                 } finally {
                     setIsLoadingChats(false);
+                    loadingRef.current = false;
                 }
             }
         };
@@ -182,12 +191,20 @@ export const useConversations = (): UseConversationsReturn => {
         loadWorkspaces();
     }, [isAuthenticated, user?.id, isAuthLoading, setConversations, setActiveConversationId]);
 
-    // 2. Fetch Messages for Active Chat - ENHANCED: Better error handling and model restoration
+    // 2. Fetch Messages for Active Chat - ALWAYS fetch to sync with backend with deduplication
+    const fetchingMessagesRef = useRef<Set<string>>(new Set());
     useEffect(() => {
         if (!activeConversationId || !isAuthenticated) return;
 
+        // Prevent duplicate fetches for the same chat
+        if (fetchingMessagesRef.current.has(activeConversationId)) {
+            console.log(`[useConversations] Already fetching messages for ${activeConversationId}, skipping`);
+            return;
+        }
+
         let isMounted = true;
         const syncMessages = async () => {
+            fetchingMessagesRef.current.add(activeConversationId);
             try {
                 console.log(`[useConversations] Fetching messages for chat: ${activeConversationId}`);
                 const history = await chatService.getHistory(activeConversationId);
@@ -219,11 +236,15 @@ export const useConversations = (): UseConversationsReturn => {
             } catch (error) {
                 console.error(`[useConversations] Failed to fetch messages for chat ${activeConversationId}:`, error);
                 // Don't update conversation on error - keep existing state
+            } finally {
+                fetchingMessagesRef.current.delete(activeConversationId);
             }
         };
 
         syncMessages();
-        return () => { isMounted = false; };
+        return () => {
+            isMounted = false;
+        };
     }, [activeConversationId, isAuthenticated, updateConversation]);
 
     const createConversation = useCallback(async (): Promise<string> => {
@@ -308,9 +329,10 @@ export const useConversations = (): UseConversationsReturn => {
         }
     }, [activeConversationId, conversations, isAuthenticated, setConversations, setActiveConversationId]);
 
-    const addMessageToConversation = useCallback((message: Message) => {
-        if (activeConversationId) {
-            addMessage(activeConversationId, message);
+    const addMessageToConversation = useCallback((message: Message, id?: string) => {
+        const targetId = id || activeConversationId;
+        if (targetId) {
+            addMessage(targetId, message);
         }
     }, [activeConversationId, addMessage]);
 

@@ -194,10 +194,23 @@ export class SimulationWebSocket {
         onUpdate: (update: SimulationUpdate) => void,
         onError?: (error: Error) => void
     ): void {
-        const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+        const apiBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '/api/v1';
         const token = localStorage.getItem('auth_token');
 
-        this.ws = new WebSocket(`${wsUrl}/simulations/${jobId}/stream?token=${token}`);
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+
+        // If it's a relative path, resolve it against current location
+        let wsUrlBase = apiBase.startsWith('/')
+            ? `${protocol}//${host}${apiBase}`
+            : apiBase.replace(/^https?/, protocol);
+
+        // Ensure path ends with api/v1
+        if (!wsUrlBase.includes('/api/v1')) {
+            wsUrlBase = wsUrlBase.endsWith('/') ? `${wsUrlBase}api/v1` : `${wsUrlBase}/api/v1`;
+        }
+
+        const wsUrl = `${wsUrlBase}/simulations/${jobId}/stream?token=${token}`;
 
         this.ws.onopen = () => {
             console.log('Simulation WebSocket connected');

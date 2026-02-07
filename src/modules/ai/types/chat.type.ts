@@ -34,6 +34,7 @@ export interface GeneratedShape {
   createdAt: Date;
   // ML service response data
   assetId?: string;
+  jobId?: string;             // Associated backend job for restoration
   assets?: { filename: string; url: string; }[];
   sdfUrl?: string;           // URL to model.sdf for 3D loading
   yamlUrl?: string;          // URL to model.yaml config

@@ -17,6 +17,7 @@ import { ImportStage, ModelImportOverlay } from "@/modules/viewer/components/Mod
 import { Viewer3D } from "@/modules/viewer/components/Viewer3D";
 import { ModelImporter } from "@/modules/viewer/services/ModelImporter";
 import { Asset, assetService } from "@/modules/viewer/services/assetService";
+import { disposeObject3D } from "@/modules/viewer/utils/dispose";
 import {
     Code2,
     LogOut,
@@ -151,6 +152,34 @@ const HomePage = () => {
   const [importStage, setImportStage] = useState<ImportStage>("idle");
   const [importFileName, setImportFileName] = useState("");
   const meshCache = useRef<Record<string, THREE.Group>>({});
+  const cacheOrder = useRef<string[]>([]);
+  const MAX_CACHE_SIZE = 5;
+
+  const addToCache = useCallback((id: string, group: THREE.Group) => {
+    // If already in cache, just update its position in the order
+    if (meshCache.current[id]) {
+      cacheOrder.current = [
+        id,
+        ...cacheOrder.current.filter((cacheId) => cacheId !== id),
+      ];
+      return;
+    }
+
+    // If cache is full, dispose the oldest entry
+    if (cacheOrder.current.length >= MAX_CACHE_SIZE) {
+      const oldestId = cacheOrder.current.pop();
+      if (oldestId && meshCache.current[oldestId]) {
+        console.log(`[HomePage] Evicting and disposing model from cache: ${oldestId}`);
+        disposeObject3D(meshCache.current[oldestId]);
+        delete meshCache.current[oldestId];
+      }
+    }
+
+    // Add to cache
+    meshCache.current[id] = group;
+    cacheOrder.current = [id, ...cacheOrder.current];
+  }, []);
+
   const warningShownRef = useRef<Set<string>>(new Set());
   const importer = useMemo(() => new ModelImporter(), []);
 
@@ -185,6 +214,8 @@ const HomePage = () => {
     setImportStage('reading');
 
     // Clear everything first
+    // Note: We don't dispose here because the current loadedModel might be in cache.
+    // The cache management logic in addToCache and useEffect handles disposal.
     setLoadedModel(null);
     setCurrentShape(null);
     setModelStats(undefined);
@@ -274,12 +305,26 @@ const HomePage = () => {
 
         if (jobId && !jobId.startsWith('local-') && isNewMission) {
             try {
+                // Persistent Storage Hack: Store ZIP contents as Base64 in metadata_json
+                // since we cannot modify the backend to support direct file uploads right now.
+                const reader = new FileReader();
+                const base64Promise = new Promise<string>((resolve) => {
+                    reader.onload = () => {
+                        const base64 = (reader.result as string).split(',')[1];
+                        resolve(base64);
+                    };
+                    reader.readAsDataURL(file);
+                });
+                
+                const base64Data = await base64Promise;
+
                 const asset = await assetService.createAsset({
                     job_id: jobId,
-                    asset_type: 'glb',
+                    asset_type: 'zip',
                     uri: file.name,
-                    storage_provider: 'local_import',
+                    storage_provider: 'base64', // Special marker for frontend recovery
                     metadata_json: {
+                        data: base64Data, // COMPRESSED DATA
                         stats: { triangles: triCount, vertices: vertCount },
                         originalName: file.name
                     }
@@ -341,6 +386,8 @@ const HomePage = () => {
           description: `Imported model: ${imported.name}.`,
           hasSimulation: false,
           scadCode: imported.scad,
+          jobId: jobId && !jobId.startsWith('local-') ? jobId : undefined,
+          sdfUrl: URL.createObjectURL(file), // Local blob URL for immediate render
           geometry: {
             parts: parts,
             physics: imported.physics,
@@ -361,8 +408,8 @@ const HomePage = () => {
 
         setCurrentShape(shapeData);
         
-        // Cache for restoration during chat switching
-        meshCache.current[shapeData.id] = imported.group;
+        // Add to cache with eviction logic
+        addToCache(shapeData.id, imported.group);
 
         // Persist to store so it restores on chat switch
         if (activeConversationId) {
@@ -414,32 +461,31 @@ const HomePage = () => {
           if (!url) return url;
           if (url.startsWith("blob:") || url.startsWith("data:")) return url;
 
-          const hasToken = url.includes("token=");
+          // Normalize Supabase URLs
           let normalizedUrl = url;
+          const hasToken = url.includes("token=");
 
           if (url.includes("supabase.co")) {
             if (hasToken) {
               normalizedUrl = url.replace("/object/public/", "/object/sign/");
             } else {
-              // Keep as public if no token
               normalizedUrl = url.replace("/object/sign/", "/object/public/");
             }
           }
 
-          // Direct loading for signed URLs with tokens (browsers handle this best)
+          // Direct loading for signed URLs with tokens (browsers handle CORS better)
           if (normalizedUrl.includes("supabase.co") && hasToken) {
+            console.log('[HomePage] Using direct signed URL:', normalizedUrl.substring(0, 80) + '...');
             return normalizedUrl;
           }
 
           try {
-            // Determine if we should proxy
-            // We proxy mesh files (STL/OBJ) because they are often missing CORS headers
-            // or are referenced via relative paths in the SDF.
-            // We DON'T proxy the main SDF/YAML if possible to keep URLs "clean".
+            // Determine if we should proxy (mesh files need CORS handling)
             const isMesh = normalizedUrl
               .toLowerCase()
               .match(/\.(stl|obj|glb|gltf|bin)$/);
 
+            // Don't proxy SDF/YAML if they're public
             if (!isMesh && !normalizedUrl.includes("/object/sign/")) {
               return normalizedUrl;
             }
@@ -463,7 +509,9 @@ const HomePage = () => {
                 ? "http://127.0.0.1:8000/api/v1"
                 : `${window.location.origin}/api/v1`;
 
-            return `${API_BASE}/proxy/${protocol}/${host}/${path}`;
+            const proxiedUrl = `${API_BASE}/proxy/${protocol}/${host}/${path}`;
+            console.log('[HomePage] Proxying URL:', normalizedUrl.substring(0, 50), '-> proxy');
+            return proxiedUrl;
           } catch (e) {
             console.warn("HomePage: Failed to proxify URL", normalizedUrl, e);
             return normalizedUrl;
@@ -477,6 +525,7 @@ const HomePage = () => {
           shape.assets?.map((a) => ({ ...a, url: proxify(a.url) })) || []
         );
 
+        console.log('[HomePage] Model imported successfully, meshes:', imported.group.children.length);
         setLoadedModel(imported.group);
 
         // Calculate stats for the loaded model
@@ -519,6 +568,7 @@ const HomePage = () => {
         setCurrentShape(prev => {
           const updated = prev ? {
             ...prev,
+            scadCode: imported.scad || prev.scadCode,
             geometry: {
               ...prev.geometry,
               parts: parts,
@@ -526,6 +576,10 @@ const HomePage = () => {
             }
           } : null;
           
+          if (imported.scad) {
+            setOriginalCode(imported.scad);
+          }
+
           // Sync back to store for persistent viewer state
           if (updated && activeConversationId) {
             updateConversation(activeConversationId, { generatedShape: updated });
@@ -545,7 +599,7 @@ const HomePage = () => {
 
         // Cache the loaded mesh for quick restoration on chat switch
         if (shape.id) {
-          meshCache.current[shape.id] = imported.group;
+          addToCache(shape.id, imported.group);
         }
 
         toast.success("Model loaded successfully!", { id: loadingToast });
@@ -556,7 +610,7 @@ const HomePage = () => {
         setIsImporting(false);
       }
     },
-    [importer, meshCache]
+    [importer, addToCache]
   );
 
   // Restore model and editor state when switching conversations
@@ -593,12 +647,35 @@ const HomePage = () => {
         console.log('[HomePage] Restoring model from cache:', shape.name);
         setLoadedModel(meshCache.current[shape.id]);
         setCurrentShape(shape);
-      } else if (shape.sdfUrl) {
-        // Shape exists but mesh not in cache - fetch it
-        console.log('[HomePage] Re-fetching model for chat session:', shape.name);
-        setCurrentShape(shape);
-        // Fetch the model
-        fetchModelFiles(shape);
+      } else if (shape.sdfUrl || (shape as any).jobId) {
+        // Recovery logic: if it's a blob URL that is dead (post-refresh) or we have a jobId but no URL
+        const isStaleBlob = shape.sdfUrl?.startsWith('blob:');
+        
+        if (isStaleBlob && (shape as any).jobId) {
+          console.log('[HomePage] Detected stale blob URL, recovering model from backend:', (shape as any).jobId);
+          const recoverModel = async () => {
+            setIsImporting(true);
+            try {
+              const recoveredShape = await assetService.mapToGeneratedShape((shape as any).jobId!);
+              if (recoveredShape) {
+                console.log('[HomePage] Model recovered successfully');
+                setCurrentShape(recoveredShape);
+                fetchModelFiles(recoveredShape);
+              }
+            } catch (e) {
+              console.error('[HomePage] Failed to recover model:', e);
+            } finally {
+              setIsImporting(false);
+            }
+          }
+          recoverModel();
+        } else if (shape.sdfUrl) {
+          // Shape exists but mesh not in cache - fetch it
+          console.log('[HomePage] Re-fetching model for chat session:', shape.name);
+          setCurrentShape(shape);
+          // Fetch the model
+          fetchModelFiles(shape);
+        }
       } else if (shape.id) {
         // Imported model without sdfUrl AND not in cache
         console.log('[HomePage] Session expired for imported model:', shape.name);
@@ -617,7 +694,7 @@ const HomePage = () => {
         // Reset warning ref when switching to a chat without a shape or empty state
         warningShownRef.current.clear();
     }
-  }, [activeConversationId, conversations, fetchModelFiles, setOriginalCode]);
+  }, [activeConversationId, conversations, fetchModelFiles, setOriginalCode, addToCache]);
 
   // Persist Editor changes back to Chat Store
   const editorCode = useEditorStore(state => state.code);
@@ -641,11 +718,21 @@ const HomePage = () => {
     (shape: GeneratedShape | null) => {
       console.log('[HomePage] handleShapeGenerated called with:', shape?.name, shape?.id);
       
+      if (!shape) {
+        setCurrentShape(null);
+        setLoadedModel(null);
+        setModelStats(undefined);
+        useEditorStore.getState().clear();
+        return;
+      }
+
       // If we have this model in cache, use it immediately
       if (shape?.id && meshCache.current[shape.id]) {
         console.log('[HomePage] Restoring from cache:', shape.name);
         setLoadedModel(meshCache.current[shape.id]);
         setCurrentShape(shape);
+        // Update its position in the cache eviction queue
+        addToCache(shape.id, meshCache.current[shape.id]);
         
         // Still set SCAD code even if cached
         if (shape.scadCode) {
@@ -683,7 +770,7 @@ const HomePage = () => {
         setMobilePanel("viewer");
       }
     },
-    [fetchModelFiles, meshCache, setOriginalCode]
+    [fetchModelFiles, addToCache, setOriginalCode]
   );
 
 
@@ -856,6 +943,7 @@ const HomePage = () => {
               leftPanel={
                 <div className="h-full border-r border-neutral-800">
                   <ChatInterface
+                    key="desktop-chat"
                     ref={chatRef}
                     onShapeGenerated={handleShapeGenerated}
                   />
@@ -900,6 +988,7 @@ const HomePage = () => {
             <div className="flex-1 overflow-hidden relative">
               {mobilePanel === "chat" ? (
                 <ChatInterface
+                  key="mobile-chat"
                   ref={chatRef}
                   onShapeGenerated={handleShapeGenerated}
                 />

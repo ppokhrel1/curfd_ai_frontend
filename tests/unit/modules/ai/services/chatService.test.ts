@@ -81,22 +81,37 @@ describe('ChatService', () => {
 
     describe('sendMessage', () => {
         it('should throw error as it is deprecated', async () => {
-            await expect(chatService.sendMessage({ content: 'hi', chatId: '1' }))
+            await expect(chatService.sendMessage({ content: 'hi', chatId: '1' } as any))
                 .rejects.toThrow("sendMessage is deprecated");
         });
     });
 
     describe('startRunpodRequest', () => {
-        it('should call the correct endpoint', async () => {
+        it('should send content for process_requirements', async () => {
             (api.post as any).mockResolvedValueOnce({});
 
-            await chatService.startRunpodRequest('chat-123', 'hello', 'process_requirements', { foo: 'bar' });
+            await chatService.startRunpodRequest('chat-123', 'hello', 'process_requirements', undefined, { source: 'test' });
 
             expect(api.post).toHaveBeenCalledWith('/chats/chat-123/runpod', {
-                content: 'hello',
                 action: 'process_requirements',
-                metadata_json: { foo: 'bar' }
+                content: 'hello',
+                metadata_json: { source: 'test' }
             });
+        });
+
+        it('should send requirements_json and omit content for generate_scad', async () => {
+            (api.post as any).mockResolvedValueOnce({});
+
+            await chatService.startRunpodRequest('chat-123', 'ignored', 'generate_scad', { width: 10 }, { source: 'test' });
+
+            expect(api.post).toHaveBeenCalledWith('/chats/chat-123/runpod', {
+                action: 'generate_scad',
+                requirements_json: { width: 10 },
+                metadata_json: { source: 'test' }
+            });
+            // Verify content is NOT in the payload
+            const lastCallArgs = (api.post as any).mock.calls[0][1];
+            expect(lastCallArgs.content).toBeUndefined();
         });
     });
 
@@ -115,7 +130,7 @@ describe('ChatService', () => {
             const history = await chatService.getHistory('chat-1');
             expect(history[0].content).toBe('Here is the model:');
             expect(history[0].shapeData).toBeDefined();
-            expect(history[0].shapeData.name).toBe('TestBot');
+            expect((history[0].shapeData as any).name).toBe('TestBot');
         });
     });
 });

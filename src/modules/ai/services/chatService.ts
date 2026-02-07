@@ -61,8 +61,12 @@ class ChatService {
   setUserId(id: string | null): void {
     this.currentUserId = id;
     if (id) {
-      this.currentSessionId = localStorage.getItem(this.getScopedKey(this.SESSION_BASE_KEY));
-      this.currentChatId = localStorage.getItem(this.getScopedKey(this.CHAT_BASE_KEY));
+      this.currentSessionId = localStorage.getItem(
+        this.getScopedKey(this.SESSION_BASE_KEY)
+      );
+      this.currentChatId = localStorage.getItem(
+        this.getScopedKey(this.CHAT_BASE_KEY)
+      );
     } else {
       this.currentSessionId = null;
       this.currentChatId = null;
@@ -160,25 +164,65 @@ class ChatService {
   async startRunpodRequest(
     chatId: string,
     content: string,
-    action: string = "process_requirements",
+    action: string = "generate_scad",
+    requirementsJson?: Record<string, any>,
     metadata?: Record<string, any>
   ): Promise<void> {
     try {
-      await api.post(`/chats/${chatId}/runpod`, {
-        content,
-        action,
-        metadata_json: metadata
-      });
+      // Build payload conditionally based on action
+      const payload: any = {
+        action: action,
+      };
+
+      // Handle content: Required for process_requirements, but backend might also take it as fallback
+      if (action === "process_requirements" || !requirementsJson) {
+        payload.content = content;
+      }
+
+      if (requirementsJson && Object.keys(requirementsJson).length > 0) {
+        if (
+          action === "process_requirements" &&
+          requirementsJson.job_id &&
+          !metadata
+        ) {
+          payload.metadata_json = requirementsJson;
+        } else {
+          payload.requirements_json = requirementsJson;
+        }
+      }
+
+      // Explicit metadata override
+      if (metadata) {
+        payload.metadata_json = {
+          ...(payload.metadata_json || {}),
+          ...metadata,
+        };
+      }
+
+      console.log(
+        `[ChatService] Sending Runpod request to /chats/${chatId}/runpod:`,
+        JSON.stringify(payload, null, 2)
+      );
+
+      await api.post(`/chats/${chatId}/runpod`, payload);
+
+      console.log(
+        `[ChatService] Runpod request sent successfully for action="${action}"`
+      );
     } catch (error) {
-      console.error("Failed to start Runpod request:", error);
+      console.error(
+        `[ChatService] Failed to start Runpod request for action="${action}":`,
+        error
+      );
       throw error;
     }
   }
 
-  /**
-   * Create a message manually (e.g. for greetings)
-   */
-  async createMessage(chatId: string, content: string, role: "user" | "assistant"): Promise<Message> {
+  async createMessage(
+    chatId: string,
+    content: string,
+    role: "user" | "assistant"
+  ): Promise<Message> {
     try {
       const response = await api.post<MessageResponse>("/messages", {
         chat_id: chatId,
@@ -199,7 +243,9 @@ class ChatService {
     message: Message;
     generatedShape?: any;
   }> {
-    throw new Error("sendMessage is deprecated. Use startRunpodRequest and WebSocket instead.");
+    throw new Error(
+      "sendMessage is deprecated. Use startRunpodRequest and WebSocket instead."
+    );
   }
 
   /**
@@ -221,7 +267,7 @@ class ChatService {
   async getChats(sessionId: string): Promise<ChatResponse[]> {
     try {
       const response = await api.get<ChatResponse[]>("/chats", {
-        params: { session_id: sessionId }
+        params: { session_id: sessionId },
       });
       return response.data;
     } catch (error) {
@@ -230,14 +276,10 @@ class ChatService {
     }
   }
 
-  /**
-   * Get conversation history for a specific chat
-   */
   async getHistory(chatId: string): Promise<Message[]> {
     try {
-      // Documentation says GET /messages but usually it's per chat or with chat_id filter
       const response = await api.get<MessageResponse[]>("/messages", {
-        params: { chat_id: chatId }
+        params: { chat_id: chatId },
       });
       return response.data.map((msg) => this.mapMessage(msg));
     } catch (error) {
@@ -283,25 +325,19 @@ class ChatService {
     }
   }
 
-  /**
-   * Sync a local conversation to the backend (Migration)
-   */
   async syncLocalConversation(conversation: Conversation): Promise<string> {
     try {
-      // 1. Create the session
       const sessResp = await api.post<SessionResponse>("/sessions", {
         status: "active",
       });
       const newSessionId = sessResp.data.id;
 
-      // 2. Create the chat
       const chatResp = await api.post<ChatResponse>("/chats", {
         session_id: newSessionId,
-        title: conversation.title || "Migrated Chat"
+        title: conversation.title || "Migrated Chat",
       });
       const newChatId = chatResp.data.id;
 
-      // 3. Upload messages in order
       for (const msg of conversation.messages) {
         await api.post("/messages", {
           chat_id: newChatId,
@@ -317,24 +353,17 @@ class ChatService {
     }
   }
 
-  /**
-   * Clear current session (start new)
-   */
   clearHistory(): void {
     this.setActiveSession(null);
   }
 
-  /**
-   * Helper to map API message to Frontend Message
-   */
   private mapMessage(msg: MessageResponse): Message {
     let content = msg.content;
     let shapeData: any = undefined;
 
-    // Check for persistence suffix
     const parts = content.split("\n\n|||JSON_DATA|||");
     if (parts.length > 1) {
-      content = parts[0]; // Clean content
+      content = parts[0];
       try {
         const modelData = JSON.parse(parts[1]);
         shapeData = this.mapToGeneratedShape(modelData);
@@ -352,9 +381,6 @@ class ChatService {
     };
   }
 
-  /**
-   * Helper to map API model data to GeneratedShape
-   */
   private mapToGeneratedShape(model: any): any {
     return {
       id: model.model_id || model.asset_id || `generated-${Date.now()}`,
@@ -371,12 +397,10 @@ class ChatService {
           material: "Standard",
         })),
         joints: model.joints || [],
-        // Map parameters to physics for simulation sliders
         physics: {
           mass: model.parameters?.mass || 1.0,
           ...Object.entries(model.parameters || {}).reduce((acc, [k, v]) => {
             if (typeof v === "number") acc[k] = v;
-            // Map nested dimensions if needed? usually flat sliders
             return acc;
           }, {} as Record<string, number>),
           ...Object.entries(
@@ -390,8 +414,10 @@ class ChatService {
       createdAt: new Date(),
 
       assetId: model.asset_id,
+      jobId: model.job_id,
       sdfUrl: model.sdf_url,
       yamlUrl: model.yaml_url,
+      scadCode: model.scad_code,
       assets: model.assets,
       specification: {
         model_name: model.model_name,
@@ -406,14 +432,11 @@ class ChatService {
     };
   }
 
-  /**
-   * Helper to map API session to Frontend Conversation
-   */
   private mapSession(session: SessionResponse): Conversation {
     return {
       id: session.id,
-      title: "Session", // Default title as session object no longer has title
-      messages: [], // Populated separately via getHistory
+      title: "Session",
+      messages: [],
       createdAt: new Date(session.created_at),
       updatedAt: new Date(session.updated_at),
     };

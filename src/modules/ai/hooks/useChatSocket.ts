@@ -38,13 +38,23 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
         onEventRef.current = onEvent;
     }, [onEvent]);
 
+    const connectingRef = useRef(false);
     const connect = useCallback(() => {
         if (!chatId) return;
 
         // Don't connect if already connecting/connected
         if (socketRef.current && (socketRef.current.readyState === WebSocket.CONNECTING || socketRef.current.readyState === WebSocket.OPEN)) {
+            console.log('[WebSocket] Already connected or connecting, skipping...');
             return;
         }
+
+        // Prevent duplicate connection attempts
+        if (connectingRef.current) {
+            console.log('[WebSocket] Connection attempt already in progress, skipping...');
+            return;
+        }
+
+        connectingRef.current = true;
 
         // Security: Ensure token is available before connecting
         const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
@@ -61,17 +71,25 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
             return;
         }
 
-        let apiBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-        if (apiBase.includes('localhost')) apiBase = apiBase.replace('localhost', '127.0.0.1');
+        let apiBase = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
-        const wsProtocol = apiBase.startsWith('https') ? 'wss' : 'ws';
-        const wsBase = apiBase.replace(/^https?/, wsProtocol);
-        const baseWithPrefix = wsBase.endsWith('/api/v1') ? wsBase : `${wsBase}/api/v1`;
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+
+        // If it's a relative path, resolve it against current location
+        let wsUrlBase = apiBase.startsWith('/')
+            ? `${protocol}//${host}${apiBase}`
+            : apiBase.replace(/^https?/, protocol);
+
+        // Ensure the path ends with /api/v1 (adjust if backend uses a different base)
+        if (!wsUrlBase.includes('/api/v1')) {
+            wsUrlBase = wsUrlBase.endsWith('/') ? `${wsUrlBase}api/v1` : `${wsUrlBase}/api/v1`;
+        }
 
         // Security: Properly encode token in URL
-        const wsUrl = `${baseWithPrefix}/chat-socket/${encodeURIComponent(chatId)}?token=${encodeURIComponent(token)}`;
+        const wsUrl = `${wsUrlBase}/chat-socket/${encodeURIComponent(chatId)}?token=${encodeURIComponent(token)}`;
 
-        console.log(`[WebSocket] Connecting to chat: ${chatId}`);
+        console.log(`[WebSocket] Connecting to chat: ${chatId} at ${wsUrlBase}`);
         const socket = new WebSocket(wsUrl);
         socketRef.current = socket;
 
@@ -80,11 +98,13 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
             setIsConnected(true);
             setError(null);
             retryCountRef.current = 0;
+            connectingRef.current = false;
         };
 
         socket.onmessage = (event) => {
             try {
                 const data: RunpodEvent = JSON.parse(event.data);
+                console.log(`[WebSocket] Received event: ${data.type}`, data);
 
                 // Security: Validate event data
                 if (!data || !data.type) {
@@ -104,12 +124,14 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
                 console.warn('[WebSocket] Connection issue (will retry)', err);
             }
             setError('WebSocket connection error');
+            connectingRef.current = false;
         };
 
         socket.onclose = (event) => {
             console.log('[WebSocket] Closed', event.code, event.reason);
             setIsConnected(false);
             socketRef.current = null;
+            connectingRef.current = false;
 
             // Auto-reconnect if not a graceful close (1000) and we have retries left
             if (chatId && retryCountRef.current < MAX_RETRIES && event.code !== 1000 && event.code !== 1001) {

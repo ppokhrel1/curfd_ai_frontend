@@ -31,10 +31,13 @@ export class ModelImporter {
     specification?: any,
     assets: { filename: string; url: string }[] = []
   ): Promise<ImportedModel> {
-    // 1. Security: URL Validation
     try {
-      new URL(sdfUrl);
-      if (yamlUrl) new URL(yamlUrl);
+      if (!sdfUrl.startsWith("blob:")) {
+        new URL(sdfUrl);
+      }
+      if (yamlUrl && !yamlUrl.startsWith("blob:")) {
+        new URL(yamlUrl);
+      }
     } catch (e) {
       throw new Error("Invalid model URL provided");
     }
@@ -54,18 +57,48 @@ export class ModelImporter {
         if (resp.ok) yaml = await resp.text();
       }
 
-      const isMeshFile = sdfUrl.toLowerCase().match(/\.(glb|gltf|stl|obj)$/);
+      const isZipFile = sdfUrl.toLowerCase().endsWith(".zip");
+      const isMeshFile =
+        sdfUrl.toLowerCase().match(/\.(glb|gltf|stl|obj)$/) ||
+        sdfUrl.startsWith("blob:");
 
-      if (isMeshFile) {
+      if (isZipFile) {
+        console.log("ModelImporter: Loading from ZIP URL:", sdfUrl);
+        const resp = await fetch(sdfUrl);
+        if (!resp.ok) {
+          const errorText = await resp.text().catch(() => resp.statusText);
+          throw new Error(`Failed to fetch ZIP (${resp.status}): ${errorText}`);
+        }
+        const blob = await resp.blob();
+        const file = new File([blob], sdfUrl.split("/").pop() || "model.zip", {
+          type: "application/zip",
+        });
+        return await this.importZip(file);
+      } else if (isMeshFile) {
         console.log("ModelImporter: Loading mesh file directly:", sdfUrl);
-        const fileName = sdfUrl.split("/").pop() || "model";
+        const fileName = sdfUrl.startsWith("blob:")
+          ? "model.glb"
+          : sdfUrl.split("/").pop() || "model";
         const visualObj = await this.loadSingleAsset(sdfUrl, fileName);
         if (visualObj) contentsGroup.add(visualObj);
       } else {
         const resp = await fetch(sdfUrl);
-        if (!resp.ok) throw new Error(`Failed to fetch SDF: ${resp.statusText}`);
+        if (!resp.ok) {
+          const errorText = await resp.text().catch(() => resp.statusText);
+          throw new Error(`Failed to fetch SDF (${resp.status}): ${errorText}`);
+        }
         const sdfContent = await resp.text();
+
+        if (!sdfContent || sdfContent.trim().length === 0) {
+          throw new Error("SDF file is empty");
+        }
+
         const visuals = this.sdfParser.parse(sdfContent);
+        console.log(`ModelImporter: Parsed ${visuals.length} visuals from SDF`);
+
+        if (visuals.length === 0) {
+          console.warn("ModelImporter: No visuals found in SDF file");
+        }
 
         for (const visual of visuals) {
           const visualObj = await this.loadVisual(visual, sdfUrl);
@@ -74,7 +107,7 @@ export class ModelImporter {
       }
     } catch (e) {
       console.error("ModelImporter: Failed to load from URL", e);
-      throw e; // Rethrow to let UI handle it
+      throw e;
     }
 
     this.finalizeModel(contentsGroup);
@@ -105,7 +138,6 @@ export class ModelImporter {
       side: THREE.DoubleSide,
     };
 
-    // METALS
     if (
       n.includes("frame") ||
       n.includes("chassis") ||
@@ -120,8 +152,6 @@ export class ModelImporter {
       props.roughness = 0.25;
       props.envMapIntensity = 1.0;
     }
-
-    // RUBBER / TIRES
     if (
       n.includes("tire") ||
       n.includes("rubber") ||
@@ -130,7 +160,7 @@ export class ModelImporter {
     ) {
       props.metalness = 0.05;
       props.roughness = 0.95;
-      props.color = new THREE.Color(0x1a1a1a); // Deep charcoal
+      props.color = new THREE.Color(0x1a1a1a);
       props.envMapIntensity = 0.2;
     }
 
@@ -150,7 +180,6 @@ export class ModelImporter {
       props.side = THREE.DoubleSide;
     }
 
-    // EMISSIVE / LIGHTS
     if (
       n.includes("light") ||
       n.includes("led") ||
@@ -164,7 +193,6 @@ export class ModelImporter {
       props.color = new THREE.Color(0xffffff);
     }
 
-    //POLISHED PLASTIC / CARBON
     if (
       n.includes("cover") ||
       n.includes("shell") ||
@@ -224,7 +252,6 @@ export class ModelImporter {
     let specification: any = null;
     let config = "";
 
-    // Find key files
     const sdfFile = Object.values(zip.files).find(
       (f) => !f.dir && f.name.endsWith(".sdf")
     ) as any;
@@ -237,11 +264,19 @@ export class ModelImporter {
     const scadsFile = Object.values(zip.files).find(
       (f) => !f.dir && f.name.endsWith(".scad")
     ) as any;
+
+    // Priority: assembly.py > any .py > .scad
+    let pythonFile = zip.file("assembly.py");
+    if (!pythonFile) {
+      pythonFile = Object.values(zip.files).find(
+        (f) => !f.dir && f.name.toLowerCase().endsWith(".py")
+      ) as any;
+    }
+
     const configFile = Object.values(zip.files).find(
       (f) => !f.dir && f.name.endsWith(".config")
     ) as any;
 
-    // Load specification
     if (specFile) {
       try {
         const specContent = await specFile.async("string");
@@ -254,34 +289,42 @@ export class ModelImporter {
       }
     }
 
-    // Load config
     if (configFile) {
       config = await configFile.async("string");
     }
 
-    // Load YAML
     if (yamlFile) yaml = await yamlFile.async("string");
 
-    // Load SCAD
-    if (scadsFile) scad = await scadsFile.async("string");
+    // Extract Python code (CadQuery) or SCAD code
+    if (pythonFile) {
+      scad = await pythonFile.async("string");
+      console.log('[ModelImporter] Extracted Python code from:', pythonFile.name);
+    } else if (scadsFile) {
+      scad = await scadsFile.async("string");
+      console.log('[ModelImporter] Extracted SCAD code from:', scadsFile.name);
+    }
 
     let physics = this.parsePhysicsFromYaml(yaml);
 
-    // Find all STL files (excluding hidden/MACOSX folders)
-    const meshFiles = Object.values(zip.files).filter(
-      (f) => {
-        const isMesh = !f.dir &&
-          f.name.toLowerCase().endsWith(".stl") &&
-          !f.name.includes("__MACOSX");
+    // Extract mesh files (STL or GLB)
+    const meshFiles = Object.values(zip.files).filter((f) => {
+      const fileName = f.name.toLowerCase();
+      const isMesh =
+        !f.dir &&
+        (fileName.endsWith(".stl") || fileName.endsWith(".glb") || fileName.endsWith(".gltf")) &&
+        !f.name.includes("__MACOSX");
 
-        // 2. Security: Path Traversal (Zip Slip) protection
-        if (isMesh && f.name.includes("..")) {
-          console.warn("Security Warning: Blocked zip entry with path traversal:", f.name);
-          return false;
-        }
-        return isMesh;
+      if (isMesh && f.name.includes("..")) {
+        console.warn(
+          "Security Warning: Blocked zip entry with path traversal:",
+          f.name
+        );
+        return false;
       }
-    );
+      return isMesh;
+    });
+
+    console.log('[ModelImporter] Found mesh files in ZIP:', meshFiles.map(f => f.name));
 
     if (sdfFile) {
       console.log("ModelImporter: Loading using SDF file");
@@ -290,8 +333,10 @@ export class ModelImporter {
       console.log(`ModelImporter: Parsed ${visuals.length} visuals from SDF`);
 
       if (visuals.length === 0 && meshFiles.length > 0) {
-        console.warn("ModelImporter: SDF has no visuals, falling back to direct STL loading");
-        await this.loadSTLsDirectly(meshFiles, contentsGroup);
+        console.warn(
+          "ModelImporter: SDF has no visuals, falling back to direct mesh loading"
+        );
+        await this.loadMeshesDirectly(meshFiles, contentsGroup);
       } else {
         for (const visual of visuals) {
           try {
@@ -321,18 +366,21 @@ export class ModelImporter {
         }
       }
     } else if (meshFiles.length > 0) {
-      console.log(`ModelImporter: No SDF, loading ${meshFiles.length} STL files directly`);
-      await this.loadSTLsDirectly(meshFiles, contentsGroup);
+      console.log(
+        `ModelImporter: No SDF, loading ${meshFiles.length} mesh files directly`
+      );
+      await this.loadMeshesDirectly(meshFiles, contentsGroup);
     }
 
-    console.log(`ModelImporter: importZip finalized with ${contentsGroup.children.length} meshes`);
+    console.log(
+      `ModelImporter: importZip finalized with ${contentsGroup.children.length} meshes`
+    );
     if (contentsGroup.children.length === 0) {
       console.error("ModelImporter: No meshes were loaded from the ZIP");
     }
 
     this.finalizeModel(contentsGroup);
 
-    // Scientific Analysis Integration
     const analysis = this.analyzer.analyze(contentsGroup);
     physics = {
       volume: analysis.volume,
@@ -344,7 +392,6 @@ export class ModelImporter {
 
     const importedAssets: { filename: string; url: string; blob?: Blob }[] = [];
 
-    // Process assets for export/download
     if (meshFiles.length > 0) {
       for (const meshFile of meshFiles) {
         try {
@@ -358,7 +405,6 @@ export class ModelImporter {
       }
     }
 
-    // If we loaded SDF visuals, we might have asset URLs already
     if (this.assets && this.assets.length > 0) {
       importedAssets.push(...this.assets);
     }
@@ -375,30 +421,55 @@ export class ModelImporter {
     };
   }
 
-  private async loadSTLsDirectly(meshFiles: any[], contentsGroup: THREE.Group) {
-    console.log(`ModelImporter: Loading ${meshFiles.length} STL files directly`);
+  private async loadMeshesDirectly(meshFiles: any[], contentsGroup: THREE.Group) {
+    console.log(
+      `ModelImporter: Loading ${meshFiles.length} mesh files directly`
+    );
     for (const meshFile of meshFiles) {
       try {
         const meshBlob = await meshFile.async("blob");
         const url = URL.createObjectURL(meshBlob);
         const fileName = meshFile.name.split("/").pop() || "";
         const partName = this.extractPartName(fileName);
+        const ext = fileName.split(".").pop()?.toLowerCase();
 
-        const geometry = await this.loadSTL(url);
-        const materialProps = this.getMaterialProperties(partName);
-        const material = new THREE.MeshStandardMaterial(materialProps);
+        let loadedObject: THREE.Object3D;
 
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.name = partName;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+        if (ext === "stl") {
+          const geometry = await this.loadSTL(url);
+          const materialProps = this.getMaterialProperties(partName);
+          const material = new THREE.MeshStandardMaterial(materialProps);
+          loadedObject = new THREE.Mesh(geometry, material);
+        } else if (ext === "glb" || ext === "gltf") {
+          const gltf = await this.loadGLTF(url);
+          loadedObject = gltf.scene;
 
-        // Store original color for selection highlighting
-        mesh.userData.originalColor = material.color.getHex();
-        mesh.userData.sourceFile = fileName;
+          // Apply materials to GLB
+          const materialProps = this.getMaterialProperties(partName);
+          const material = new THREE.MeshStandardMaterial(materialProps);
+          loadedObject.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              (child as THREE.Mesh).material = material;
+              child.castShadow = true;
+              child.receiveShadow = true;
+              child.userData.originalColor = material.color.getHex();
+            }
+          });
+        } else {
+          console.warn(`Unsupported mesh format: ${ext}`);
+          URL.revokeObjectURL(url);
+          continue;
+        }
 
-        console.log(`ModelImporter: Added STL mesh ${partName} to group`);
-        contentsGroup.add(mesh);
+        loadedObject.name = partName;
+        loadedObject.traverse((child) => {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          child.userData.sourceFile = fileName;
+        });
+
+        console.log(`ModelImporter: Added ${ext?.toUpperCase()} mesh ${partName} to group`);
+        contentsGroup.add(loadedObject);
         URL.revokeObjectURL(url);
       } catch (err) {
         console.warn(`Failed to load ${meshFile.name}:`, err);
@@ -446,46 +517,27 @@ export class ModelImporter {
         (child as THREE.Mesh).material = material;
         child.castShadow = true;
         child.receiveShadow = true;
-        // Store original color for selection highlighting
         child.userData.originalColor = material.color.getHex();
-        // Store source filename for asset linking
         child.userData.sourceFile = meshName;
-        // Ensure mesh has a meaningful name
         if (!child.name || child.name === "") {
           child.name = cleanPartName;
         }
       }
     });
 
-    // Set object name but don't let transform overwrite it
     loadedObject.name = cleanPartName;
     this.applyVisualTransformWithoutName(loadedObject, visual);
     return loadedObject;
   }
 
-  /**
-   * Extract clean part name from STL filename
-   * Examples:
-   *   "base_link.stl" -> "Base Link"
-   *   "wheel_left.stl" -> "Wheel Left"
-   *   "sensor_mount.stl" -> "Sensor Mount"
-   */
   private extractPartName(filename: string): string {
-    // Remove extension
     let name = filename.replace(/\.(stl|obj|glb|gltf)$/i, "");
-
-    // Remove path if present
     name = name.split("/").pop() || name;
-
-    // Replace underscores and hyphens with spaces
     name = name.replace(/[_-]/g, " ");
-
-    // Capitalize each word
     name = name
       .split(" ")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
-
     return name;
   }
 
@@ -496,7 +548,6 @@ export class ModelImporter {
     object.position.copy(visual.pose.position);
     object.quaternion.copy(visual.pose.quaternion);
     object.scale.copy(visual.scale);
-    // Only set name if object doesn't already have a meaningful name
     if (!object.name || object.name === "") {
       object.name = visual.name;
     }
@@ -509,45 +560,31 @@ export class ModelImporter {
     object.position.copy(visual.pose.position);
     object.quaternion.copy(visual.pose.quaternion);
     object.scale.copy(visual.scale);
-    // Don't overwrite the name - keep the extracted clean part name
   }
 
   private finalizeModel(group: THREE.Group): void {
-    // Ensure all matrices are up to date
     group.updateMatrixWorld(true);
-
-    // 1. Coordinate Transformation: Z-up (Gazebo) to Y-up (Three.js)
-    // We rotate the entire model contents by -90 deg around X.
-    // This maps Gazebo's XY plane to Three.js's XZ plane.
     group.rotation.x = -Math.PI / 2;
-
-    // We update the world matrix to ensure the group rotation is applied
     group.updateWorldMatrix(true, true);
 
-    console.log("ModelImporter: Finalized model with standard coordinate transformation");
+    console.log(
+      "ModelImporter: Finalized model with standard coordinate transformation"
+    );
   }
 
-  /**
-   * Enhanced color theory for better part visualization
-   * Uses a harmonious color palette with semantic meaning
-   * Colors are designed to be visually distinct yet cohesive
-   */
   private getColorForPart(name: string): number {
     const n = name.toLowerCase();
 
-    // STRUCTURAL COMPONENTS - Professional Metallic Grays
-
     if (n.includes("base") || n.includes("frame") || n.includes("chassis")) {
-      return 0x4a5568; // Cool Gray - Foundation feel
+      return 0x4a5568;
     }
     if (n.includes("body") || n.includes("hull") || n.includes("shell")) {
-      return 0x718096; // Steel Blue Gray - Premium body
+      return 0x718096;
     }
     if (n.includes("main") || n.includes("core") || n.includes("center")) {
-      return 0x5a6978; // Slate - Central component
+      return 0x5a6978;
     }
 
-    // MOVEMENT/PROPULSION - Dynamic Blues & Teals
     if (n.includes("wheel") || n.includes("tire") || n.includes("tread")) {
       return 0x2d3748; // Dark Charcoal - Rubber/tire look
     }
@@ -566,9 +603,6 @@ export class ModelImporter {
       return 0x3b82f6; // Blue 500 - Mechanical action
     }
 
-
-    // JOINTS & CONNECTIONS - Accent Purples
-
     if (n.includes("joint") || n.includes("hinge") || n.includes("pivot")) {
       return 0x7c3aed; // Violet 600 - Articulation points
     }
@@ -580,16 +614,13 @@ export class ModelImporter {
       return 0x8b5cf6; // Violet 500 - Connection elements
     }
 
-
-    // SENSORS & ELECTRONICS - Tech Greens
-
     if (
       n.includes("sensor") ||
       n.includes("camera") ||
       n.includes("lidar") ||
       n.includes("radar")
     ) {
-      return 0x059669; // Emerald 600 - Active sensing
+      return 0x059669;
     }
     if (
       n.includes("circuit") ||
@@ -607,9 +638,6 @@ export class ModelImporter {
       return 0x34d399; // Emerald 400 - Communication
     }
 
-
-    // POWER & ENERGY - Warm Ambers & Oranges
-
     if (n.includes("battery") || n.includes("power") || n.includes("cell")) {
       return 0xd97706; // Amber 600 - Energy storage
     }
@@ -619,9 +647,6 @@ export class ModelImporter {
     if (n.includes("fuel") || n.includes("tank")) {
       return 0xea580c; // Orange 600 - Fuel systems
     }
-
-
-    // MOUNTING/ACCESSORIES - Rose & Pink Accents
 
     if (
       n.includes("mount") ||
@@ -639,9 +664,6 @@ export class ModelImporter {
       return 0xdb2777; // Pink 600 - Adapters
     }
 
-
-    // MANIPULATORS & ARMS - Cool Teals
-
     if (n.includes("arm") || n.includes("limb") || n.includes("appendage")) {
       return 0x0d9488; // Teal 600 - Arm structures
     }
@@ -653,9 +675,6 @@ export class ModelImporter {
     ) {
       return 0x14b8a6; // Teal 500 - End effectors
     }
-
-
-    // COVERS & HOUSING - Light Silvers
 
     if (
       n.includes("cover") ||
@@ -673,14 +692,10 @@ export class ModelImporter {
       return 0x94a3b8; // Slate 400 - Outer casing
     }
 
-
-    // NUMBERED LINKS - Progressive Blue Gradient
-
     if (n.includes("link")) {
       const linkMatch = n.match(/link[_\s]?(\d+)/i);
       if (linkMatch) {
         const linkNum = parseInt(linkMatch[1]);
-        // Progressive gradient from deep blue to light blue
         const colors = [
           0x1e3a8a, // Blue 900
           0x1e40af, // Blue 800
@@ -695,34 +710,25 @@ export class ModelImporter {
       return 0x3b82f6; // Default link color
     }
 
-
-    // FALLBACK - Generate color from name hash for unique parts
-
-    // Use name hash to generate consistent, unique colors
     const hash = this.hashString(n);
     return this.generateHarmonicColor(hash);
   }
 
-  /**
-   * Generate a simple hash from a string
-   */
   private hashString(str: string): number {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
       hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
+      hash = hash & hash;
     }
     return Math.abs(hash);
   }
 
   private generateHarmonicColor(hash: number): number {
-    // Use golden ratio to spread hues nicely
     const hue = (hash * 137.508) % 360;
     const saturation = 55 + (hash % 20); // 55-75% saturation
     const lightness = 45 + (hash % 15); // 45-60% lightness
 
-    // Convert HSL to RGB then to hex
     const h = hue / 360;
     const s = saturation / 100;
     const l = lightness / 100;
@@ -761,7 +767,7 @@ export class ModelImporter {
     const ext = filename.split(".").pop()?.toLowerCase();
     if (ext === "stl") return new THREE.Mesh(await this.loadSTL(url));
     if (ext === "obj") return await this.loadOBJ(url);
-    if (ext === "glb" || ext === "gltf")
+    if (ext === "glb" || ext === "gltf" || url.startsWith("blob:"))
       return (await this.loadGLTF(url)).scene;
     throw new Error(`Unsupported: ${ext}`);
   }

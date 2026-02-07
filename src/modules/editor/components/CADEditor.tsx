@@ -1,11 +1,11 @@
 import { useAuthStore } from "@/lib/auth";
 import {
-  Code2,
-  Info,
-  Play,
-  RotateCcw,
-  Settings2,
-  Terminal
+    Code2,
+    Info,
+    Play,
+    RotateCcw,
+    Settings2,
+    Terminal
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../stores/editorStore";
@@ -27,6 +27,13 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [lineCount, setLineCount] = useState(1);
+
+  // Detect language from code content
+  const detectedLanguage = code.includes('import cadquery') || code.includes('from cadquery') 
+    ? 'Python (CadQuery)' 
+    : 'OpenSCAD';
+  
+  const fileExtension = detectedLanguage === 'Python (CadQuery)' ? 'assembly.py' : 'model.scad';
 
   // Sync internal line count with code
   useEffect(() => {
@@ -67,7 +74,7 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
           <div>
             <h2 className="text-sm font-bold text-white">CAD Script Editor</h2>
             <div className="flex items-center gap-2">
-               <span className="text-[10px] text-neutral-500 font-mono">MODEL.SCAD</span>
+               <span className="text-[10px] text-neutral-500 font-mono uppercase">{fileExtension}</span>
                {isDirty && (
                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" title="Unsaved changes" />
                )}
@@ -122,7 +129,9 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
           spellCheck={false}
           readOnly={!useAuthStore.getState().user}
           className="flex-1 bg-transparent p-4 outline-none resize-none text-neutral-300 leading-6 caret-blue-500 scrollbar-thin scrollbar-thumb-neutral-800 selection:bg-blue-500/20 disabled:opacity-50"
-          placeholder={useAuthStore.getState().user ? "Enter OpenSCAD script here..." : "Please sign in to edit CAD scripts"}
+          placeholder={useAuthStore.getState().user 
+            ? `Enter ${detectedLanguage} script here...` 
+            : "Please sign in to edit CAD scripts"}
         />
 
         {/* Floating Info */}
@@ -146,7 +155,7 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
           <div className="h-3 w-px bg-neutral-800" />
           <div className="flex items-center gap-1 text-[10px] text-neutral-500">
              <Settings2 className="w-3 h-3" />
-             <span>OpenSCAD 2024.01</span>
+             <span>{detectedLanguage}</span>
           </div>
         </div>
 

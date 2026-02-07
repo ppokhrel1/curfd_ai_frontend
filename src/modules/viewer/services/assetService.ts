@@ -1,11 +1,13 @@
 import { api } from '@/lib/api/client';
 import { GeneratedShape } from '@/modules/ai/types/chat.type';
+import JSZip from 'jszip';
 
 export interface Asset {
     id: string;
     name: string;
     type: string;
-    url: string;
+    url?: string; // Legacy field
+    uri?: string; // Backend sends this field
     job_id: string;
     session_id: string;
     created_at: string;
@@ -51,7 +53,8 @@ class AssetService {
             return allAssets.filter(asset => {
                 // Filter by name, uri (filename), or type
                 const matchesName = asset.name?.toLowerCase().includes(lowerQuery);
-                const matchesUri = asset.url?.toLowerCase().includes(lowerQuery); // asset.url usually contains the filename/uri
+                const assetUrl = (asset.uri || asset.url)?.toLowerCase();
+                const matchesUri = assetUrl?.includes(lowerQuery);
 
                 // Optional: Check metadata if available (not in base Asset interface but might be useful if extended)
                 return matchesName || matchesUri;
@@ -105,14 +108,21 @@ class AssetService {
         console.log('[AssetService] mapToGeneratedShape called for job:', jobId, 'with', assets.length, 'assets');
 
         try {
-            // Find the primary model asset (SDF or GLB)
-            const modelAsset = assets.find(a => a.url?.toLowerCase().endsWith('.sdf') || a.url?.toLowerCase().endsWith('.glb'));
+            // Find the primary model asset (SDF, GLB, or ZIP containing SCAD)
+            const modelAsset = assets.find(a => {
+                const assetUrl = (a.uri || a.url)?.toLowerCase();
+                return assetUrl?.endsWith('.sdf') ||
+                    assetUrl?.endsWith('.glb') ||
+                    assetUrl?.endsWith('.zip');
+            });
+
             if (!modelAsset) {
-                console.warn('[AssetService] No model asset found in:', assets.map(a => a.url));
+                console.warn('[AssetService] No model asset found in:', assets.map(a => a.uri || a.url));
                 return null;
             }
 
-            console.log('[AssetService] Found model asset:', modelAsset.url);
+            const modelUrl = modelAsset.uri || modelAsset.url;
+            console.log('[AssetService] Found model asset:', modelUrl);
 
             // Fetch metadata for parts
             const metadata = await this.fetchAssetMeta(jobId);
@@ -131,6 +141,7 @@ class AssetService {
                 mesh_file: m.asset_id // Reference to the asset
             }));
 
+            // Try to extract SCAD code if it's a SCAD file or a ZIP
             const scadCode = await this.fetchScadContent(assets);
             console.log('[AssetService] SCAD code fetched:', scadCode ? `${scadCode.length} chars` : 'none');
 
@@ -147,7 +158,7 @@ class AssetService {
                 },
                 createdAt: new Date(modelAsset.created_at),
                 assetId: modelAsset.id,
-                sdfUrl: modelAsset.url,
+                sdfUrl: modelUrl,
                 scadCode: scadCode,
                 specification: {
                     model_name: modelAsset.name,
@@ -163,19 +174,84 @@ class AssetService {
         }
     }
 
-    // Helper to find and fetch SCAD code from assets
+    // Helper to find and fetch SCAD or Python code from assets
     private async fetchScadContent(assets: Asset[]): Promise<string | undefined> {
-        const scadAsset = assets.find(a => a.url?.toLowerCase().endsWith('.scad'));
-        if (!scadAsset) return undefined;
+        // 1. Try direct SCAD file
+        const scadAsset = assets.find(a => {
+            const url = (a.uri || a.url)?.toLowerCase();
+            return url?.endsWith('.scad');
+        });
 
-        try {
-            const response = await fetch(scadAsset.url);
-            if (response.ok) {
-                return await response.text();
+        if (scadAsset) {
+            try {
+                const scadUrl = scadAsset.uri || scadAsset.url;
+                if (!scadUrl) return undefined;
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+                const response = await fetch(scadUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (response.ok) return await response.text();
+            } catch (e) {
+                console.warn('Failed to fetch SCAD content from .scad file:', e);
             }
-        } catch (e) {
-            console.warn('Failed to fetch SCAD content:', e);
         }
+
+        // 2. Try extracting from ZIP
+        const zipAsset = assets.find(a => {
+            const url = (a.uri || a.url)?.toLowerCase();
+            return url?.endsWith('.zip');
+        });
+
+        if (zipAsset) {
+            try {
+                const zipUrl = zipAsset.uri || zipAsset.url;
+                if (!zipUrl) return undefined;
+
+                console.log('[AssetService] Extracting code from ZIP:', zipUrl);
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout for zip download
+
+                const response = await fetch(zipUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) throw new Error('Failed to download ZIP');
+
+                const blob = await response.blob();
+                const zip = await JSZip.loadAsync(blob);
+
+                // Priority: assembly.py > any .py > .scad
+                // User requirement: backend sends assembly.py (CadQuery)
+                let codeFile = zip.file('assembly.py');
+
+                if (!codeFile) {
+                    // Fallback to any .py file
+                    codeFile = Object.values(zip.files).find((f: any) =>
+                        f.name.toLowerCase().endsWith('.py') && !f.dir
+                    ) as any;
+                }
+
+                if (!codeFile) {
+                    // Fallback to .scad file
+                    codeFile = Object.values(zip.files).find((f: any) =>
+                        f.name.toLowerCase().endsWith('.scad') && !f.dir
+                    ) as any;
+                }
+
+                if (codeFile) {
+                    console.log('[AssetService] Found code file in zip:', codeFile.name);
+                    return await codeFile.async('string');
+                } else {
+                    console.warn('[AssetService] No .py or .scad found in zip:', Object.keys(zip.files));
+                }
+            } catch (e) {
+                console.warn('Failed to extract content from ZIP:', e);
+            }
+        }
+
         return undefined;
     }
 }
