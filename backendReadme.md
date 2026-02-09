@@ -18,6 +18,7 @@ FastAPI backend for session management, chat records, and a 3D generation pipeli
 - **Job**: 3D generation workflow entry
 - **Asset**: Output artifact (STL/GLB/images)
 
+
 ## API Overview
 Base URL: `http://localhost:8000/api/v1`
 
