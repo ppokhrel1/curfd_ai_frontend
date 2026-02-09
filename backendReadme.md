@@ -1,4 +1,4 @@
-# Documentation
+# Documentation 
 
 ## Overview
 FastAPI backend for session management, chat records, and a 3D generation pipeline aligned with `app_diagram.xml`.
