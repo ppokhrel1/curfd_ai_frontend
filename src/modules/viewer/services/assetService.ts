@@ -4,25 +4,34 @@ import JSZip from "jszip";
 
 export interface Asset {
   id: string;
-  name: string;
-  type: string;
-  url?: string;
-  uri?: string;
   job_id: string;
   session_id: string;
+  asset_type: string;
+  uri: string;
+  url?: string; // Optional: signed URL if backend provides it
+  storage_provider?: string;
+  is_public?: boolean;
   created_at: string;
+  updated_at?: string;
+  
+  // Legacy/Frontend compat alias (mapped manually if needed, or derived)
+  name?: string; 
+  type?: string; 
 }
 
 export interface AssetMeta {
   id: string;
   asset_id: string;
   part_name?: string;
-  component_of?: string;
+  component_of?: string; // UUID of parent asset
   position_json?: Record<string, any>;
   material_json?: Record<string, any>;
   image_paths_json?: any[];
   is_composite_of_json?: any[];
   used_for_json?: any[];
+  metadata_json?: Record<string, any>;
+  
+  // Frontend compat aliases
   metadata?: Record<string, any>;
 }
 
@@ -33,11 +42,26 @@ class AssetService {
       if (jobId) params.job_id = jobId;
 
       const response = await api.get<Asset[]>("/assets", { params });
-      return response.data;
+      // Map backend response to frontend expectations if necessary
+      return response.data.map(this.normalizeAsset);
     } catch (error) {
       console.error("Failed to fetch assets:", error);
       return [];
     }
+  }
+
+  async getAsset(assetId: string): Promise<Asset | null> {
+    try {
+      const response = await api.get<Asset>(`/assets/${assetId}`);
+      return this.normalizeAsset(response.data);
+    } catch (error) {
+      console.error("Failed to get asset:", error);
+      return null;
+    }
+  }
+
+  async deleteAsset(assetId: string): Promise<void> {
+    await api.delete(`/assets/${assetId}`);
   }
 
   async searchAssets(query: string): Promise<Asset[]> {
@@ -65,10 +89,20 @@ class AssetService {
       const response = await api.get<AssetMeta[]>("/asset-meta", {
         params: { asset_id: assetId },
       });
-      return response.data;
+      return response.data.map(this.normalizeAssetMeta);
     } catch (error) {
       console.error("Failed to fetch asset metadata:", error);
       return [];
+    }
+  }
+
+  async getAssetMetaById(metaId: string): Promise<AssetMeta | null> {
+    try {
+      const response = await api.get<AssetMeta>(`/asset-meta/${metaId}`);
+      return this.normalizeAssetMeta(response.data);
+    } catch (error) {
+      console.error("Failed to get asset meta:", error);
+      return null;
     }
   }
 
@@ -76,11 +110,11 @@ class AssetService {
     job_id: string;
     asset_type: string;
     uri: string;
-    storage_provider: string;
+    storage_provider?: string;
     metadata_json?: any;
   }): Promise<Asset> {
     const response = await api.post<Asset>("/assets", payload);
-    return response.data;
+    return this.normalizeAsset(response.data);
   }
 
   async createAssetMeta(payload: {
@@ -89,10 +123,42 @@ class AssetService {
     component_of?: string;
     position_json?: Record<string, any>;
     material_json?: Record<string, any>;
-    metadata?: Record<string, any>;
+    metadata_json?: Record<string, any>;
   }): Promise<AssetMeta> {
     const response = await api.post<AssetMeta>("/asset-meta", payload);
-    return response.data;
+    return this.normalizeAssetMeta(response.data);
+  }
+
+  async updateAssetMeta(metaId: string, updates: Partial<AssetMeta>): Promise<AssetMeta> {
+    // Ensure we send metadata_json if metadata is passed
+    const payload = { ...updates };
+    if (payload.metadata && !payload.metadata_json) {
+        payload.metadata_json = payload.metadata;
+    }
+    const response = await api.patch<AssetMeta>(`/asset-meta/${metaId}`, payload);
+    return this.normalizeAssetMeta(response.data);
+  }
+
+  async deleteAssetMeta(metaId: string): Promise<void> {
+    await api.delete(`/asset-meta/${metaId}`);
+  }
+
+  private normalizeAsset(asset: Asset): Asset {
+    return {
+        ...asset,
+        // Map backend asset_type to frontend type if missing
+        type: asset.type || asset.asset_type,
+        // Ensure name exists (fallback to file name from URI)
+        name: asset.name || asset.uri.split('/').pop() || 'Unnamed Asset',
+    };
+  }
+
+  private normalizeAssetMeta(meta: AssetMeta): AssetMeta {
+    return {
+        ...meta,
+        // Map backend metadata_json to frontend metadata
+        metadata: meta.metadata || meta.metadata_json,
+    };
   }
 
   async mapToGeneratedShape(
