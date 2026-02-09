@@ -1,6 +1,6 @@
 import { proxifyUrl } from "@/lib/apiConfig";
 import { useChatStore } from "@/modules/ai/stores/chatStore";
-import { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import {
   Box,
   ChevronLeft,
@@ -19,7 +19,7 @@ import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import * as THREE from "three";
 import { useViewer } from "../hooks/useViewer";
-import { Asset } from "../services/assetService";
+import type { Asset } from "../services/assetService";
 import { ModelExporter } from "../services/ModelExporter";
 import { AssetSwapPanel } from "./AssetSwapPanel";
 import { ControlsHint } from "./ControlsHint";

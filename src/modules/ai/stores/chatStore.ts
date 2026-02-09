@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { chatService } from '../services/chatService';
-import { Conversation, Message } from '../types/chat.type';
+import type { Conversation, Message } from '../types/chat.type';
 
 interface ChatState {
     conversations: Conversation[];

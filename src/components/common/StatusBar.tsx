@@ -1,4 +1,4 @@
-import { GeneratedShape } from '@/modules/ai/types/chat.type';
+import type { GeneratedShape } from '@/modules/ai/types/shape.type';
 import { Box, Command, Keyboard, Play, Zap } from 'lucide-react';
 import { useState } from 'react';
 

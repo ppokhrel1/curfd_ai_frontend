@@ -19,7 +19,7 @@ import {
 import { useChat } from "../hooks/useChat";
 import { useConversations } from "../hooks/useConversations";
 import { useChatStore } from "../stores/chatStore";
-import { GeneratedShape, Message } from "../types/chat.type";
+import type { GeneratedShape, Message } from "../types/chat.type";
 import { MessageInput } from "./MessageInput";
 import { MessageList } from "./MessageList";
 

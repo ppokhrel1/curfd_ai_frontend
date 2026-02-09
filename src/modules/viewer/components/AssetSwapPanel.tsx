@@ -1,6 +1,7 @@
 import { Box, FileCode, Loader2, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Asset, assetService } from "../services/assetService";
+import { assetService } from "../services/assetService";
+import type { Asset } from "../services/assetService";
 
 function useDebounce<T>(value: T, delay: number): [T] {
   const [debouncedValue, setDebouncedValue] = useState(value);

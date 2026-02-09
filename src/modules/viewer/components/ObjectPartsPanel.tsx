@@ -1,4 +1,4 @@
-import { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import {
   ChevronDown,
   ChevronRight,

@@ -1,4 +1,4 @@
-import { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import {
   Center,
   Environment,
@@ -11,7 +11,7 @@ import {
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect } from "react";
 import * as THREE from "three";
-import { ViewerState } from "../types/viewer.type";
+import type { ViewerState } from "../types/viewer.type";
 
 interface ViewerCanvasProps {
   state: ViewerState;

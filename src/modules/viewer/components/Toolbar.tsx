@@ -1,5 +1,5 @@
 import { Box, Eye, EyeOff, RotateCcw, RotateCw } from "lucide-react";
-import { ViewerState } from "../types/viewer.type";
+import type { ViewerState } from "../types/viewer.type";
 
 interface ToolbarProps {
   state: ViewerState;

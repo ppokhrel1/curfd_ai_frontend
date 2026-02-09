@@ -71,31 +71,48 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
     if (!token) {
       console.warn("[WebSocket] No auth token found, cannot connect");
       setError("Authentication required");
+      connectingRef.current = false;
       return;
     }
 
     if (typeof token !== "string" || token.length < 10) {
       console.error("[WebSocket] Invalid token format");
       setError("Invalid authentication token");
+      connectingRef.current = false;
       return;
     }
 
-    let apiBase =
+    const wsBase =
+      import.meta.env.VITE_WS_URL ||
       import.meta.env.VITE_API_URL ||
       import.meta.env.VITE_API_BASE_URL ||
-      "/api/v1";
+      "/ws/v1";
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
+    const resolveWsBase = (base: string): string => {
+      const pageWsProtocol =
+        window.location.protocol === "https:" ? "wss:" : "ws:";
 
-    let wsUrlBase = apiBase.startsWith("/")
-      ? `${protocol}//${host}${apiBase}`
-      : apiBase.replace(/^https?/, protocol);
+      // Relative path (e.g., /ws/v1)
+      if (base.startsWith("/")) {
+        return `${pageWsProtocol}//${window.location.host}${base}`;
+      }
 
-    if (!wsUrlBase.includes("/api/v1")) {
-      wsUrlBase = wsUrlBase.endsWith("/")
-        ? `${wsUrlBase}api/v1`
-        : `${wsUrlBase}/api/v1`;
+      // Absolute URL (ws://, wss://, http://, https://)
+      const parsed = new URL(base);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        parsed.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+      }
+      return parsed.toString().replace(/\/$/, "");
+    };
+
+    let wsUrlBase: string;
+    try {
+      wsUrlBase = resolveWsBase(wsBase);
+    } catch (e) {
+      console.error("[WebSocket] Invalid websocket base URL:", wsBase, e);
+      setError("Invalid websocket URL configuration");
+      connectingRef.current = false;
+      return;
     }
 
     const wsUrl = `${wsUrlBase}/chat-socket/${encodeURIComponent(

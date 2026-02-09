@@ -2,7 +2,8 @@ import JSZip from "jszip";
 import * as THREE from "three";
 import { GLTFLoader, OBJLoader, STLLoader } from "three-stdlib";
 import { GeometryAnalyzer } from "../utils/GeometryAnalyzer";
-import { SDFParser, SDFVisual } from "../utils/SDFParser";
+import { SDFParser } from "../utils/SDFParser";
+import type { SDFVisual } from "../utils/SDFParser";
 
 export interface ImportedModel {
   group: THREE.Group;

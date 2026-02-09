@@ -3,8 +3,9 @@ import { jobService } from "@/modules/ai/services/jobService";
 import { assetService } from "@/modules/viewer/services/assetService";
 import { useCallback, useRef, useState } from "react";
 import { useChatStore } from "../stores/chatStore";
-import { GeneratedShape, Message } from "../types/chat.type";
-import { RunpodEvent, useChatSocket } from "./useChatSocket";
+import type { GeneratedShape, Message } from "../types/chat.type";
+import { useChatSocket } from "./useChatSocket";
+import type { RunpodEvent } from "./useChatSocket";
 
 interface UseChatReturn {
   messages: Message[];

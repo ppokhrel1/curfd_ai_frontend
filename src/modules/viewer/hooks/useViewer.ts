@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ViewerState, ViewerStats } from "../types/viewer.type";
+import type { ViewerState, ViewerStats } from "../types/viewer.type";
 
 const initialState: ViewerState = {
   showGrid: true,

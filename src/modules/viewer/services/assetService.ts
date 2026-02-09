@@ -1,5 +1,5 @@
 import { api } from "@/lib/api/client";
-import { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import JSZip from "jszip";
 
 export interface Asset {

@@ -1,4 +1,4 @@
-import { GeneratedShape, ShapeType } from "@/modules/ai/types/chat.type";
+import type { GeneratedShape, ShapeType } from "@/modules/ai/types/chat.type";
 import { Check, Cog, Layers, Plus, Sparkles, Wrench } from "lucide-react";
 
 interface ShapeModificationPanelProps {

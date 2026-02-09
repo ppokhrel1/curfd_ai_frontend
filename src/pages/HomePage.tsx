@@ -6,24 +6,21 @@ import {
 } from "@/hooks/useKeyboardShortcuts";
 import { proxifyUrl } from "@/lib/apiConfig";
 import { useAuthStore } from "@/lib/auth";
-import {
-  ChatInterface,
-  ChatInterfaceRef,
-} from "@/modules/ai/components/ChatInterface";
+import { ChatInterface } from "@/modules/ai/components/ChatInterface";
 import { useChatSocket } from "@/modules/ai/hooks/useChatSocket";
 import { chatService } from "@/modules/ai/services/chatService";
 import { jobService } from "@/modules/ai/services/jobService";
 import { useChatStore } from "@/modules/ai/stores/chatStore";
-import { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import { CADEditor } from "@/modules/editor/components/CADEditor";
 import { useEditorStore } from "@/modules/editor/stores/editorStore";
-import {
-  ImportStage,
-  ModelImportOverlay,
-} from "@/modules/viewer/components/ModelImportOverlay";
+import { ModelImportOverlay } from "@/modules/viewer/components/ModelImportOverlay";
 import { Viewer3D } from "@/modules/viewer/components/Viewer3D";
 import { ModelImporter } from "@/modules/viewer/services/ModelImporter";
-import { Asset, assetService } from "@/modules/viewer/services/assetService";
+import { assetService } from "@/modules/viewer/services/assetService";
+import type { ChatInterfaceRef } from "@/modules/ai/components/ChatInterface";
+import type { ImportStage } from "@/modules/viewer/components/ModelImportOverlay";
+import type { Asset } from "@/modules/viewer/services/assetService";
 import { disposeObject3D } from "@/modules/viewer/utils/dispose";
 import {
   Code2,

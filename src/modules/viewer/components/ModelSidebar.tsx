@@ -1,8 +1,8 @@
-import { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import { formatNumber } from "@/utils/formatters";
 import { Activity, ChevronDown, Gauge, Info, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
-import { ViewerStats } from "../types/viewer.type";
+import type { ViewerStats } from "../types/viewer.type";
 
 interface ModelSidebarProps {
   stats: ViewerStats;
@@ -242,4 +242,3 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     </button>
   );
 };
-

@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from "@/utils/formatters";
 import { MessageSquare, Plus, Trash2, X } from "lucide-react";
-import { Conversation } from "../types/chat.type";
+import type { Conversation } from "../types/chat.type";
 
 interface ConversationSidebarProps {
   conversations: Conversation[];

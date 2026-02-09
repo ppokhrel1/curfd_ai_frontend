@@ -1,7 +1,7 @@
 import { formatTime } from "@/utils/formatters";
 import { Bot, User } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Message } from "../types/chat.type";
+import type { Message } from "../types/chat.type";
 
 const TypewriterEffect: React.FC<{ content: string }> = ({ content }) => {
   const [displayedContent, setDisplayedContent] = useState("");

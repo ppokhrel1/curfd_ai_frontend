@@ -2,7 +2,7 @@ import { useAuthStore } from "@/lib/auth";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { chatService } from "../services/chatService";
 import { useChatStore } from "../stores/chatStore";
-import { Conversation, GeneratedShape, Message } from "../types/chat.type";
+import type { Conversation, GeneratedShape, Message } from "../types/chat.type";
 
 interface UseConversationsReturn {
   conversations: Conversation[];
