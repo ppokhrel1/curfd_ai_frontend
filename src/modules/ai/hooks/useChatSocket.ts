@@ -44,6 +44,8 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
   }, [onEvent]);
 
   const connectingRef = useRef(false);
+  const connectRef = useRef<() => void>(() => {});
+
   const connect = useCallback(() => {
     if (!chatId) return;
 
@@ -162,7 +164,7 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
 
         reconnectTimeoutRef.current = setTimeout(() => {
           retryCountRef.current++;
-          connect();
+          connectRef.current();
         }, delay);
       } else if (retryCountRef.current >= MAX_RETRIES) {
         console.error("[WebSocket] Max reconnection attempts reached");
@@ -170,6 +172,10 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
       }
     };
   }, [chatId]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);

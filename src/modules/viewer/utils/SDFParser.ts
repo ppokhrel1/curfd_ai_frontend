@@ -114,7 +114,7 @@ export class SDFParser {
 
   private cleanUri(uri: string): string {
     // Removes model://model_name/ prefix
-    return uri.replace(/^model:\/\/[^\/]+\//, "");
+    return uri.replace(new RegExp("^model://[^/]+/"), "");
   }
 
   private parseVector(vectorText: string): THREE.Vector3 {

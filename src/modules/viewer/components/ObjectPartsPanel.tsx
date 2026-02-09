@@ -8,7 +8,7 @@ import {
   FileCode,
   RefreshCw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface ObjectPartsPanelProps {
   shape: GeneratedShape;
@@ -40,8 +40,8 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
   onSwapPart,
 }) => {
   // Determine parts: Use shape.geometry.parts if available, otherwise fallback
-  const parts =
-    shape.geometry?.parts && shape.geometry.parts.length > 0
+  const parts = useMemo(() => {
+    return shape.geometry?.parts && shape.geometry.parts.length > 0
       ? shape.geometry.parts.map((p: any) => {
           // Find matching asset if available
           const asset =
@@ -62,6 +62,7 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
           };
         })
       : defaultGenericParts;
+  }, [shape]);
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(["Structure", "Model Components", "Core"])
@@ -78,6 +79,18 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
     },
     {} as Record<string, PartDefinition[]>
   );
+
+  const toggleGroup = (group: string) => {
+    setExpandedGroups((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(group)) {
+        newSet.delete(group);
+      } else {
+        newSet.add(group);
+      }
+      return newSet;
+    });
+  };
 
   // Ensure the group containing the selected part is expanded
   useEffect(() => {
@@ -98,18 +111,6 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
       }, 100);
     }
   }, [selectedPart, parts]);
-
-  const toggleGroup = (group: string) => {
-    setExpandedGroups((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(group)) {
-        newSet.delete(group);
-      } else {
-        newSet.add(group);
-      }
-      return newSet;
-    });
-  };
 
   return (
     <div className="bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl overflow-hidden shadow-xl">

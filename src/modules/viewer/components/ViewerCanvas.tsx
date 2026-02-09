@@ -182,7 +182,9 @@ const SimulationEffects: React.FC<{
       model.name.toLowerCase().includes("drone") ||
       model.name.toLowerCase().includes("uav")
     ) {
-      model.position.y += Math.sin(state.clock.elapsedTime * 2) * 0.001;
+      model.position.setY(
+        model.position.y + Math.sin(state.clock.elapsedTime * 2) * 0.001
+      );
     }
   });
 
