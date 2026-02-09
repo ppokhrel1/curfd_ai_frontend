@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios";
 import { STORAGE_KEYS } from "../constants";
+import { supabaseAuth } from "../supabaseAuth";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
@@ -37,6 +38,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
       localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+      try {
+        await supabaseAuth.signOut();
+      } catch (e) {
+        console.error("Failed to sign out from Supabase on 401", e);
+      }
       if (window.location.pathname !== "/landing") {
         window.location.href = "/landing";
       }

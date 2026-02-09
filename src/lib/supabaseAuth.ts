@@ -1,5 +1,5 @@
 import type { User } from "@/types/global";
-import type { User as SupabaseUser } from "@supabase/supabase-js";
+import type { Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
 export class SupabaseAuthService {
@@ -70,10 +70,10 @@ export class SupabaseAuthService {
     return this.mapSupabaseUser(data.user);
   }
 
-  onAuthStateChange(callback: (user: User | null) => void) {
+  onAuthStateChange(callback: (user: User | null, session: Session | null) => void) {
     return supabase.auth.onAuthStateChange((_event, session) => {
       const user = session?.user ? this.mapSupabaseUser(session.user) : null;
-      callback(user);
+      callback(user, session);
     });
   }
 

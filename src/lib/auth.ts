@@ -1,5 +1,6 @@
-import { AuthState, User } from "@/types/global";
+import type { AuthState, User } from "@/types/global";
 import { create } from "zustand";
+import { STORAGE_KEYS } from "./constants";
 import { supabaseAuth } from "./supabaseAuth";
 
 interface AuthStore extends AuthState {
@@ -22,6 +23,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const { user, session } = await supabaseAuth.getSession();
 
       if (user && session) {
+        localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
         const { chatService } = await import(
           "@/modules/ai/services/chatService"
         );
@@ -32,18 +34,22 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
         set({ user, isAuthenticated: true, isLoading: false });
       } else {
+        localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
         set({ user: null, isAuthenticated: false, isLoading: false });
       }
 
-      supabaseAuth.onAuthStateChange((user: User | null) => {
-        if (user) {
+      supabaseAuth.onAuthStateChange((user, session) => {
+        if (user && session) {
+          localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
           set({ user, isAuthenticated: true });
         } else {
+          localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
           set({ user: null, isAuthenticated: false });
         }
       });
     } catch (err) {
       console.error("Auth initialization error:", err);
+      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
       set({ isLoading: false, error: "Failed to initialize authentication" });
     }
   },
@@ -66,10 +72,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signIn: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user } = await supabaseAuth.signIn(email, password);
+      const { user, session } = await supabaseAuth.signIn(email, password);
 
       if (!user) {
         throw new Error("Sign in failed");
+      }
+
+      if (session) {
+        localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
       }
 
       const { chatService } = await import("@/modules/ai/services/chatService");
@@ -90,12 +100,16 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signUp: async (email: string, password: string, name: string) => {
     set({ isLoading: true, error: null });
     try {
-      const { user } = await supabaseAuth.signUp(email, password, name);
+      const { user, session } = await supabaseAuth.signUp(email, password, name);
 
       if (!user) {
         throw new Error(
           "Sign up failed - please check your email for confirmation"
         );
+      }
+
+      if (session) {
+        localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
       }
 
       const { chatService } = await import("@/modules/ai/services/chatService");
@@ -129,6 +143,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   signOut: async () => {
     try {
       await supabaseAuth.signOut();
+      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
       const { chatService } = await import("@/modules/ai/services/chatService");
       const { useChatStore } = await import("@/modules/ai/stores/chatStore");
 
