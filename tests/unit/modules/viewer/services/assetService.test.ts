@@ -44,7 +44,7 @@ describe('AssetService', () => {
             const shape = await assetService.mapToGeneratedShape('job-123', assets);
 
             expect(shape?.scadCode).toBe('SCAD CODE CONTENT');
-            expect(global.fetch).toHaveBeenCalledWith('http://test.com/logic.scad');
+            expect(global.fetch).toHaveBeenCalledWith('http://test.com/logic.scad', expect.anything());
             expect(shape?.id).toBe('1');
         });
 

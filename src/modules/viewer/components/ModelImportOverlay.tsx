@@ -31,11 +31,16 @@ export const ModelImportOverlay: React.FC<ModelImportOverlayProps> = ({
 }) => {
     const [progress, setProgress] = useState(0);
 
+    // Reset progress when closed
     useEffect(() => {
         if (!isOpen) {
             setProgress(0);
-            return;
         }
+    }, [isOpen]);
+
+    // Handle animation
+    useEffect(() => {
+        if (!isOpen) return;
 
         // Simulate smooth progress within stages
         const interval = setInterval(() => {

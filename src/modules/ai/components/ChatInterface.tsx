@@ -99,6 +99,15 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       isGeneratingGlobally,
     } = useChat(activeConversationId);
 
+    const handleSend = useCallback(
+      async (content: string) => {
+        if (!content.trim()) return;
+
+        await sendMessage(content);
+      },
+      [sendMessage]
+    );
+
     // Expose method to parent
     useImperativeHandle(ref, () => ({
       sendSystemMessage: (message: string, shapeData?: GeneratedShape) => {
@@ -173,15 +182,6 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       activeConversation,
       renameConversation,
     ]);
-
-    const handleSend = useCallback(
-      async (content: string) => {
-        if (!content.trim()) return;
-
-        await sendMessage(content);
-      },
-      [sendMessage, addMessageToConversation]
-    );
 
     const handleNewChat = useCallback(async () => {
       // Lazy creation: Don't create backend chat until first message

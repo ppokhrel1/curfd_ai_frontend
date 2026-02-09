@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from '../../../../../src/lib/api/client';
+import { encryptedApi as api } from '../../../../../src/lib/api/encryptedClient';
 import { ChatResponse, chatService, MessageResponse, SessionResponse } from '../../../../../src/modules/ai/services/chatService';
 
-// Mock the API client
-vi.mock('../../../../../src/lib/api/client', () => ({
-    api: {
+// Mock the Encrypted API client
+vi.mock('../../../../../src/lib/api/encryptedClient', () => ({
+    encryptedApi: {
         get: vi.fn(),
         post: vi.fn(),
         delete: vi.fn(),
