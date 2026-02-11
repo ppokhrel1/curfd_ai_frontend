@@ -7,13 +7,13 @@ import {
   validateName,
   validatePassword,
 } from "@/utils/validators";
-import { Lock, Mail, User, Zap } from "lucide-react";
+import { Github, Globe, Lock, Mail, User, Zap } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const SignUpPage = () => {
   const navigate = useNavigate();
-  const { signUp, error } = useAuthStore();
+  const { signUp, signInWithProvider, error } = useAuthStore();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -69,6 +69,14 @@ const SignUpPage = () => {
       console.error("Sign up error:", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: "google" | "github") => {
+    try {
+      await signInWithProvider(provider);
+    } catch (err) {
+      console.error(`${provider} login error:`, err);
     }
   };
 
@@ -201,6 +209,39 @@ const SignUpPage = () => {
               Create Account
             </Button>
           </form>
+
+          {/* Social Login */}
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">
+                  Or sign up with
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => handleSocialLogin("google")}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+              >
+                <Globe className="w-5 h-5" />
+                Google
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSocialLogin("github")}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+              >
+                <Github className="w-5 h-5" />
+                GitHub
+              </button>
+            </div>
+          </div>
 
           {/* Sign In Link */}
           <p className="text-center text-sm text-gray-600 mt-6">

@@ -49,7 +49,7 @@ const LandingPage = () => {
             </p>
 
             <div className="pt-6">
-              <PromptBox />
+              <PromptBox onAuthClick={openAuth} />
             </div>
           </div>
         </section>
@@ -63,10 +63,10 @@ const LandingPage = () => {
         <section id="pricing" className="py-24 border-t border-white/10 bg-neutral-950 scroll-mt-16">
           <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 text-center px-6">
             {[
-              { value: "10K+", label: "Shapes Generated" },
-              { value: "99.9%", label: "Simulation Accuracy" },
-              { value: "5K+", label: "Active Users" },
-              { value: "<1s", label: "AI Response Time" },
+              { value: "Infinite", label: "Variations Possible" },
+              { value: "100%", label: "Scientific Precision" },
+              { value: "Real-time", label: "Volume & Mass Calc" },
+              { value: "<100ms", label: "Analysis Speed" },
             ].map((stat, i) => (
               <div key={i} className="space-y-2 group">
                 <div className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform">

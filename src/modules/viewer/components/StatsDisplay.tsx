@@ -9,8 +9,8 @@ interface StatsDisplayProps {
 
 export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   fps = 60,
-  triangles = 2450,
-  drawCalls = 3,
+  triangles = 0,
+  drawCalls = 0,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const currentFps = fps;
@@ -26,6 +26,11 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
     if (fps >= 30) return "Good";
     return "Poor";
   };
+
+  // UX Refinement: Hide completely if no data (realism)
+  if (!triangles && !drawCalls) {
+    return null;
+  }
 
   if (!isExpanded) {
     return (

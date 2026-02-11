@@ -1,6 +1,10 @@
 import { useState } from "react";
 
-const PromptBox = () => {
+interface PromptBoxProps {
+  onAuthClick?: (mode: "signin" | "signup") => void;
+}
+
+const PromptBox = ({ onAuthClick }: PromptBoxProps) => {
   const [prompt, setPrompt] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
@@ -13,7 +17,15 @@ const PromptBox = () => {
 
   const handleSubmit = () => {
     if (!prompt.trim()) return;
-    window.location.href = `/ai-chat?query=${encodeURIComponent(prompt)}`;
+    
+    // Save prompt and trigger auth
+    sessionStorage.setItem("pending_chat_message", prompt);
+    if (onAuthClick) {
+      onAuthClick("signup");
+    } else {
+      // Fallback if no auth handler (should not happen in landing page context)
+      console.warn("No auth handler provided to PromptBox");
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

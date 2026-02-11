@@ -9,6 +9,7 @@ interface ResizablePanelsProps {
   defaultLeftWidth?: number;
   storageKey?: string;
   className?: string;
+  leftVisible?: boolean;
 }
 
 export const ResizablePanels = ({
@@ -19,6 +20,7 @@ export const ResizablePanels = ({
   defaultLeftWidth = 50,
   storageKey = "panel-split",
   className = "",
+  leftVisible = true,
 }: ResizablePanelsProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [leftWidth, setLeftWidth] = useState<number>(() => {
@@ -95,43 +97,53 @@ export const ResizablePanels = ({
   return (
     <div ref={containerRef} className={`flex h-full ${className}`}>
       {/* Left Panel */}
-      <div
-        className="h-full overflow-hidden transition-[width] duration-75 ease-out"
-        style={{ width: `${leftWidth}%` }}
-      >
-        {leftPanel}
-      </div>
+      {leftVisible && (
+        <>
+          <div
+            className="h-full overflow-hidden transition-[width] duration-75 ease-out"
+            style={{ width: `${leftWidth}%` }}
+          >
+            {leftPanel}
+          </div>
 
-      {/* Draggable Divider */}
-      <div
-        className={`group relative flex-shrink-0 w-1 cursor-col-resize transition-all duration-150 ${
-          isDragging || isHovering
-            ? "bg-green-500/50"
-            : "bg-neutral-800 hover:bg-neutral-700"
-        }`}
-        onMouseDown={handleMouseDown}
-        onDoubleClick={handleDoubleClick}
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-      >
-        {/* Grip Handle */}
-        <div
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-12 rounded-full border transition-all duration-200 ${
-            isDragging || isHovering
-              ? "bg-green-500/20 border-green-500/40 opacity-100"
-              : "bg-neutral-900 border-neutral-700 opacity-0 group-hover:opacity-100"
-          }`}
-        >
-          <GripVertical
-            className={`w-3 h-3 ${
-              isDragging || isHovering ? "text-green-400" : "text-neutral-400"
+          {/* Draggable Divider */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-valuenow={Math.round(leftWidth)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Panel Resizer"
+            className={`group relative flex-shrink-0 w-1 cursor-col-resize transition-all duration-150 ${
+              isDragging || isHovering
+                ? "bg-green-500/50"
+                : "bg-neutral-800 hover:bg-neutral-700"
             }`}
-          />
-        </div>
+            onMouseDown={handleMouseDown}
+            onDoubleClick={handleDoubleClick}
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
+          >
+            {/* Grip Handle */}
+            <div
+              className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-12 rounded-full border transition-all duration-200 ${
+                isDragging || isHovering
+                  ? "bg-green-500/20 border-green-500/40 opacity-100"
+                  : "bg-neutral-900 border-neutral-700 opacity-0 group-hover:opacity-100"
+              }`}
+            >
+              <GripVertical
+                className={`w-3 h-3 ${
+                  isDragging || isHovering ? "text-green-400" : "text-neutral-400"
+                }`}
+              />
+            </div>
 
-        {/* Invisible Wider Hit Area */}
-        <div className="absolute inset-y-0 -left-2 -right-2" />
-      </div>
+            {/* Invisible Wider Hit Area */}
+            <div className="absolute inset-y-0 -left-2 -right-2" />
+          </div>
+        </>
+      )}
 
       {/* Right Panel */}
       <div className="flex-1 h-full overflow-hidden">{rightPanel}</div>

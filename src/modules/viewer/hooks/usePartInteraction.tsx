@@ -35,24 +35,30 @@ export const usePartInteraction = ({
     partId: string,
     baseColor: string,
     isAccent = false,
-    wireframe = false
+    wireframe = false,
+    originalColor?: number
   ) => {
     const isSelected = selectedPart === partId;
     const isHighlighted = highlightedParts?.has(partId);
     const isHovered = hoveredPart === partId;
-
-    let color = baseColor;
+    let color =
+      originalColor !== undefined
+        ? `#${originalColor.toString(16).padStart(6, "0")}`
+        : baseColor;
     let emissive = isAccent ? "#10b981" : "#000000";
     let emissiveIntensity = isAccent ? 0.3 : 0;
 
     if (isSelected) {
       color = "#3b82f6";
       emissive = "#60a5fa";
-      emissiveIntensity = 0.5;
-    } else if (isHighlighted || isHovered) {
+      emissiveIntensity = 0.6;
+    } else if (isHighlighted) {
       color = "#22c55e";
       emissive = "#4ade80";
-      emissiveIntensity = 0.3;
+      emissiveIntensity = 0.4;
+    } else if (isHovered) {
+      emissive = "#ffffff";
+      emissiveIntensity = 0.2;
     }
 
     return {
@@ -60,8 +66,8 @@ export const usePartInteraction = ({
       emissive,
       emissiveIntensity,
       wireframe,
-      metalness: 0.6,
-      roughness: 0.3,
+      metalness: isSelected ? 0.7 : 0.5,
+      roughness: isSelected ? 0.2 : 0.4,
     };
   };
 

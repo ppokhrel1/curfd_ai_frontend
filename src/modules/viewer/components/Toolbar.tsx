@@ -1,9 +1,9 @@
-import { Box, Eye, EyeOff, Grid3x3, RotateCcw, RotateCw } from "lucide-react";
-import { ViewerState } from "../types/viewer.type";
+import { Box, Eye, EyeOff, RotateCcw, RotateCw } from "lucide-react";
+import type { ViewerState } from "../types/viewer.type";
 
 interface ToolbarProps {
   state: ViewerState;
-  onToggleGrid: () => void;
+
   onToggleWireframe: () => void;
   onToggleAxes: () => void;
   onToggleAutoRotate: () => void;
@@ -12,7 +12,6 @@ interface ToolbarProps {
 
 export const Toolbar: React.FC<ToolbarProps> = ({
   state,
-  onToggleGrid,
   onToggleWireframe,
   onToggleAxes,
   onToggleAutoRotate,
@@ -20,13 +19,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 }) => {
   return (
     <div className="flex items-center gap-0.5 bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl p-1.5 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <ToolButton
-        icon={<Grid3x3 className="w-4 h-4" />}
-        label="Toggle Grid"
-        active={state.showGrid}
-        onClick={onToggleGrid}
-      />
-
       <ToolButton
         icon={<Box className="w-4 h-4" />}
         label="Wireframe Mode"
@@ -93,9 +85,9 @@ const ToolButton: React.FC<ToolButtonProps> = ({
     title={label}
   >
     {icon}
-    <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-1.5 bg-neutral-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none border border-neutral-700 shadow-xl z-[100]">
+    <span className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1.5 bg-neutral-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none border border-neutral-700 shadow-xl z-[100]">
       {label}
-      <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-neutral-700" />
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-neutral-700" />
     </span>
   </button>
 );

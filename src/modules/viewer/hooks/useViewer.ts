@@ -1,21 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ViewerState, ViewerStats } from '../types/viewer.type';
+import { useCallback, useEffect, useState } from "react";
+import type { ViewerState, ViewerStats } from "../types/viewer.type";
 
 const initialState: ViewerState = {
   showGrid: true,
   wireframe: false,
   showAxes: true,
   autoRotate: false,
-  backgroundColor: '#0a0a0a',
+  backgroundColor: "#0a0a0a",
 };
 
 const initialStats: ViewerStats = {
-  vertices: 2450,
-  faces: 4820,
-  triangles: 2450,
-  materials: 2,
+  vertices: 0,
+  faces: 0,
+  triangles: 0,
+  materials: 0,
   fps: 60,
-  drawCalls: 3,
+  drawCalls: 0,
 };
 
 export const useViewer = () => {
@@ -23,7 +23,6 @@ export const useViewer = () => {
   const [stats, setStats] = useState<ViewerStats>(initialStats);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Toggle functions with smooth state updates
   const toggleGrid = useCallback(() => {
     setState((prev) => ({ ...prev, showGrid: !prev.showGrid }));
   }, []);
@@ -48,80 +47,73 @@ export const useViewer = () => {
     setState((prev) => ({ ...prev, backgroundColor: color }));
   }, []);
 
-  // Update stats dynamically
   const updateStats = useCallback((newStats: Partial<ViewerStats>) => {
     setStats((prev) => ({ ...prev, ...newStats }));
   }, []);
 
-  // Load model function
-  const loadModel = useCallback(async (file: File) => {
-    setIsLoading(true);
-    try {
-      // Simulate model loading
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Update stats with new model data
-      updateStats({
-        vertices: Math.floor(Math.random() * 10000),
-        faces: Math.floor(Math.random() * 20000),
-        triangles: Math.floor(Math.random() * 10000),
-        materials: Math.floor(Math.random() * 5) + 1,
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Error loading model:', error);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [updateStats]);
+  const loadModel = useCallback(
+    async (file: File) => {
+      setIsLoading(true);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // Export model function
-  const exportModel = useCallback(async (format: 'gltf' | 'obj' | 'stl' | 'fbx') => {
-    try {
-      // Implement export logic here
-      console.log(`Exporting model as ${format}`);
-      return true;
-    } catch (error) {
-      console.error('Error exporting model:', error);
-      return false;
-    }
-  }, []);
+        return true;
+      } catch (error) {
+        console.error("Error loading model:", error);
+        return false;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [updateStats]
+  );
 
-  // Take screenshot
+  const exportModel = useCallback(
+    async (format: "gltf" | "obj" | "stl" | "fbx") => {
+      try {
+        console.log(`Exporting model as ${format}`);
+        return true;
+      } catch (error) {
+        console.error("Error exporting model:", error);
+        return false;
+      }
+    },
+    []
+  );
+
   const takeScreenshot = useCallback(async () => {
     try {
-      // Implement screenshot logic
-      console.log('Taking screenshot');
+      console.log("Taking screenshot");
       return true;
     } catch (error) {
-      console.error('Error taking screenshot:', error);
+      console.error("Error taking screenshot:", error);
       return false;
     }
   }, []);
 
-  // Save viewer preferences to localStorage
   useEffect(() => {
-    const savedPreferences = localStorage.getItem('viewer-preferences');
+    const savedPreferences = localStorage.getItem("viewer-preferences");
     if (savedPreferences) {
       try {
         const preferences = JSON.parse(savedPreferences);
-        setState(prev => ({ ...prev, ...preferences }));
+        setState((prev) => ({ ...prev, ...preferences }));
       } catch (error) {
-        console.error('Error loading preferences:', error);
+        console.error("Error loading preferences:", error);
       }
     }
   }, []);
 
-  // Save preferences when state changes
   useEffect(() => {
     const preferencesToSave = {
       showGrid: state.showGrid,
       showAxes: state.showAxes,
       backgroundColor: state.backgroundColor,
     };
-    localStorage.setItem('viewer-preferences', JSON.stringify(preferencesToSave));
+    localStorage.setItem(
+      "viewer-preferences",
+      JSON.stringify(preferencesToSave)
+    );
   }, [state.showGrid, state.showAxes, state.backgroundColor]);
 
   return {

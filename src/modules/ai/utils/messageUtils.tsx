@@ -1,4 +1,4 @@
-import { GeneratedShape, Message, ShapeType } from "../types/chat.type";
+import type { GeneratedShape, Message, ShapeType } from "../types/chat.type";
 
 /**
  * Generate a unique ID

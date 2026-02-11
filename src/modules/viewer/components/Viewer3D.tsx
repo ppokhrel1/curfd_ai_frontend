@@ -1,28 +1,31 @@
-import { GeneratedShape } from "@/modules/ai/types/chat.type";
+import { proxifyUrl } from "@/lib/apiConfig";
+import { useChatStore } from "@/modules/ai/stores/chatStore";
+import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import {
   Box,
   ChevronLeft,
   ChevronRight,
+  Cpu,
   Download,
-  Edit3,
+  History,
   Layers,
   Maximize2,
   Play,
   RotateCcw,
+  Sparkles,
   Upload,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import * as THREE from "three";
 import { useViewer } from "../hooks/useViewer";
+import type { Asset } from "../services/assetService";
 import { ModelExporter } from "../services/ModelExporter";
+import { AssetSwapPanel } from "./AssetSwapPanel";
 import { ControlsHint } from "./ControlsHint";
+import { MissionControl } from "./MissionControl";
 import { ModelSidebar } from "./ModelSidebar";
 import { ObjectPartsPanel } from "./ObjectPartsPanel";
-import {
-  ShapeModification,
-  ShapeModificationPanel,
-} from "./ShapeModificationPanel";
 import { StatsDisplay } from "./StatsDisplay";
 import { Toolbar } from "./Toolbar";
 import { ViewerCanvas } from "./ViewerCanvas";
@@ -30,10 +33,15 @@ import { ViewerCanvas } from "./ViewerCanvas";
 interface Viewer3DProps {
   shape?: GeneratedShape | null;
   loadedModel?: THREE.Group | null;
-  customStats?: Partial<{ triangles: number; vertices: number; faces: number; materials: number }>;
+  customStats?: Partial<{
+    triangles: number;
+    vertices: number;
+    faces: number;
+    materials: number;
+  }>;
   onOpenSimulation?: () => void;
   onImportModel?: () => void;
-  onShapeModify?: (modification: ShapeModification, modLabel: string) => void;
+  onSwapPart?: (partId: string, asset: Asset) => void;
   className?: string;
 }
 
@@ -43,13 +51,22 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
   customStats,
   onOpenSimulation,
   onImportModel,
-  onShapeModify,
+  onSwapPart,
   className = "",
 }) => {
+  const { activeConversationId, generatingChatIds, generatingChatStatus } =
+    useChatStore();
+  const isGenerating = activeConversationId
+    ? generatingChatIds.has(activeConversationId)
+    : false;
+  const currentStatus = activeConversationId
+    ? generatingChatStatus[activeConversationId]
+    : null;
+
   const {
     state,
     stats: viewerStats,
-    toggleGrid,
+
     toggleWireframe,
     toggleAxes,
     toggleAutoRotate,
@@ -59,41 +76,42 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
   const stats = customStats ? { ...viewerStats, ...customStats } : viewerStats;
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [activePanel, setActivePanel] = useState<"parts" | "customize" | null>(
-    null
-  );
+  const [activePanel, setActivePanel] = useState<
+    "parts" | "history" | "swap" | null
+  >(null);
   const [selectedPart, setSelectedPart] = useState<string | null>(null);
+  const [swappingPartId, setSwappingPartId] = useState<string | null>(null);
   const [highlightedParts, setHighlightedParts] = useState<Set<string>>(
     new Set()
   );
-  const [appliedMods, setAppliedMods] = useState<string[]>([]);
 
   const exporter = useMemo(() => new ModelExporter(), []);
 
   const handleExport = async () => {
     if (!loadedModel && !shape) {
-       toast.error("No model to export");
-       return;
+      toast.error("No model to export");
+      return;
     }
 
     const toastId = toast.loading("Preparing export package...");
     try {
-      // Find the group to export
-      // If we have a loadedModel, use it. Otherwise, we'd need to capture the ShapeRenderer output.
-      // For now, focus on exporting the loadedModel (imported or AI-rendered)
       const groupToExport = loadedModel;
-      
+
       if (!groupToExport) {
-        toast.error("AI Generated placeholders cannot be exported yet. Please wait for real model generation.", { id: toastId });
+        toast.error(
+          "AI Generated placeholders cannot be exported yet. Please wait for real model generation.",
+          { id: toastId }
+        );
         return;
       }
 
       const zipBlob = await exporter.exportToZip(
-        groupToExport, 
+        groupToExport,
         shape?.name || "curfd-model",
+        shape?.assets?.map((a) => ({ ...a, url: proxifyUrl(a.url) })),
         shape?.geometry
       );
-      
+
       exporter.downloadZip(zipBlob, `${shape?.name || "model"}.zip`);
       toast.success("Model exported successfully!", { id: toastId });
     } catch (err) {
@@ -103,9 +121,19 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
   };
 
   const handleSimulation = () => {
-    if (shape?.hasSimulation && onOpenSimulation) {
+    if (onOpenSimulation) {
       onOpenSimulation();
+      return;
     }
+    toast("Simulation module is Coming Soon!", {
+      icon: "🚀",
+      style: {
+        borderRadius: "12px",
+        background: "#171717",
+        color: "#fff",
+        border: "1px solid #262626",
+      },
+    });
   };
 
   const handleFullscreen = () => {
@@ -116,6 +144,20 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     }
   };
 
+  const handleRecallAsset = useCallback(
+    (recalledShape: GeneratedShape) => {
+      if (!activeConversationId) return;
+
+      const { updateConversation } = useChatStore.getState();
+      updateConversation(activeConversationId, {
+        generatedShape: recalledShape,
+      });
+
+      setActivePanel("parts");
+    },
+    [activeConversationId]
+  );
+
   const handleToggleHighlight = useCallback((partId: string) => {
     setHighlightedParts((prev) => {
       const newSet = new Set(prev);
@@ -125,27 +167,26 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     });
   }, []);
 
-  const handleModification = useCallback(
-    (mod: ShapeModification, label: string) => {
-      // Track applied modifications locally
-      setAppliedMods((prev) => [...prev, label]);
-      
-      // If we have a loaded model, apply some basic modifications to it locally
-      if (loadedModel) {
-        if (label.includes("Scale")) {
-          loadedModel.scale.multiplyScalar(1.1);
-        } else if (label.includes("Rotate")) {
-          loadedModel.rotation.y += Math.PI / 8;
-        }
-      }
+  const handleInitiateSwap = (partId: string) => {
+    setSwappingPartId(partId);
+    setActivePanel("swap");
+  };
 
-      // Notify parent to sync with chat
-      if (onShapeModify) {
-        onShapeModify(mod, label);
-      }
-    },
-    [onShapeModify, loadedModel]
-  );
+  const handleCompleteSwap = (asset: Asset) => {
+    if (swappingPartId && onSwapPart) {
+      onSwapPart(swappingPartId, asset);
+    }
+    setActivePanel("parts");
+    setSwappingPartId(null);
+  };
+
+  const handlePartSelection = (partId: string | null) => {
+    setSelectedPart(partId);
+    if (partId) {
+      setActivePanel("parts");
+      if (!isSidebarOpen) setIsSidebarOpen(false);
+    }
+  };
 
   return (
     <div
@@ -158,16 +199,15 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           shape={shape}
           loadedModel={loadedModel}
           selectedPart={selectedPart}
-          onSelectPart={setSelectedPart}
+          onSelectPart={handlePartSelection}
           highlightedParts={highlightedParts}
         />
       </div>
 
-      {/* Top Left: Toolbar */}
+      {/* Top Left: Toolbar   */}
       <div className="absolute top-3 left-3 z-10">
         <Toolbar
           state={state}
-          onToggleGrid={toggleGrid}
           onToggleWireframe={toggleWireframe}
           onToggleAxes={toggleAxes}
           onToggleAutoRotate={toggleAutoRotate}
@@ -177,7 +217,11 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
 
       {/* Top Right: Stats */}
       <div className="absolute top-3 right-3 z-10">
-        <StatsDisplay fps={60} triangles={stats.triangles} drawCalls={stats.drawCalls || 3} />
+        <StatsDisplay
+          fps={stats.fps}
+          triangles={stats.triangles}
+          drawCalls={stats.drawCalls}
+        />
       </div>
 
       {/* Center Top: Model Name */}
@@ -186,12 +230,18 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           <div className="bg-neutral-900/80 backdrop-blur-sm border border-neutral-800 rounded-full px-3 py-1 flex items-center gap-2">
             <Box className="w-3 h-3 text-green-400" />
             <span className="text-xs text-white font-medium">{shape.name}</span>
-            {appliedMods.length > 0 && (
-              <span className="text-[10px] text-purple-400">
-                +{appliedMods.length} mods
-              </span>
-            )}
           </div>
+        </div>
+      )}
+
+      {/* Mission Control Panel */}
+      {activeConversationId && activePanel === "history" && (
+        <div className="absolute top-16 left-3 z-30 w-80 h-3/4 animate-in fade-in slide-in-from-left-2 duration-150">
+          <MissionControl
+            chatId={activeConversationId}
+            onRecallAsset={handleRecallAsset}
+            onClose={() => setActivePanel(null)}
+          />
         </div>
       )}
 
@@ -204,17 +254,21 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
             onSelectPart={setSelectedPart}
             highlightedParts={highlightedParts}
             onToggleHighlight={handleToggleHighlight}
+            onSwapPart={handleInitiateSwap}
           />
         </div>
       )}
 
-      {/* Right: Customize Panel */}
-      {shape && activePanel === "customize" && (
-        <div className="absolute top-16 right-14 z-20 w-56 animate-in fade-in slide-in-from-right-2 duration-150">
-          <ShapeModificationPanel
-            shape={shape}
-            onModify={handleModification}
-            appliedMods={appliedMods}
+      {/* Left: Asset Swap Panel */}
+      {activePanel === "swap" && swappingPartId && (
+        <div className="absolute top-16 left-3 z-20 w-80 h-[400px] animate-in fade-in slide-in-from-left-2 duration-150">
+          <AssetSwapPanel
+            currentPartName={
+              shape?.geometry.parts.find((p: any) => p.id === swappingPartId)
+                ?.name || "Part"
+            }
+            onSelectAsset={handleCompleteSwap}
+            onClose={() => setActivePanel("parts")}
           />
         </div>
       )}
@@ -232,21 +286,19 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           {shape && (
             <>
               <ActionBtn
+                icon={<History />}
+                label="Mission Control"
+                active={activePanel === "history"}
+                onClick={() =>
+                  setActivePanel(activePanel === "history" ? null : "history")
+                }
+              />
+              <ActionBtn
                 icon={<Layers />}
                 label="Parts"
                 active={activePanel === "parts"}
                 onClick={() =>
                   setActivePanel(activePanel === "parts" ? null : "parts")
-                }
-              />
-              <ActionBtn
-                icon={<Edit3 />}
-                label="Edit"
-                active={activePanel === "customize"}
-                onClick={() =>
-                  setActivePanel(
-                    activePanel === "customize" ? null : "customize"
-                  )
                 }
               />
             </>
@@ -265,7 +317,11 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           <div className="w-px h-6 bg-neutral-700" />
 
           <ActionBtn icon={<RotateCcw />} label="Reset" onClick={reset} />
-          <ActionBtn icon={<Download />} label="Export" onClick={handleExport} />
+          <ActionBtn
+            icon={<Download />}
+            label="Export"
+            onClick={handleExport}
+          />
           <ActionBtn
             icon={<Maximize2 />}
             label="Full"
@@ -297,7 +353,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         }`}
       >
         <div className="h-full overflow-y-auto p-4 pt-6 scrollbar-thin scrollbar-thumb-neutral-700">
-          <ModelSidebar stats={stats} shape={shape} />
+          <ModelSidebar stats={stats} shape={shape} onExport={handleExport} />
         </div>
       </div>
 
@@ -322,6 +378,68 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
               <Upload className="w-4 h-4" />
               Import
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Multi-stage Generation Loader Overlay */}
+      {isGenerating && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-neutral-950/40 backdrop-blur-[2px] animate-in fade-in duration-500">
+          <div className="relative max-w-sm w-full mx-6">
+            {/* Background Glow */}
+            <div className="absolute inset-0 bg-green-500/10 blur-[80px] rounded-full animate-pulse" />
+
+            <div className="relative bg-neutral-900/90 border border-green-500/20 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
+              <div className="flex flex-col items-center text-center">
+                {/* Advanced Animated Loader */}
+                <div className="relative w-20 h-20 mb-6">
+                  <div className="absolute inset-0 border-2 border-neutral-800 rounded-full" />
+                  <div className="absolute inset-0 border-2 border-t-green-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
+                  <div className="absolute inset-2 border border-neutral-800 rounded-full" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Cpu className="w-8 h-8 text-green-400 animate-pulse" />
+                  </div>
+
+                  {/* Floating Particles */}
+                  <div className="absolute -top-2 -right-2">
+                    <Sparkles className="w-5 h-5 text-green-500/50 animate-bounce" />
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-bold text-white mb-2 tracking-tight">
+                  CURFD Intelligence
+                </h3>
+
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="flex gap-1">
+                    <span className="w-1 h-1 bg-green-500 rounded-full animate-ping" />
+                    <span className="w-1 h-1 bg-green-500 rounded-full animate-ping [animation-delay:0.2s]" />
+                    <span className="w-1 h-1 bg-green-500 rounded-full animate-ping [animation-delay:0.4s]" />
+                  </div>
+                  <span className="text-[10px] font-bold text-green-500 uppercase tracking-[0.2em]">
+                    Inference in Progress
+                  </span>
+                </div>
+
+                {/* Status Card */}
+                <div className="w-full bg-black/40 border border-neutral-800 rounded-2xl p-4 mb-6">
+                  <p className="text-neutral-400 text-xs font-medium mb-1 uppercase tracking-widest opacity-60">
+                    Current Sequence
+                  </p>
+                  <p className="text-green-400 text-sm font-bold truncate">
+                    {currentStatus || "Initializing Neural Pipeline..."}
+                  </p>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full space-y-2">
+                  <div className="h-1.5 w-full bg-neutral-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-green-500 via-emerald-400 to-green-500 w-[45%] animate-progress-indefinite shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
+                  </div>
+                  <div className="flex justify-between items-center text-[9px] text-neutral-500 font-mono uppercase tracking-tighter"></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

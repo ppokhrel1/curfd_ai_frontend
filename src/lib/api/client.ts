@@ -1,45 +1,60 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { STORAGE_KEYS } from "../constants";
+import { supabaseAuth } from "../supabaseAuth";
 
-//  axios instance with base URL
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 export const api = axios.create({
-    baseURL: "http://127.0.0.1:8000/api/v1",
-    headers: {
-        "Content-Type": "application/json",
-    },
+  baseURL: API_BASE_URL,
+  timeout: 30000,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-// Request interceptor for API calls
 api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
+  (config) => {
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor for API calls
 api.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const originalRequest = error.config;
+  (response) => {
+    const newToken = response.headers["x-refresh-token"];
+    const expiresAt = response.headers["x-refresh-token-expires-at"];
 
-        // Handle 401 Unauthorized
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            // Clear storage and redirect to login if token is invalid
-            localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-            localStorage.removeItem(STORAGE_KEYS.USER_DATA);
-
-            // Optional: Dispatch a global event or update state via a callback
-            // For now we just let the error propagate so the UI can handle it
-        }
-        return Promise.reject(error);
+    if (newToken) {
+      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, newToken);
     }
+
+    return response;
+  },
+  async (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+      try {
+        await supabaseAuth.signOut();
+      } catch (e) {
+        console.error("Failed to sign out from Supabase on 401", e);
+      }
+      if (window.location.pathname !== "/landing") {
+        window.location.href = "/landing";
+      }
+    }
+
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers["retry-after"];
+      console.warn(`⚠️ Rate limited. Retry after ${retryAfter}s`);
+    }
+
+    return Promise.reject(error);
+  }
 );
 
 export default api;

@@ -2,7 +2,7 @@ export const APP_CONFIG = {
   name: 'CURFD AI',
   version: '1.0.0',
   description: 'Advanced CFD simulation and AI-powered analysis platform',
-  apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  apiUrl: import.meta.env.VITE_API_URL,
 } as const;
 
 export const ROUTES = {
@@ -17,6 +17,7 @@ export const ROUTES = {
 
 export const STORAGE_KEYS = {
   AUTH_TOKEN: 'curfd_auth_token',
+  REFRESH_TOKEN: 'curfd_refresh_token',
   USER_DATA: 'curfd_user_data',
   THEME: 'curfd_theme',
 } as const;

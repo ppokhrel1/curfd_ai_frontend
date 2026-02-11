@@ -29,11 +29,11 @@ const features: FeatureItem[] = [
     stats: "Sub-second",
   },
   {
-    title: "Parts Marketplace",
-    desc: "Buy and sell robotic components, sensors, motors & actuators with a live community.",
+    title: "Intelligent Component Analysis",
+    desc: "Automatically decompose imported mesh assemblies into individual components with detailed hierarchy and visualization.",
     icon: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z",
     gradient: "from-orange-500 to-red-500",
-    stats: "5K+ listings",
+    stats: "Auto-parsing",
   },
   {
     title: "3D Viewer",
@@ -43,11 +43,11 @@ const features: FeatureItem[] = [
     stats: "Real-time",
   },
   {
-    title: "Physics Engine",
-    desc: "Simulate motion, torque, collision, joints and robotics kinematics with real-world accuracy.",
+    title: "Scientific Physics Analysis",
+    desc: "Calculate precise volume ($m^3$), surface area ($m^2$), mass ($kg$), and bounding box dimensions for any rigid body geometry.",
     icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
     gradient: "from-indigo-500 to-purple-500",
-    stats: "Live physics",
+    stats: "Signed Volume Algo",
   },
 ];
 

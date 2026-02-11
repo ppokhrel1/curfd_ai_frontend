@@ -3,72 +3,100 @@ import * as THREE from 'three';
 import { STLExporter } from 'three-stdlib';
 
 export class ModelExporter {
-    private stlExporter: STLExporter;
+  private stlExporter: STLExporter;
 
-    constructor() {
-        this.stlExporter = new STLExporter();
+  constructor() {
+    this.stlExporter = new STLExporter();
+  }
+
+  async exportToZip(
+    group: THREE.Group,
+    modelName: string,
+    assets?: { filename: string; url: string; }[],
+    geometryData?: any
+  ): Promise<Blob> {
+    const zip = new JSZip();
+
+    // 1. Add model.sdf
+    // Use provided content if available, otherwise we could try to fetch if we had the URL
+    if (geometryData?.sdf) {
+      zip.file("model.sdf", geometryData.sdf);
     }
 
-    async exportToZip(group: THREE.Group, modelName: string, specification?: any): Promise<Blob> {
-        const zip = new JSZip();
-        const meshFolder = zip.folder("mesh");
+    // 2. Add model.yaml
+    if (geometryData?.yaml) {
+      zip.file("model.yaml", geometryData.yaml);
+    }
 
-        // 1. Export meshes to STL
-        const visuals: any[] = [];
-        let meshIndex = 0;
+    // 3. Add specification.json
+    if (geometryData?.specification) {
+      zip.file("specification.json", JSON.stringify(geometryData.specification, null, 2));
+    }
 
-        group.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-                const mesh = child as THREE.Mesh;
-                const stlData = this.stlExporter.parse(mesh, { binary: true });
-                const meshFilename = mesh.name ? `${mesh.name}.stl` : `part_${meshIndex}.stl`;
+    // 4. Export meshes
+    const meshFolder = zip.folder("mesh");
+    const meshFilesAdded = new Set<string>();
 
-                // stlData is a DataView, JSZip needs ArrayBuffer or Blob
-                meshFolder?.file(meshFilename, stlData.buffer as ArrayBuffer);
-
-                // Store visual info for SDF
-                visuals.push({
-                    name: mesh.name || `part_${meshIndex}`,
-                    meshPath: `mesh/${meshFilename}`,
-                    position: mesh.position.clone(),
-                    rotation: mesh.rotation.clone(),
-                    scale: mesh.scale.clone()
-                });
-
-                meshIndex++;
-            }
-        });
-
-        // 2. Generate model.sdf
-        const sdfContent = this.generateSDF(modelName, visuals);
-        zip.file("model.sdf", sdfContent);
-
-        // 3. Generate model.config
-        const configContent = this.generateConfig(modelName);
-        zip.file("model.config", configContent);
-
-        // 4. Add specification if exists
-        if (specification) {
-            zip.file("specification", JSON.stringify(specification, null, 2));
+    // Strategy A: Use Provided Assets (Highest Fidelity)
+    if (assets && assets.length > 0) {
+      console.log(`ModelExporter: Fetching ${assets.length} original assets...`);
+      for (const asset of assets) {
+        try {
+          const response = await fetch(asset.url);
+          if (response.ok) {
+            const blob = await response.blob();
+            meshFolder?.file(asset.filename, blob);
+            meshFilesAdded.add(asset.filename);
+          }
+        } catch (e) {
+          console.warn(`ModelExporter: Failed to fetch original asset ${asset.filename}`, e);
         }
-
-        // 5. Generate ZIP blob
-        return await zip.generateAsync({ type: "blob" });
+      }
     }
 
-    private generateSDF(name: string, visuals: any[]): string {
-        let visualXml = "";
+    // Strategy B: Fallback to Three.js Export (only for meshes not in assets)
+    let meshIndex = 0;
+    group.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        const sourceFile = mesh.userData.sourceFile;
+        const meshFilename = sourceFile || (mesh.name ? `${mesh.name}.stl` : `part_${meshIndex}.stl`);
 
-        visuals.forEach((v) => {
-            // Gazebo is Z-up. When we export, we assume the Three.js Y-up positions 
-            // are relative to the root group which was rotated. 
-            // If we want the SDF to be "native" Z-up, we'd normally swap Y and Z.
-            // However, to keep it simple and consistent with our importer, 
-            // we export the positions as they are.
-            const pos = `${v.position.x.toFixed(3)} ${v.position.y.toFixed(3)} ${v.position.z.toFixed(3)}`;
-            const rot = `${v.rotation.x.toFixed(3)} ${v.rotation.y.toFixed(3)} ${v.rotation.z.toFixed(3)}`;
+        if (!meshFilesAdded.has(meshFilename)) {
+          try {
+            // Check if geometry is valid to avoid RangeError
+            if (!mesh.geometry || !mesh.geometry.attributes.position) return;
 
-            visualXml += `
+            const stlData = this.stlExporter.parse(mesh, { binary: true });
+            meshFolder?.file(meshFilename, stlData.buffer as ArrayBuffer);
+          } catch (e) {
+            console.error(`ModelExporter: Failed to export ${meshFilename} from Three.js`, e);
+          }
+        }
+        meshIndex++;
+      }
+    });
+
+    // 5. Generate model.config
+    const configContent = this.generateConfig(modelName);
+    zip.file("model.config", configContent);
+
+    return await zip.generateAsync({ type: "blob" });
+  }
+
+  private generateSDF(name: string, visuals: any[]): string {
+    let visualXml = "";
+
+    visuals.forEach((v) => {
+      // Gazebo is Z-up. When we export, we assume the Three.js Y-up positions 
+      // are relative to the root group which was rotated. 
+      // If we want the SDF to be "native" Z-up, we'd normally swap Y and Z.
+      // However, to keep it simple and consistent with our importer, 
+      // we export the positions as they are.
+      const pos = `${v.position.x.toFixed(3)} ${v.position.y.toFixed(3)} ${v.position.z.toFixed(3)}`;
+      const rot = `${v.rotation.x.toFixed(3)} ${v.rotation.y.toFixed(3)} ${v.rotation.z.toFixed(3)}`;
+
+      visualXml += `
       <visual name='${v.name}'>
         <pose>${pos} ${rot}</pose>
         <geometry>
@@ -78,9 +106,9 @@ export class ModelExporter {
           </mesh>
         </geometry>
       </visual>`;
-        });
+    });
 
-        return `<?xml version='1.0'?>
+    return `<?xml version='1.0'?>
 <sdf version='1.6'>
   <model name='${name}'>
     <static>true</static>
@@ -89,10 +117,10 @@ export class ModelExporter {
     </link>
   </model>
 </sdf>`;
-    }
+  }
 
-    private generateConfig(name: string): string {
-        return `<?xml version="1.0"?>
+  private generateConfig(name: string): string {
+    return `<?xml version="1.0"?>
 <model>
   <name>${name}</name>
   <version>1.0</version>
@@ -105,16 +133,16 @@ export class ModelExporter {
     Generated by CURFD AI
   </description>
 </model>`;
-    }
+  }
 
-    downloadZip(blob: Blob, filename: string) {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }
+  downloadZip(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 }
