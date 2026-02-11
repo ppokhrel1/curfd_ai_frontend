@@ -1,4 +1,5 @@
 import { ArrowRight, Sparkles } from "lucide-react";
+import { scrollToSection } from "@/lib/scroll";
 
 interface HeroProps {
   onAuthClick: (mode: "signin" | "signup") => void;
@@ -48,11 +49,12 @@ export const Hero = ({ onAuthClick }: HeroProps) => {
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
 
-          <a href="#features">
-            <button className="px-8 py-4 border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-all duration-300">
-              Explore Features
-            </button>
-          </a>
+          <button
+            onClick={() => scrollToSection("features")}
+            className="px-8 py-4 border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-xl transition-all duration-300"
+          >
+            Explore Features
+          </button>
         </div>
 
         {/* Stats */}

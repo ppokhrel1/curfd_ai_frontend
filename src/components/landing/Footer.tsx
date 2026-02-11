@@ -1,30 +1,38 @@
 import { Github, Linkedin, Mail, Twitter, Zap } from "lucide-react";
+import { Link } from "react-router-dom";
+import { scrollToSection, smoothScrollToTop } from "@/lib/scroll";
 
 export const Footer = () => {
+  // Internal page routes for navigation
+  const handleSectionClick = (sectionId: string) => {
+    scrollToSection(sectionId);
+  };
+
   const navigation = {
     product: [
-      { name: "Features", href: "#features" },
-      { name: "Pricing", href: "#pricing" },
-      { name: "Documentation", href: "#docs" },
-      { name: "API", href: "#api" },
+      { name: "Features", href: "/features" },
+      { name: "Pricing", href: "/pricing" },
+      { name: "Documentation", href: "/docs" },
+      { name: "API", href: "/api" },
     ],
     company: [
-      { name: "About", href: "#about" },
-      { name: "Blog", href: "#blog" },
-      { name: "Careers", href: "#careers" },
-      { name: "Contact", href: "#contact" },
+      { name: "About", href: "/about" },
+      { name: "Our Team", href: "/team" },
+      { name: "Blog", href: "/blog" },
+      { name: "Careers", href: "/careers" },
+      { name: "Contact", href: "/contact" },
     ],
     resources: [
-      { name: "Tutorials", href: "#tutorials" },
-      { name: "Examples", href: "#examples" },
-      { name: "Community", href: "#community" },
-      { name: "Support", href: "#support" },
+      { name: "Tutorials", href: "/tutorials" },
+      { name: "Examples", href: "/examples" },
+      { name: "Community", href: "/community" },
+      { name: "Support", href: "/support" },
     ],
     legal: [
-      { name: "Privacy", href: "#privacy" },
-      { name: "Terms", href: "#terms" },
-      { name: "Security", href: "#security" },
-      { name: "Cookies", href: "#cookies" },
+      { name: "Privacy", href: "/privacy" },
+      { name: "Terms", href: "/terms" },
+      { name: "Security", href: "/security" },
+      { name: "Cookies", href: "/cookies" },
     ],
   };
 
@@ -32,7 +40,7 @@ export const Footer = () => {
     { icon: Twitter, href: "https://twitter.com", label: "Twitter" },
     { icon: Github, href: "https://github.com", label: "GitHub" },
     { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
-    { icon: Mail, href: "mailto:contact@curfd-ai.com", label: "Email" },
+    { icon: Mail, href: "mailto:contact@nooriat.com", label: "Email" },
   ];
 
   return (
@@ -42,12 +50,12 @@ export const Footer = () => {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
           {/* Brand Column */}
           <div className="col-span-2 md:col-span-1">
-            <a href="/" className="flex items-center gap-2 mb-4 group">
+            <Link to="/" onClick={smoothScrollToTop} className="flex items-center gap-2 mb-4 group">
               <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-2 rounded-lg shadow-lg shadow-emerald-500/30 group-hover:shadow-emerald-500/50 transition-all">
                 <Zap className="w-5 h-5 text-black" />
               </div>
-              <span className="text-lg font-bold text-white">CURFD AI</span>
-            </a>
+              <span className="text-lg font-bold text-white">NOORIAT</span>
+            </Link>
             <p className="text-sm text-neutral-400 mb-4 leading-relaxed">
               Next-generation CFD simulation platform powered by artificial
               intelligence.
@@ -79,12 +87,13 @@ export const Footer = () => {
             <ul className="space-y-2">
               {navigation.product.map((item) => (
                 <li key={item.name}>
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
+                    onClick={smoothScrollToTop}
                     className="text-sm text-neutral-400 hover:text-emerald-400 transition-colors"
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -96,12 +105,13 @@ export const Footer = () => {
             <ul className="space-y-2">
               {navigation.company.map((item) => (
                 <li key={item.name}>
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
+                    onClick={smoothScrollToTop}
                     className="text-sm text-neutral-400 hover:text-emerald-400 transition-colors"
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -113,12 +123,13 @@ export const Footer = () => {
             <ul className="space-y-2">
               {navigation.resources.map((item) => (
                 <li key={item.name}>
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
+                    onClick={smoothScrollToTop}
                     className="text-sm text-neutral-400 hover:text-emerald-400 transition-colors"
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -130,12 +141,13 @@ export const Footer = () => {
             <ul className="space-y-2">
               {navigation.legal.map((item) => (
                 <li key={item.name}>
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
+                    onClick={smoothScrollToTop}
                     className="text-sm text-neutral-400 hover:text-emerald-400 transition-colors"
                   >
                     {item.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -146,7 +158,7 @@ export const Footer = () => {
         <div className="pt-8 border-t border-white/10">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-neutral-500">
-              © {new Date().getFullYear()} CURFD AI. All rights reserved.
+              © {new Date().getFullYear()} NOORIAT. All rights reserved.
             </p>
           </div>
         </div>
