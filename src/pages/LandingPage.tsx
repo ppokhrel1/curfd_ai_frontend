@@ -23,8 +23,8 @@ const LandingPage = () => {
         {/* HERO SECTION */}
         <Hero onAuthClick={openAuth} />
 
-        {/* DEMO SECTION */}
-        <section className="relative py-28 px-6 bg-neutral-950">
+        {/* DEMO SECTION - FEATURES */}
+        <section id="features" className="relative py-28 px-6 bg-neutral-950 scroll-mt-16">
           {/* Background Gradients */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute w-96 h-96 bg-emerald-500/10 blur-3xl left-0 top-20" />
@@ -54,11 +54,13 @@ const LandingPage = () => {
           </div>
         </section>
 
-        {/* FEATURE GRID */}
-        <ShowcaseGrid />
+        {/* HOW IT WORKS SECTION */}
+        <section id="how-it-works" className="scroll-mt-16">
+          <ShowcaseGrid />
+        </section>
 
-        {/* STATS SECTION */}
-        <section className="py-24 border-t border-white/10 bg-neutral-950">
+        {/* PRICING SECTION */}
+        <section id="pricing" className="py-24 border-t border-white/10 bg-neutral-950 scroll-mt-16">
           <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 text-center px-6">
             {[
               { value: "Infinite", label: "Variations Possible" },
@@ -78,8 +80,8 @@ const LandingPage = () => {
           </div>
         </section>
 
-        {/* CTA SECTION */}
-        <section className="relative py-28 px-6 overflow-hidden bg-neutral-950">
+        {/* CTA SECTION - CONTACT */}
+        <section id="contact" className="relative py-28 px-6 overflow-hidden bg-neutral-950 scroll-mt-16">
           {/* Background */}
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-teal-500/10" />
 
@@ -103,7 +105,7 @@ const LandingPage = () => {
                 🚀 Start for Free
               </button>
 
-              <a href="#docs">
+              <a href="/docs">
                 <button className="px-10 py-4 rounded-xl border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 text-white font-semibold transition-all duration-300">
                   📄 Documentation
                 </button>

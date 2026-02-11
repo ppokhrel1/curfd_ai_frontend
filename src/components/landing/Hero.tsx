@@ -1,4 +1,5 @@
 import { ArrowRight, Sparkles } from "lucide-react";
+import { scrollToSection } from "@/lib/scroll";
 
 interface HeroProps {
   onAuthClick: (mode: "signin" | "signup") => void;
