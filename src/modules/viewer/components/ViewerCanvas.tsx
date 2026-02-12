@@ -1,7 +1,6 @@
 import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import {
   Center,
-  Environment,
   GizmoHelper,
   GizmoViewport,
   Grid,
@@ -12,6 +11,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect } from "react";
 import * as THREE from "three";
 import type { ViewerState } from "../types/viewer.type";
+import { CustomEnvironment } from "./CustomEnvironment";
 
 interface ViewerCanvasProps {
   state: ViewerState;
@@ -70,10 +70,9 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
       />
 
       <Suspense fallback={null}>
+        <CustomEnvironment />
         <Lighting />
       </Suspense>
-
-      <Environment preset="city" />
 
       <Grid
         infiniteGrid

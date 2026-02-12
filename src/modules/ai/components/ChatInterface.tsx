@@ -1,20 +1,20 @@
 import {
-  AlertCircle,
-  Bot,
-  History,
-  Menu,
-  Plus,
-  RefreshCcw,
-  Sparkles,
-  X,
+    AlertCircle,
+    Bot,
+    History,
+    Menu,
+    Plus,
+    RefreshCcw,
+    Sparkles,
+    X,
 } from "lucide-react";
 import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+    useState,
 } from "react";
 import { useChat } from "../hooks/useChat";
 import { useConversations } from "../hooks/useConversations";
@@ -26,6 +26,7 @@ import { MessageList } from "./MessageList";
 interface ChatInterfaceProps {
   className?: string;
   onShapeGenerated?: (shape: GeneratedShape | null) => void;
+  onClose?: () => void;
 }
 
 export interface ChatInterfaceRef {
@@ -43,18 +44,15 @@ const generateTitle = (content: string): string => {
 };
 
 export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
-  ({ className, onShapeGenerated }, ref) => {
+  ({ className, onShapeGenerated, onClose }, ref) => {
     const {
       conversations,
       activeConversationId,
       activeConversation,
       isLoadingChats,
       loadError,
-      createConversation,
       setActiveConversation,
       deleteConversation,
-      setConversationShape,
-      addMessageToConversation,
       renameConversation,
     } = useConversations();
 
@@ -71,23 +69,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       activeIdRef.current = activeConversationId;
     }, [activeConversationId]);
 
-    const handleInternalShapeGenerated = useCallback(
-      (shape: GeneratedShape, chatId: string) => {
-        setConversationShape(chatId, shape);
-        // Only trigger global callback if it's the active chat
-        if (chatId === activeConversationId) {
-          onShapeGenerated?.(shape);
-        }
-      },
-      [setConversationShape, onShapeGenerated, activeConversationId]
-    );
 
-    const handleInternalMessageReceived = useCallback(
-      (message: Message, chatId: string) => {
-        addMessageToConversation(message, chatId);
-      },
-      [addMessageToConversation]
-    );
 
     const {
       isLoading,
@@ -96,7 +78,6 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       sendSystemMessage: persistSystemMessage,
       clearMessages,
       retryLastMessage,
-      isGeneratingGlobally,
     } = useChat(activeConversationId);
 
     const handleSend = useCallback(
@@ -204,39 +185,39 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
         {/* Overlay */}
         {showSidebar && (
           <div
-            className="fixed inset-0 bg-black/50 z-40"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
             onClick={() => setShowSidebar(false)}
           />
         )}
 
         {/* Sidebar */}
         <div
-          className={`fixed left-0 top-0 bottom-0 w-64 bg-neutral-950 border-r border-neutral-800 z-50 transform transition-transform duration-150 ${
+          className={`fixed left-0 top-0 bottom-0 w-72 sm:w-64 bg-neutral-950 border-r border-neutral-800 z-50 transform transition-transform duration-200 ease-out lg:hidden ${
             showSidebar ? "translate-x-0" : "-translate-x-full"
           }`}
         >
           <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-3 border-b border-neutral-800">
-              <span className="text-xs font-medium text-white">History</span>
+            <div className="flex items-center justify-between p-4 sm:p-3 border-b border-neutral-800">
+              <span className="text-sm sm:text-xs font-medium text-white">History</span>
               <button
                 onClick={() => setShowSidebar(false)}
-                className="p-1.5 hover:bg-neutral-800 rounded text-neutral-400"
+                className="p-2 sm:p-1.5 hover:bg-neutral-800 rounded transition-smooth text-neutral-400 touch-manipulation"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               </button>
             </div>
 
-            <div className="p-2">
+            <div className="p-3 sm:p-2">
               <button
                 onClick={handleNewChat}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-green-500/10 hover:bg-green-500/15 border border-green-500/20 rounded-lg text-green-400 text-xs transition-all"
+                className="w-full flex items-center gap-2 px-4 py-3 sm:px-3 sm:py-2 bg-green-500/10 hover:bg-green-500/15 border border-green-500/20 rounded-lg text-green-400 text-sm sm:text-xs transition-smooth touch-manipulation"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                 <span>New Chat</span>
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
+            <div className="flex-1 overflow-y-auto px-3 sm:px-2 pb-3 sm:pb-2 space-y-1 sm:space-y-0.5 scrollbar-thin scrollbar-thumb-neutral-700">
               {/* Loading State */}
               {isLoadingChats ? (
                 <div className="space-y-2 animate-pulse">
@@ -277,15 +258,15 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                   <div
                     key={conv.id}
                     onClick={() => handleSelect(conv.id)}
-                    className={`p-2.5 rounded-lg cursor-pointer group flex items-start justify-between gap-2 ${
+                    className={`p-3 sm:p-2.5 rounded-lg cursor-pointer group flex items-start justify-between gap-2 transition-smooth touch-manipulation ${
                       conv.id === activeConversationId
                         ? "bg-green-500/10 border border-green-500/20"
-                        : "hover:bg-neutral-900 border border-transparent"
+                        : "hover:bg-neutral-900 border border-transparent active:bg-neutral-800"
                     }`}
                   >
                     <div className="flex-1 min-w-0">
                       <p
-                        className={`text-xs font-medium truncate ${
+                        className={`text-sm sm:text-xs font-medium truncate ${
                           conv.id === activeConversationId
                             ? "text-green-400"
                             : "text-white"
@@ -293,7 +274,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                       >
                         {conv.title}
                       </p>
-                      <p className="text-[10px] text-neutral-500">
+                      <p className="text-xs sm:text-[10px] text-neutral-500">
                         {conv.messages.length} msgs
                         {conv.generatedShape && " • Model"}
                         {generatingChatIds.has(conv.id) && (
@@ -318,9 +299,9 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                         e.stopPropagation();
                         deleteConversation(conv.id);
                       }}
-                      className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded text-neutral-500 hover:text-red-400"
+                      className="p-2 sm:p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded text-neutral-500 hover:text-red-400 transition-smooth touch-manipulation"
                     >
-                      <X className="w-2.5 h-2.5" />
+                      <X className="w-3.5 h-3.5 sm:w-2.5 sm:h-2.5" />
                     </button>
                   </div>
                 ))
@@ -332,43 +313,54 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
         {/* Main */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <div className="flex-shrink-0 border-b border-neutral-800 bg-neutral-900/50 px-3 py-2">
+          <div className="flex-shrink-0 border-b border-neutral-800 bg-neutral-900/50 px-4 py-3 sm:px-3 sm:py-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5 sm:gap-2">
                 <button
                   onClick={() => setShowSidebar(true)}
-                  className="p-1.5 hover:bg-neutral-800 rounded text-neutral-400"
+                  className="p-2 sm:p-1.5 hover:bg-neutral-800 rounded transition-smooth text-neutral-400 touch-manipulation lg:hidden"
                 >
-                  <Menu className="w-4 h-4" />
+                  <Menu className="w-5 h-5 sm:w-4 sm:h-4" />
                 </button>
                 <div>
-                  <h3 className="text-xs font-medium text-white truncate max-w-[150px]">
+                  <h3 className="text-sm sm:text-xs font-medium text-white truncate max-w-[200px] sm:max-w-[150px]">
                     {activeConversation?.title || "New Chat"}
                   </h3>
-                  <p className="text-[10px] text-neutral-500">
+                  <p className="text-xs sm:text-[10px] text-neutral-500">
                     {displayMessages.length
                       ? `${displayMessages.length} msgs`
                       : "Start typing"}
                   </p>
                 </div>
               </div>
-              <button
-                onClick={handleNewChat}
-                className="flex items-center gap-1 px-2 py-1 bg-green-500/10 border border-green-500/20 rounded text-green-400 text-[10px] transition-all"
-              >
-                <Plus className="w-3 h-3" />
-                New
-              </button>
+              <div className="flex items-center gap-1.5 sm:gap-1">
+                <button
+                  onClick={handleNewChat}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 sm:px-2 sm:py-1 bg-green-500/10 border border-green-500/20 rounded text-green-400 text-xs sm:text-[10px] transition-smooth touch-manipulation"
+                >
+                  <Plus className="w-4 h-4 sm:w-3 sm:h-3" />
+                  <span>New</span>
+                </button>
+                {onClose && (
+                  <button
+                    onClick={onClose}
+                    className="p-2 sm:p-1.5 hover:bg-neutral-800 rounded transition-smooth text-neutral-400 touch-manipulation"
+                    aria-label="Close Chat"
+                  >
+                    <X className="w-5 h-5 sm:w-4 sm:h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           {/* System Messages Toast */}
           {systemMessages.length > 0 && (
-            <div className="absolute top-14 left-1/2 -translate-x-1/2 z-30 space-y-1">
+            <div className="absolute top-16 sm:top-14 left-1/2 -translate-x-1/2 z-30 space-y-1 px-4">
               {systemMessages.map((msg, i) => (
                 <div
                   key={i}
-                  className="px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400 text-xs animate-in fade-in slide-in-from-top-2"
+                  className="px-4 py-2 sm:px-3 sm:py-1.5 bg-purple-500/20 border border-purple-500/30 rounded-full text-purple-400 text-sm sm:text-xs animate-in fade-in slide-in-from-top-2"
                 >
                   {msg}
                 </div>
@@ -377,23 +369,23 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-thumb-neutral-700">
+          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-3 scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-neutral-900">
             {displayMessages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center">
+              <div className="h-full flex flex-col items-center justify-center px-4">
                 <div className="text-center mb-6">
                   <div className="relative inline-flex mb-4">
                     <div className="absolute inset-0 bg-green-500/20 blur-2xl rounded-full animate-pulse" />
-                    <div className="relative w-16 h-16 bg-green-500/10 rounded-xl flex items-center justify-center border border-green-500/20">
-                      <Bot className="w-8 h-8 text-green-400" />
+                    <div className="relative w-20 h-20 sm:w-16 sm:h-16 bg-green-500/10 rounded-xl flex items-center justify-center border border-green-500/20">
+                      <Bot className="w-10 h-10 sm:w-8 sm:h-8 text-green-400" />
                     </div>
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center border border-green-500/30">
-                      <Sparkles className="w-2.5 h-2.5 text-green-400" />
+                    <div className="absolute -top-1 -right-1 w-6 h-6 sm:w-5 sm:h-5 bg-green-500/20 rounded-full flex items-center justify-center border border-green-500/30">
+                      <Sparkles className="w-3 h-3 sm:w-2.5 sm:h-2.5 text-green-400" />
                     </div>
                   </div>
-                  <h2 className="text-lg font-bold text-white mb-1">
+                  <h2 className="text-xl sm:text-lg font-bold text-white mb-2 sm:mb-1">
                     Ready to Help
                   </h2>
-                  <p className="text-neutral-500 text-xs">
+                  <p className="text-neutral-500 text-sm sm:text-xs">
                     Generate 3D models or ask questions
                   </p>
                 </div>

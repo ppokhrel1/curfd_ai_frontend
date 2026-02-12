@@ -1,4 +1,4 @@
-import { encryptedApi as api } from "@/lib/api/encryptedClient";
+import { api } from "@/lib/api/client";
 
 export interface Job {
     id: string;

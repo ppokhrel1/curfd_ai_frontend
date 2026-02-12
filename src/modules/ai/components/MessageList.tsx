@@ -90,13 +90,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLatest }) => {
           </span>
         )}
         <div
-          className={`rounded-2xl px-5 py-3.5 transition-all duration-300 leading-relaxed ${
+          className={`rounded-2xl px-5 py-3.5 transition-all duration-300 leading-relaxed max-w-full ${
             isUser
               ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/10 ml-auto rounded-tr-none"
-              : "bg-neutral-900/40 backdrop-blur-md text-neutral-100 border border-neutral-800/80 hover:border-neutral-700/80 rounded-tl-none"
+              : "bg-neutral-900/40 backdrop-blur-md text-neutral-100 border border-neutral-800/80 hover:border-neutral-700/80 rounded-tl-none overflow-hidden"
           }`}
+          style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
         >
-          <div className="prose prose-invert prose-sm max-w-none break-words overflow-hidden">
+          <div className="prose prose-invert prose-sm max-w-none break-words">
             {isUser ? (
               <FormattedContent content={message.content} isUser={true} />
             ) : (
@@ -158,7 +159,6 @@ const FormattedContent: React.FC<{ content: string; isUser: boolean }> = ({
           line.trim().startsWith("✅") ||
           line.trim().startsWith("*")
         ) {
-          const bullet = line.trim()[0];
           const text = line.trim().slice(1).trim();
           return (
             <div key={index} className="flex gap-3 items-start pl-1 group">

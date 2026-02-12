@@ -1,13 +1,17 @@
 import { useAuthStore } from "@/lib/auth";
+import { chatService } from "@/modules/ai/services/chatService";
+import { jobService } from "@/modules/ai/services/jobService";
+import { useChatStore } from "@/modules/ai/stores/chatStore";
 import {
-    Code2,
-    Info,
-    Play,
-    RotateCcw,
-    Settings2,
-    Terminal
+  Code2,
+  Info,
+  Play,
+  RotateCcw,
+  Settings2,
+  Terminal
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { useEditorStore } from "../stores/editorStore";
 
 interface CADEditorProps {
@@ -22,24 +26,101 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
     isCompiling, 
     isDirty, 
     reset,
-    originalCode
+    error,
+    errorLine,
+    setCompiling,
+    setError
   } = useEditorStore();
   
+  const { activeConversationId } = useChatStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [lineCount, setLineCount] = useState(1);
 
-  // Detect language from code content
   const detectedLanguage = code.includes('import cadquery') || code.includes('from cadquery') 
     ? 'Python (CadQuery)' 
     : 'OpenSCAD';
   
   const fileExtension = detectedLanguage === 'Python (CadQuery)' ? 'assembly.py' : 'model.scad';
 
-  // Sync internal line count with code
   useEffect(() => {
     const lines = code.split('\n').length;
     setLineCount(lines > 0 ? lines : 1);
   }, [code]);
+
+  const handleCompile = useCallback(async () => {
+    if (!code.trim()) {
+      toast.error("Please enter some code before running.");
+      return;
+    }
+
+    if (isCompiling) return;
+
+    compile();
+    
+    try {
+      const { 
+        setActiveConversationId, 
+        setConversations, 
+        conversations,
+        addJobToHistory,
+        setGenerating
+      } = useChatStore.getState();
+
+      let targetChatId = activeConversationId;
+
+      const sessionId = await chatService.ensureSession();
+      
+      if (!targetChatId) {
+        targetChatId = await chatService.createChat(`Script: ${detectedLanguage}`);
+        
+        const newConv = {
+          id: targetChatId,
+          title: `Script: ${detectedLanguage}`,
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        setConversations([newConv as any, ...conversations]);
+        setActiveConversationId(targetChatId);
+        
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      setGenerating(targetChatId, true, "Running script...");
+      
+      const job = await jobService.createJob({
+        session_id: sessionId,
+        prompt: `Execute ${detectedLanguage} script`,
+        output_format: "glb"
+      });
+
+      addJobToHistory(targetChatId, {
+        ...job,
+        status: "queued",
+        createdAt: new Date(),
+      });
+
+      await chatService.startRunpodRequest(
+        targetChatId,
+        code,
+        "generate_scad",
+        {
+          model_type: detectedLanguage === 'Python (CadQuery)' ? 'python' : 'scad',
+          custom_code: code,
+          job_id: job.id
+        }
+      );
+    } catch (err: any) {
+      console.error("[CADEditor] Compilation failed:", err);
+      const errorMsg = err.response?.data?.message || err.message || "Failed to start compilation";
+      setError(errorMsg);
+      setCompiling(false);
+      if (activeConversationId) {
+        useChatStore.getState().setGenerating(activeConversationId, false);
+      }
+    }
+  }, [activeConversationId, code, isCompiling, compile, detectedLanguage, setError, setCompiling]);
+
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Tab') {
@@ -59,7 +140,7 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
     }
     
     if (e.ctrlKey && e.key === 'Enter') {
-      compile();
+      handleCompile();
     }
   };
 
@@ -93,7 +174,7 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
           </button>
           
           <button
-            onClick={compile}
+            onClick={handleCompile}
             disabled={isCompiling}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
               isDirty 
@@ -116,7 +197,16 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
         {/* Line Numbers */}
         <div className="flex-shrink-0 w-12 bg-neutral-900/30 border-r border-neutral-800/50 py-4 text-right pr-3 select-none text-neutral-600">
           {Array.from({ length: Math.max(lineCount, 1) }).map((_, i) => (
-            <div key={i} className="leading-6">{i + 1}</div>
+            <div 
+              key={i} 
+              className={`leading-6 transition-colors ${
+                errorLine === i + 1 
+                  ? "text-red-500 font-bold bg-red-500/10 -mr-[1px] border-r border-red-500" 
+                  : ""
+              }`}
+            >
+              {i + 1}
+            </div>
           ))}
         </div>
 
@@ -128,11 +218,25 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
           onKeyDown={handleKeyDown}
           spellCheck={false}
           readOnly={!useAuthStore.getState().user}
-          className="flex-1 bg-transparent p-4 outline-none resize-none text-neutral-300 leading-6 caret-blue-500 scrollbar-thin scrollbar-thumb-neutral-800 selection:bg-blue-500/20 disabled:opacity-50"
+          className={`flex-1 bg-transparent p-4 outline-none resize-none text-neutral-300 leading-6 caret-blue-500 scrollbar-thin scrollbar-thumb-neutral-800 selection:bg-blue-500/20 disabled:opacity-50 ${
+            error ? "bg-red-500/5" : ""
+          }`}
           placeholder={useAuthStore.getState().user 
             ? `Enter ${detectedLanguage} script here...` 
             : "Please sign in to edit CAD scripts"}
         />
+
+        {error && (
+          <div className="absolute top-4 right-4 max-w-[300px] animate-in fade-in slide-in-from-top-2">
+            <div className="bg-red-900/90 backdrop-blur-md border border-red-500/50 rounded-lg p-3 text-xs text-red-200 shadow-xl flex gap-2">
+              <Info className="w-4 h-4 text-red-400 shrink-0" />
+              <div>
+                <p className="font-bold mb-1 uppercase tracking-wider">Compilation Error</p>
+                <p className="leading-relaxed opacity-90">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Floating Info */}
         <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
