@@ -1,4 +1,4 @@
-import { encryptedApi as api } from "@/lib/api/encryptedClient";
+import { api } from "@/lib/api/client";
 import type { Conversation, Message, SendMessageParams } from "../types/chat.type";
 
 export interface SessionResponse {
@@ -23,26 +23,6 @@ export interface MessageResponse {
   created_at: string;
 }
 
-interface GeneratedModelApiResponse {
-  asset_id?: string;
-  sdf_url: string;
-  yaml_url?: string;
-  assets?: { filename: string; url: string }[];
-  model_name: string;
-  model_type: string;
-  description: string;
-  parts: any[];
-  joints: any[];
-  parameters: Record<string, any>;
-  requirements: Record<string, any>;
-  metrics: Record<string, any>;
-}
-
-interface SendMessageResponse {
-  user_message: MessageResponse;
-  assistant_message: MessageResponse;
-  generated_model?: GeneratedModelApiResponse;
-}
 
 class ChatService {
   private currentSessionId: string | null = null;
@@ -232,7 +212,7 @@ class ChatService {
     }
   }
 
-  async sendMessage(params: SendMessageParams): Promise<{
+  async sendMessage(_params: SendMessageParams): Promise<{
     message: Message;
     generatedShape?: any;
   }> {
@@ -419,15 +399,6 @@ class ChatService {
     };
   }
 
-  private mapSession(session: SessionResponse): Conversation {
-    return {
-      id: session.id,
-      title: "Session",
-      messages: [],
-      createdAt: new Date(session.created_at),
-      updatedAt: new Date(session.updated_at),
-    };
-  }
 }
 
 export const chatService = new ChatService();

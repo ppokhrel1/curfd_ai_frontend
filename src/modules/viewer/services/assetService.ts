@@ -1,4 +1,5 @@
 import { api } from "@/lib/api/client";
+import { proxifyUrl } from "@/lib/apiConfig";
 import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import JSZip from "jszip";
 
@@ -13,10 +14,10 @@ export interface Asset {
   is_public?: boolean;
   created_at: string;
   updated_at?: string;
-  
+
   // Legacy/Frontend compat alias (mapped manually if needed, or derived)
-  name?: string; 
-  type?: string; 
+  name?: string;
+  type?: string;
 }
 
 export interface AssetMeta {
@@ -30,7 +31,7 @@ export interface AssetMeta {
   is_composite_of_json?: any[];
   used_for_json?: any[];
   metadata_json?: Record<string, any>;
-  
+
   // Frontend compat aliases
   metadata?: Record<string, any>;
 }
@@ -84,10 +85,14 @@ class AssetService {
     }
   }
 
-  async fetchAssetMeta(assetId: string): Promise<AssetMeta[]> {
+  async fetchAssetMeta(assetId?: string, jobId?: string): Promise<AssetMeta[]> {
     try {
+      const params: any = {};
+      if (assetId) params.asset_id = assetId;
+      if (jobId) params.job_id = jobId;
+
       const response = await api.get<AssetMeta[]>("/asset-meta", {
-        params: { asset_id: assetId },
+        params: params,
       });
       return response.data.map(this.normalizeAssetMeta);
     } catch (error) {
@@ -133,7 +138,7 @@ class AssetService {
     // Ensure we send metadata_json if metadata is passed
     const payload = { ...updates };
     if (payload.metadata && !payload.metadata_json) {
-        payload.metadata_json = payload.metadata;
+      payload.metadata_json = payload.metadata;
     }
     const response = await api.patch<AssetMeta>(`/asset-meta/${metaId}`, payload);
     return this.normalizeAssetMeta(response.data);
@@ -145,19 +150,19 @@ class AssetService {
 
   private normalizeAsset(asset: Asset): Asset {
     return {
-        ...asset,
-        // Map backend asset_type to frontend type if missing
-        type: asset.type || asset.asset_type,
-        // Ensure name exists (fallback to file name from URI)
-        name: asset.name || asset.uri.split('/').pop() || 'Unnamed Asset',
+      ...asset,
+      // Map backend asset_type to frontend type if missing
+      type: asset.type || asset.asset_type,
+      // Ensure name exists (fallback to file name from URI)
+      name: asset.name || asset.uri.split('/').pop() || 'Unnamed Asset',
     };
   }
 
   private normalizeAssetMeta(meta: AssetMeta): AssetMeta {
     return {
-        ...meta,
-        // Map backend metadata_json to frontend metadata
-        metadata: meta.metadata || meta.metadata_json,
+      ...meta,
+      // Map backend metadata_json to frontend metadata
+      metadata: meta.metadata || meta.metadata_json,
     };
   }
 
@@ -194,9 +199,10 @@ class AssetService {
       const modelUrl = modelAsset.uri || modelAsset.url;
       console.log("[AssetService] Found model asset:", modelUrl);
 
-      const metadata = await this.fetchAssetMeta(jobId);
+      const metadata = await this.fetchAssetMeta(undefined, jobId);
       console.log(
-        "[AssetService] Fetched metadata:",
+        "[AssetService] Fetched metadata for job:",
+        jobId,
         metadata.length,
         "entries"
       );
@@ -208,10 +214,10 @@ class AssetService {
         role: "structural" as const,
         placement: m.position_json
           ? {
-              x: m.position_json.x || 0,
-              y: m.position_json.y || 0,
-              z: m.position_json.z || 0,
-            }
+            x: m.position_json.x || 0,
+            y: m.position_json.y || 0,
+            z: m.position_json.z || 0,
+          }
           : undefined,
         mesh_file: m.asset_id,
       }));
@@ -222,28 +228,33 @@ class AssetService {
         scadCode ? `${scadCode.length} chars` : "none"
       );
 
-      const shape = {
+      const shape: GeneratedShape = {
         id: modelAsset.id,
         type: "generic" as const,
-        name: modelAsset.name,
+        name: modelAsset.name || "Generated Model",
         description: "Generated Model",
         hasSimulation: true,
         geometry: {
-          parts: parts,
+          parts: parts as any[],
           joints: [],
           physics: {},
         },
         createdAt: new Date(modelAsset.created_at),
         assetId: modelAsset.id,
+        jobId: jobId,
         sdfUrl: modelUrl,
         scadCode: scadCode,
+        assets: assets.map(a => ({
+          filename: a.name || a.uri.split('/').pop(),
+          url: a.url || a.uri
+        })),
         specification: {
           model_name: modelAsset.name,
           parts: parts,
         },
       };
 
-      console.log("[AssetService] Mapped shape:", shape.name, "ID:", shape.id);
+      console.log("[AssetService] Mapped shape:", shape.name, "ID:", shape.id, "Job:", shape.jobId);
       return shape;
     } catch (err) {
       console.error("[AssetService] Error mapping assets to shape:", err);
@@ -263,10 +274,11 @@ class AssetService {
         const scadUrl = scadAsset.uri || scadAsset.url;
         if (!scadUrl) return undefined;
 
+        const proxiedUrl = proxifyUrl(scadUrl);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-        const response = await fetch(scadUrl, { signal: controller.signal });
+        const response = await fetch(proxiedUrl, { signal: controller.signal });
         clearTimeout(timeoutId);
 
         if (response.ok) return await response.text();
@@ -287,10 +299,11 @@ class AssetService {
 
         console.log("[AssetService] Extracting code from ZIP:", zipUrl);
 
+        const proxiedUrl = proxifyUrl(zipUrl);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-        const response = await fetch(zipUrl, { signal: controller.signal });
+        const response = await fetch(proxiedUrl, { signal: controller.signal });
         clearTimeout(timeoutId);
 
         if (!response.ok) throw new Error("Failed to download ZIP");

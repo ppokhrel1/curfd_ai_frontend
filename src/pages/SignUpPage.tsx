@@ -8,7 +8,7 @@ import {
   validatePassword,
 } from "@/utils/validators";
 import { Github, Globe, Lock, Mail, User, Zap } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const SignUpPage = () => {

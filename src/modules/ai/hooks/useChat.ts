@@ -1,11 +1,12 @@
 import { chatService } from "@/modules/ai/services/chatService";
 import { jobService } from "@/modules/ai/services/jobService";
+import { useEditorStore } from "@/modules/editor/stores/editorStore";
 import { assetService } from "@/modules/viewer/services/assetService";
 import { useCallback, useRef, useState } from "react";
 import { useChatStore } from "../stores/chatStore";
 import type { GeneratedShape, Message } from "../types/chat.type";
-import { useChatSocket } from "./useChatSocket";
 import type { RunpodEvent } from "./useChatSocket";
+import { useChatSocket } from "./useChatSocket";
 
 interface UseChatReturn {
   messages: Message[];
@@ -204,7 +205,7 @@ export const useChat = (
                     await handleJobCompletion(syntheticEvent);
                     return;
                   }
-                } catch (pollErr) {}
+                } catch (pollErr) { }
               }
               console.log("[useChat] Polling timed out without finding assets");
             })();
@@ -212,6 +213,8 @@ export const useChat = (
             console.error("[useChat] ❌ Failed to trigger generate_scad:", err);
             setError("Failed to start model generation");
             setGenerating(chatId, false);
+            useEditorStore.getState().setCompiling(false);
+            useEditorStore.getState().setError("Failed to start model generation");
             generateScadTriggeredRef.current.delete(generateKey);
           }
           return;
@@ -251,8 +254,7 @@ export const useChat = (
 
             assets = await assetService.fetchAssets(jobId);
             console.log(
-              `[useChat] Attempt ${retryCount + 1}: Fetched ${
-                assets.length
+              `[useChat] Attempt ${retryCount + 1}: Fetched ${assets.length
               } assets`
             );
             if (assets.length > 0) {
@@ -314,6 +316,9 @@ export const useChat = (
         } finally {
           console.log("[useChat] Clearing generating status");
           setGenerating(chatId, false);
+          useEditorStore.getState().setCompiling(false);
+          const { code } = useEditorStore.getState();
+          useEditorStore.getState().setCode(code); // Trigger re-sync if needed, but mostly to clear dirty
         }
       } else {
         console.log("[useChat] No jobId, just clearing generating status");
@@ -382,9 +387,8 @@ export const useChat = (
         case "runpod.timeout":
           setError(
             event.error ||
-              `Runpod execution ${
-                event.type === "runpod.timeout" ? "timed out" : "failed"
-              }`
+            `Runpod execution ${event.type === "runpod.timeout" ? "timed out" : "failed"
+            }`
           );
           if (event.job_id) {
             updateJobInHistory(chatId, event.job_id, {
@@ -394,10 +398,20 @@ export const useChat = (
             });
           }
           setGenerating(chatId, false);
+
+          // Handle editor error reporting
+          const errorMsg = event.error || "Runpod execution failed";
+          const lineMatch = errorMsg.match(/line (\d+)/i);
+          const errorLine = lineMatch ? parseInt(lineMatch[1], 10) : null;
+
+          useEditorStore.getState().setError(errorMsg, errorLine);
+          useEditorStore.getState().setCompiling(false);
           break;
         case "error":
           setError(event.error || "An error occurred during Runpod execution");
           setGenerating(chatId, false);
+          useEditorStore.getState().setError(event.error || "Execution error");
+          useEditorStore.getState().setCompiling(false);
           break;
       }
     },
@@ -410,7 +424,7 @@ export const useChat = (
     ]
   );
 
-  const { isConnected } = useChatSocket({
+  useChatSocket({
     chatId: chatId,
     onEvent: handleSocketEvent,
   });

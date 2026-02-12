@@ -5,6 +5,36 @@ export type ShapeType =
   | "industrial"
   | "generic";
 
+export interface ShapePart {
+  id: string;
+  name: string;
+  category: string;
+  role: string;
+  description?: string;
+  material?: string;
+  group?: string;
+  assetName?: string | null;
+  assetUrl?: string;
+  [key: string]: any;
+}
+
+export interface ShapeGeometry {
+  parts: ShapePart[];
+  physics?: Record<string, any>;
+  yaml?: string;
+  config?: string;
+  specification?: ModelSpecification;
+  totalVertices?: number;
+  metadata?: {
+    totalVertices?: number;
+    boundingBox?: {
+      min: { x: number; y: number; z: number };
+      max: { x: number; y: number; z: number };
+    };
+  };
+  [key: string]: any;
+}
+
 export interface ModelSpecification {
   model_name?: string;
   model_type?: string;
@@ -46,12 +76,12 @@ export interface GeneratedShape {
   name: string;
   description: string;
   hasSimulation: boolean;
-  geometry: any;
+  geometry: ShapeGeometry;
   createdAt: Date;
   // ML service response data
   assetId?: string;
   jobId?: string; // Associated backend job for restoration
-  assets?: { filename: string; url: string }[];
+  assets?: { filename?: string; url: string; blob?: Blob }[];
   sdfUrl?: string; // URL to model.sdf for 3D loading
   yamlUrl?: string; // URL to model.yaml config
   scadCode?: string; // OpenSCAD source code

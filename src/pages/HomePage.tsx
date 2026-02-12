@@ -6,26 +6,26 @@ import {
 } from "@/hooks/useKeyboardShortcuts";
 import { proxifyUrl } from "@/lib/apiConfig";
 import { useAuthStore } from "@/lib/auth";
+import type { ChatInterfaceRef } from "@/modules/ai/components/ChatInterface";
 import { ChatInterface } from "@/modules/ai/components/ChatInterface";
 import { useChatSocket } from "@/modules/ai/hooks/useChatSocket";
 import { chatService } from "@/modules/ai/services/chatService";
 import { jobService } from "@/modules/ai/services/jobService";
 import { useChatStore } from "@/modules/ai/stores/chatStore";
-import type { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { GeneratedShape, ShapePart } from "@/modules/ai/types/chat.type";
 import { CADEditor } from "@/modules/editor/components/CADEditor";
 import { useEditorStore } from "@/modules/editor/stores/editorStore";
+import type { ImportStage } from "@/modules/viewer/components/ModelImportOverlay";
 import { ModelImportOverlay } from "@/modules/viewer/components/ModelImportOverlay";
 import { Viewer3D } from "@/modules/viewer/components/Viewer3D";
 import { ModelImporter } from "@/modules/viewer/services/ModelImporter";
-import { assetService } from "@/modules/viewer/services/assetService";
-import type { ChatInterfaceRef } from "@/modules/ai/components/ChatInterface";
-import type { ImportStage } from "@/modules/viewer/components/ModelImportOverlay";
 import type { Asset } from "@/modules/viewer/services/assetService";
+import { assetService } from "@/modules/viewer/services/assetService";
 import { disposeObject3D } from "@/modules/viewer/utils/dispose";
 import {
+  Bot,
   Code2,
   LogOut,
-  MessageSquare,
   Minimize2,
   Play,
   Wifi,
@@ -43,7 +43,7 @@ import toast from "react-hot-toast";
 import * as THREE from "three";
 
 type ViewMode = "chat-viewer" | "simulation" | "editor";
-type MobilePanel = "chat" | "viewer";
+type MobilePanel = "chat" | "editor" | "viewer";
 
 interface ModelStats {
   triangles: number;
@@ -63,17 +63,21 @@ const HomePage = () => {
     updateConversation,
   } = useChatStore();
   const [currentShape, setCurrentShape] = useState<GeneratedShape | null>(null);
-  const [activeView, setActiveView] = useState<ViewMode>("chat-viewer");
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("chat");
+  const currentShapeRef = useRef<GeneratedShape | null>(null);
+  useEffect(() => {
+    currentShapeRef.current = currentShape;
+  }, [currentShape]);
+  const [activeView, setActiveView] = useState<ViewMode>("editor");
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("editor");
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const chatRef = useRef<ChatInterfaceRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setOriginalCode, setCode } = useEditorStore();
 
-  // WebSocket connection status
   const { isConnected: wsConnected } = useChatSocket({
     chatId: activeConversationId,
-    onEvent: () => {}, // Events handled in useChat hook
+    onEvent: () => {},
   });
 
   const [loadedModel, setLoadedModel] = useState<THREE.Group | null>(null);
@@ -84,26 +88,21 @@ const HomePage = () => {
 
     const toastId = toast.loading(`Swapping part with ${asset.name}...`);
     try {
-      // Get asset URL (prefer url over uri)
       const assetUrl = asset.url || asset.uri;
       if (!assetUrl) {
         throw new Error("Asset URL not available");
       }
 
-      // 1. Fetch asset blob
       const response = await fetch(assetUrl);
       if (!response.ok) throw new Error("Failed to download asset");
       const blob = await response.blob();
       const localUrl = URL.createObjectURL(blob);
 
-      // 2. Parse geometry
-      const importer = new ModelImporter();
       const newObject = await importer.loadSingleAsset(
         localUrl,
         asset.name || "New Part"
       );
 
-      // 3. Find target part in loadedModel
       let targetMesh: THREE.Mesh | null = null;
       let targetParent: THREE.Object3D | null = null;
 
@@ -118,29 +117,32 @@ const HomePage = () => {
         throw new Error("Target part not found in scene");
       }
 
-      // 4. Transform new object to match old object (preserve position/rotation/scale)
       const mesh = targetMesh as THREE.Mesh;
       newObject.position.copy(mesh.position);
       newObject.quaternion.copy(mesh.quaternion);
       newObject.scale.copy(mesh.scale);
 
-      // Replace in scene
       (targetParent as THREE.Object3D).remove(mesh);
       (targetParent as THREE.Object3D).add(newObject);
 
-      // 5. Update GeneratedShape
-      const updatedParts = currentShape.geometry.parts.map((p: any) => {
-        if (p.id === partId) {
-          return {
-            ...p,
-            id: newObject.uuid, // Use NEW UUID
-            name: newObject.name,
-            assetName: asset.name, // Link to new asset
-            assetUrl: asset.url,
-          };
+      if (!currentShape?.geometry?.parts) {
+        throw new Error("No shape geometry found for part swap");
+      }
+
+      const updatedParts = currentShape.geometry.parts.map(
+        (p: ShapePart) => {
+          if (p.id === partId) {
+            return {
+              ...p,
+              id: newObject.uuid,
+              name: newObject.name,
+              assetName: asset.name,
+              assetUrl: asset.url,
+            };
+          }
+          return p;
         }
-        return p;
-      });
+      );
 
       const newAssetEntry = {
         filename: asset.name,
@@ -161,8 +163,9 @@ const HomePage = () => {
 
       setCurrentShape(updatedShape);
 
-      // Trigger scene update
-      setLoadedModel(loadedModel);
+      const newGroup = new THREE.Group();
+      newGroup.copy(loadedModel);
+      setLoadedModel(new THREE.Group().add(...loadedModel.children));
 
       toast.success("Part swapped successfully!", { id: toastId });
     } catch (e) {
@@ -207,15 +210,12 @@ const HomePage = () => {
   const warningShownRef = useRef<Set<string>>(new Set());
   const importer = useMemo(() => new ModelImporter(), []);
 
-  // Track shape that needs to be fetched after initial render
   const [pendingFetchShape, setPendingFetchShape] =
     useState<GeneratedShape | null>(null);
 
-  // Check for pending messages from Landing Page
   useEffect(() => {
     const pendingMessage = sessionStorage.getItem("pending_chat_message");
     if (pendingMessage && chatRef.current) {
-      // Small delay to ensure chat is ready
       setTimeout(() => {
         chatRef.current?.sendUserMessage(pendingMessage);
         sessionStorage.removeItem("pending_chat_message");
@@ -248,7 +248,6 @@ const HomePage = () => {
 
         if (sessionId) {
           try {
-            // Deduplicate: Check if a mission for this file already exists in this chat
             const existingJob = (
               jobHistory[activeConversationId || ""] || []
             ).find((j) => j.prompt === `Imported Model: ${file.name}`);
@@ -265,7 +264,6 @@ const HomePage = () => {
               });
               jobId = job.id;
 
-              // Add to store history
               const { addJobToHistory } = useChatStore.getState();
               if (activeConversationId) {
                 addJobToHistory(activeConversationId, {
@@ -294,7 +292,6 @@ const HomePage = () => {
           setActiveView("editor");
         }
 
-        // Basic stats calculation
         let triCount = 0;
         let vertCount = 0;
         let materialSet = new Set<string>();
@@ -377,7 +374,16 @@ const HomePage = () => {
 
         setImportStage("finalizing");
 
-        const parts: any[] = [];
+        const parts: {
+          id: string;
+          name: string;
+          category: string;
+          role: string;
+          description: string;
+          material: string;
+          group: string;
+          assetName: string | null;
+        }[] = [];
         const contentsGroup = imported.group.children.find(
           (c) => c.name === "Model Contents"
         );
@@ -394,7 +400,7 @@ const HomePage = () => {
               description: "Imported part",
               material: "Standard",
               group: "Model Components",
-              assetName: mesh.userData.sourceFile || null,
+              assetName: (mesh.userData.sourceFile as string) || null,
             });
           }
         });
@@ -448,7 +454,7 @@ const HomePage = () => {
         setImportStage("complete");
         setTimeout(() => setIsImporting(false), 1000);
 
-        let message = `📁 **Imported Model: ${imported.name}**\n\n`;
+        let message = `**Imported Model: ${imported.name}**\n\n`;
         message += `Registered as Mission: \`${jobId}\`\n`;
         message += `\nYou can now analyze and modify this model in the viewer.`;
 
@@ -510,7 +516,14 @@ const HomePage = () => {
           }
         });
 
-        const parts: any[] = [];
+        const parts: {
+          id: string;
+          name: string;
+          category: string;
+          role: string;
+          group: string;
+          assetName: string | null;
+        }[] = [];
         imported.group.traverse((child: THREE.Object3D) => {
           if ((child as THREE.Mesh).isMesh) {
             parts.push({
@@ -519,36 +532,34 @@ const HomePage = () => {
               category: "component",
               role: "structural",
               group: "Model Components",
-              assetName: child.userData.sourceFile || null,
+              assetName: (child.userData.sourceFile as string) || null,
             });
           }
         });
 
-        setCurrentShape((prev) => {
-          const updated = prev
-            ? {
-                ...prev,
-                scadCode: imported.scad || prev.scadCode,
-                geometry: {
-                  ...prev.geometry,
-                  parts: parts,
-                  totalVertices: vertCount,
-                },
-              }
-            : null;
+        const updated = shape
+          ? {
+              ...shape,
+              scadCode: imported.scad || shape.scadCode,
+              geometry: {
+                ...shape.geometry,
+                parts: parts,
+                totalVertices: vertCount,
+              },
+            }
+          : null;
 
-          if (imported.scad) {
-            setOriginalCode(imported.scad);
-          }
+        setCurrentShape(updated);
 
-          if (updated && activeConversationId) {
-            updateConversation(activeConversationId, {
-              generatedShape: updated,
-            });
-          }
+        if (imported.scad) {
+          setOriginalCode(imported.scad);
+        }
 
-          return updated;
-        });
+        if (updated && activeConversationId) {
+          updateConversation(activeConversationId, {
+            generatedShape: updated,
+          });
+        }
 
         setModelStats({
           triangles: Math.round(triCount),
@@ -607,21 +618,23 @@ const HomePage = () => {
         console.log("[HomePage] Restoring model from cache:", shape.name);
         setLoadedModel(meshCache.current[shape.id]);
         setCurrentShape(shape);
-      } else if (shape.sdfUrl || (shape as any).jobId) {
+      } else if (shape.sdfUrl || shape.jobId) {
         const isStaleBlob = shape.sdfUrl?.startsWith("blob:");
 
-        if (isStaleBlob && (shape as any).jobId) {
+        if (isStaleBlob && shape.jobId) {
           console.log(
             "[HomePage] Detected stale blob URL, recovering model from backend:",
-            (shape as any).jobId
+            shape.jobId
           );
           const recoverModel = async () => {
             setIsImporting(true);
             try {
               // Fetch assets for the job first
-              const assets = await assetService.fetchAssets((shape as any).jobId!);
+              const assets = await assetService.fetchAssets(
+                shape.jobId!
+              );
               const recoveredShape = await assetService.mapToGeneratedShape(
-                (shape as any).jobId!,
+                shape.jobId!,
                 assets
               );
               if (recoveredShape) {
@@ -676,13 +689,17 @@ const HomePage = () => {
 
   const editorCode = useEditorStore((state) => state.code);
   useEffect(() => {
-    if (!activeConversationId || !currentShape) return;
+    if (!activeConversationId || !currentShapeRef.current) return;
 
-    if (editorCode === currentShape.scadCode) return;
+    if (editorCode === currentShapeRef.current.scadCode) return;
 
     const timer = setTimeout(() => {
+      if (!currentShapeRef.current) return;
       console.log("[HomePage] Persisting editor code back to chat store");
-      const updatedShape = { ...currentShape, scadCode: editorCode };
+      const updatedShape = {
+        ...currentShapeRef.current,
+        scadCode: editorCode,
+      };
       setCurrentShape(updatedShape);
       updateConversation(activeConversationId, {
         generatedShape: updatedShape,
@@ -690,7 +707,7 @@ const HomePage = () => {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [editorCode, activeConversationId, currentShape, updateConversation]);
+  }, [editorCode, activeConversationId, updateConversation]);
 
   const handleShapeGenerated = useCallback(
     (shape: GeneratedShape | null) => {
@@ -808,12 +825,12 @@ const HomePage = () => {
       />
 
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-neutral-800 bg-neutral-950/90 backdrop-blur-md px-4 py-2.5">
-        <div className="flex items-center justify-between">
+      <header className="flex-shrink-0 border-b border-neutral-800 bg-neutral-950/90 backdrop-blur-md px-4 sm:px-4 py-3 sm:py-2.5">
+        <div className="flex items-center justify-between gap-2">
           {/* Left */}
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-green-500/10 rounded-lg border border-green-500/20">
-              <Zap className="w-4 h-4 text-green-400" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-2 sm:p-1.5 bg-green-500/10 rounded-lg border border-green-500/20">
+              <Zap className="w-5 h-5 sm:w-4 sm:h-4 text-green-400" />
             </div>
             <div className="hidden sm:block">
               <h1 className="text-sm font-bold text-white">CURFD AI</h1>
@@ -825,22 +842,10 @@ const HomePage = () => {
 
           {/* Center: View Toggle */}
           <div className="hidden lg:flex items-center gap-0.5 bg-neutral-900 border border-neutral-800 rounded-lg p-0.5">
-            <button
-              onClick={() => setActiveView("chat-viewer")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
-                activeView === "chat-viewer"
-                  ? "bg-green-500/15 text-green-400"
-                  : "text-neutral-400 hover:text-white"
-              }`}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Chat</span>
-            </button>
-
             {(currentShape?.scadCode || activeView === "editor") && (
               <button
                 onClick={() => setActiveView("editor")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-smooth ${
                   activeView === "editor"
                     ? "bg-blue-500/15 text-blue-400"
                     : "text-neutral-400 hover:text-white"
@@ -853,7 +858,7 @@ const HomePage = () => {
 
             <button
               onClick={handleOpenSimulation}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all text-neutral-400 hover:text-white"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-smooth text-neutral-400 hover:text-white"
             >
               <Play className="w-3.5 h-3.5" />
               <span>Simulate</span>
@@ -861,23 +866,23 @@ const HomePage = () => {
           </div>
 
           {/* Right */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Connection Status */}
             {activeConversationId && (
               <div
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:py-1 rounded-lg ${
                   wsConnected
                     ? "bg-green-500/10 border border-green-500/20"
                     : "bg-red-500/10 border border-red-500/20"
                 }`}
               >
                 {wsConnected ? (
-                  <Wifi className="w-3 h-3 text-green-400" />
+                  <Wifi className="w-3.5 h-3.5 sm:w-3 sm:h-3 text-green-400" />
                 ) : (
-                  <WifiOff className="w-3 h-3 text-red-400" />
+                  <WifiOff className="w-3.5 h-3.5 sm:w-3 sm:h-3 text-red-400" />
                 )}
                 <span
-                  className={`text-[10px] font-medium ${
+                  className={`text-[10px] sm:text-[10px] font-medium hidden xs:inline ${
                     wsConnected ? "text-green-400" : "text-red-400"
                   }`}
                 >
@@ -887,18 +892,19 @@ const HomePage = () => {
             )}
 
             {currentShape && (
-              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs">
+              <div className="hidden md:flex items-center gap-1.5 px-2 py-1 bg-neutral-900 border border-neutral-800 rounded text-xs">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-neutral-300 max-w-20 truncate">
+                <span className="text-neutral-300 max-w-24 sm:max-w-20 truncate">
                   {currentShape.name}
                 </span>
               </div>
             )}
             <button
               onClick={signOut}
-              className="p-2 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition-colors"
+              className="p-2.5 sm:p-2 hover:bg-neutral-800 rounded-lg text-neutral-400 hover:text-white transition-smooth touch-manipulation"
+              aria-label="Sign out"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-5 h-5 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
@@ -920,6 +926,7 @@ const HomePage = () => {
                     key="desktop-chat"
                     ref={chatRef}
                     onShapeGenerated={handleShapeGenerated}
+                    onClose={() => setIsChatOpen(false)}
                   />
                 </div>
               }
@@ -954,12 +961,13 @@ const HomePage = () => {
                   </div>
                 </div>
               }
+              leftVisible={isChatOpen}
               defaultLeftWidth={20}
               minLeftWidth={15}
             />
           </div>
 
-          {/* Mobile */}
+          {/* Mobile & Tablet */}
           <div className="lg:hidden h-full flex flex-col">
             <div className="flex-1 overflow-hidden relative">
               {mobilePanel === "chat" ? (
@@ -968,6 +976,10 @@ const HomePage = () => {
                   ref={chatRef}
                   onShapeGenerated={handleShapeGenerated}
                 />
+              ) : mobilePanel === "editor" ? (
+                <div className="h-full border-r border-neutral-800">
+                  <CADEditor />
+                </div>
               ) : (
                 <Viewer3D
                   shape={currentShape}
@@ -979,32 +991,6 @@ const HomePage = () => {
                 />
               )}
             </div>
-
-            {/* Mobile Nav */}
-            <div className="flex-shrink-0 border-t border-neutral-800 bg-neutral-900 p-2 flex gap-2">
-              <button
-                onClick={() => setMobilePanel("chat")}
-                className={`flex-1 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
-                  mobilePanel === "chat"
-                    ? "bg-neutral-800 text-white"
-                    : "text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                Chat
-              </button>
-              <button
-                onClick={() => setMobilePanel("viewer")}
-                className={`flex-1 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
-                  mobilePanel === "viewer"
-                    ? "bg-neutral-800 text-white"
-                    : "text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                3D View
-              </button>
-            </div>
           </div>
         </div>
 
@@ -1012,28 +998,56 @@ const HomePage = () => {
       </main>
 
       {/* Mobile Nav */}
-      <div className="lg:hidden flex-shrink-0 border-t border-neutral-800 bg-neutral-950 p-1.5">
-        <div className="grid grid-cols-3 gap-1">
+      <div className="lg:hidden flex-shrink-0 border-t border-neutral-800 bg-neutral-950 p-2 sm:p-1.5 mobile-pb-safe">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-1">
           <NavBtn
-            icon={<MessageSquare />}
-            label="Chat"
-            active={mobilePanel === "chat" && activeView === "chat-viewer"}
-            onClick={() => handleMobilePanelSwitch("chat")}
+            icon={<Code2 />}
+            label="Editor"
+            color="purple"
+            active={mobilePanel === "editor"}
+            onClick={() => handleMobilePanelSwitch("editor")}
+            disabled={!currentShape?.scadCode}
           />
           <NavBtn
             icon={<Minimize2 />}
             label="Viewer"
-            active={mobilePanel === "viewer" && activeView === "chat-viewer"}
+            color="green"
+            active={mobilePanel === "viewer"}
             onClick={() => handleMobilePanelSwitch("viewer")}
           />
           <NavBtn
             icon={<Play />}
             label="Simulate"
+            color="orange"
             active={false}
             onClick={handleOpenSimulation}
           />
         </div>
       </div>
+
+      {/* Floating Chat Toggle (Mobile/Desktop) - Shown only when chat is closed */}
+      {!isChatOpen && (
+        <button
+          onClick={() => {
+            setIsChatOpen(true);
+            if (window.innerWidth < 1024) {
+              setMobilePanel("chat");
+            }
+          }}
+          className="fixed bottom-20 left-6 lg:bottom-12 lg:left-8 z-50 p-4 bg-green-500 text-neutral-950 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] hover:scale-110 active:scale-95 transition-all duration-300 group overflow-hidden"
+          aria-label="Open Chat"
+        >
+          <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+          <div className="relative flex items-center justify-center">
+            <Bot className="w-6 h-6" />
+            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-neutral-950 rounded-full animate-ping" />
+            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-white rounded-full scale-50" />
+          </div>
+          <span className="absolute left-full ml-4 px-3 py-1.5 bg-neutral-900/90 backdrop-blur-md text-white text-xs font-semibold rounded-lg border border-neutral-800 shadow-xl opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap pointer-events-none">
+            Need help? Ask AI
+          </span>
+        </button>
+      )}
 
       {/* Status Bar */}
       <div className="hidden lg:block flex-shrink-0">
@@ -1050,22 +1064,42 @@ const HomePage = () => {
 const NavBtn: React.FC<{
   icon: React.ReactNode;
   label: string;
+  color?: "blue" | "purple" | "green" | "orange";
   active?: boolean;
   onClick?: () => void;
   disabled?: boolean;
-}> = ({ icon, label, active, onClick, disabled }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className={`flex flex-col items-center gap-0.5 py-2 rounded-lg transition-all ${
-      active
-        ? "bg-green-500/15 text-green-400"
-        : "text-neutral-500 hover:text-neutral-300 disabled:opacity-40"
-    }`}
-  >
-    <div className="w-5 h-5">{icon}</div>
-    <span className="text-[10px]">{label}</span>
-  </button>
-);
+}> = ({ icon, label, color = "green", active, onClick, disabled }) => {
+  const colorClasses = {
+    blue: active ? "bg-blue-500/15 text-blue-400" : "text-neutral-500",
+    purple: active ? "bg-purple-500/15 text-purple-400" : "text-neutral-500",
+    green: active ? "bg-green-500/15 text-green-400" : "text-neutral-500",
+    orange: active ? "bg-orange-500/15 text-orange-400" : "text-neutral-500",
+  };
+
+  const indicatorColors = {
+    blue: "bg-blue-500",
+    purple: "bg-purple-500",
+    green: "bg-green-500",
+    orange: "bg-orange-500",
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex flex-col items-center gap-1 sm:gap-0.5 py-3 sm:py-2 rounded-lg transition-smooth touch-manipulation relative ${
+        colorClasses[color]
+      } ${!active && !disabled ? "hover:text-neutral-300 active:bg-neutral-800" : ""} ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+    >
+      {active && (
+        <div
+          className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${indicatorColors[color]} animate-pulse`}
+        />
+      )}
+      <div className="w-6 h-6 sm:w-5 sm:h-5">{icon}</div>
+      <span className="text-xs sm:text-[10px] font-medium">{label}</span>
+    </button>
+  );
+};
 
 export default HomePage;
