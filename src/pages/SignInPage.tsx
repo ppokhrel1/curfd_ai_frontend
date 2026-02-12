@@ -4,7 +4,7 @@ import { useAuthStore } from "@/lib/auth";
 import { ROUTES } from "@/lib/constants";
 import { validateEmail } from "@/utils/validators";
 import { Github, Globe, Lock, Mail, Zap } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const SignInPage = () => {

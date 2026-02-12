@@ -12,7 +12,7 @@ export class ModelExporter {
   async exportToZip(
     group: THREE.Group,
     modelName: string,
-    assets?: { filename: string; url: string; }[],
+    assets?: { filename?: string; url: string }[],
     geometryData?: any
   ): Promise<Blob> {
     const zip = new JSZip();
@@ -40,16 +40,18 @@ export class ModelExporter {
     // Strategy A: Use Provided Assets (Highest Fidelity)
     if (assets && assets.length > 0) {
       console.log(`ModelExporter: Fetching ${assets.length} original assets...`);
-      for (const asset of assets) {
+      for (let i = 0; i < assets.length; i++) {
+        const asset = assets[i];
+        const filename = asset.filename || `asset_${i}`;
         try {
           const response = await fetch(asset.url);
           if (response.ok) {
             const blob = await response.blob();
-            meshFolder?.file(asset.filename, blob);
-            meshFilesAdded.add(asset.filename);
+            meshFolder?.file(filename, blob);
+            meshFilesAdded.add(filename);
           }
         } catch (e) {
-          console.warn(`ModelExporter: Failed to fetch original asset ${asset.filename}`, e);
+          console.warn(`ModelExporter: Failed to fetch original asset ${filename}`, e);
         }
       }
     }

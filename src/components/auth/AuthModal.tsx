@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/lib/auth";
 import { Github, Lock, Mail, User, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const GoogleIcon = ({ className }: { className?: string }) => (
@@ -59,7 +59,7 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLocalError(null);
 

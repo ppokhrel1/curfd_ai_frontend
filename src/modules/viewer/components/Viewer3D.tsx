@@ -15,7 +15,7 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { type FC, type ReactNode, useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import * as THREE from "three";
 import { useViewer } from "../hooks/useViewer";
@@ -41,11 +41,11 @@ interface Viewer3DProps {
   }>;
   onOpenSimulation?: () => void;
   onImportModel?: () => void;
-  onSwapPart?: (partId: string, asset: Asset) => void;
+  onSwapPart?: (partId: string, asset: any) => void;
   className?: string;
 }
 
-export const Viewer3D: React.FC<Viewer3DProps> = ({
+export const Viewer3D: FC<Viewer3DProps> = ({
   shape,
   loadedModel,
   customStats,
@@ -108,7 +108,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
       const zipBlob = await exporter.exportToZip(
         groupToExport,
         shape?.name || "curfd-model",
-        shape?.assets?.map((a) => ({ ...a, url: proxifyUrl(a.url) })),
+        shape?.assets?.map((a) => ({ filename: a.filename, url: proxifyUrl(a.url) })),
         shape?.geometry
       );
 
@@ -196,7 +196,6 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
       <div className="absolute inset-0">
         <ViewerCanvas
           state={state}
-          shape={shape}
           loadedModel={loadedModel}
           selectedPart={selectedPart}
           onSelectPart={handlePartSelection}
@@ -447,8 +446,8 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
   );
 };
 
-const ActionBtn: React.FC<{
-  icon: React.ReactNode;
+const ActionBtn: FC<{
+  icon: ReactNode;
   label: string;
   active?: boolean;
   onClick?: () => void;

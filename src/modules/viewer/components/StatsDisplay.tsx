@@ -27,7 +27,6 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
     return "Poor";
   };
 
-  // UX Refinement: Hide completely if no data (realism)
   if (!triangles && !drawCalls) {
     return null;
   }
@@ -117,8 +116,8 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
                 currentFps >= 60
                   ? "from-green-500 to-emerald-500"
                   : currentFps >= 30
-                  ? "from-yellow-500 to-orange-500"
-                  : "from-red-500 to-pink-500"
+                    ? "from-yellow-500 to-orange-500"
+                    : "from-red-500 to-pink-500"
               } transition-all duration-300`}
               style={{ width: `${Math.min((currentFps / 60) * 100, 100)}%` }}
             />

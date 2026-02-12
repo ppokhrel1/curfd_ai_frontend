@@ -180,6 +180,8 @@ export const useConversations = (): UseConversationsReturn => {
           setConversations(allConversations);
 
           const currentChatId = chatService.getCurrentChatId();
+          const hasExplicitNewChat = !activeConversationId && conversations.length > 0 && currentChatId === null;
+
           if (
             currentChatId &&
             allConversations.some((c) => c.id === currentChatId)
@@ -188,13 +190,16 @@ export const useConversations = (): UseConversationsReturn => {
               `[useConversations] Restoring active chat: ${currentChatId}`
             );
             setActiveConversationId(currentChatId);
-          } else if (allConversations.length > 0) {
+          } else if (allConversations.length > 0 && !hasExplicitNewChat) {
             console.log(
-              `[useConversations] Setting first chat as active: ${allConversations[0].id}`
+              `[useConversations] Auto-selecting first chat: ${allConversations[0].id}`
             );
             setActiveConversationId(allConversations[0].id);
+          } else if (hasExplicitNewChat) {
+            console.log("[useConversations] Respecting explicit New Chat state");
+            setActiveConversationId(null);
           } else {
-            console.log("[useConversations] No chats found for user");
+            console.log("[useConversations] No chats or New Chat state, clearing active");
             setActiveConversationId(null);
           }
 

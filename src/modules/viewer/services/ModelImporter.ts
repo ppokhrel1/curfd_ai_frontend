@@ -1,19 +1,21 @@
+import type { ModelSpecification } from "@/modules/ai/types/shape.type";
 import JSZip from "jszip";
 import * as THREE from "three";
 import { GLTFLoader, OBJLoader, STLLoader } from "three-stdlib";
 import { GeometryAnalyzer } from "../utils/GeometryAnalyzer";
-import { SDFParser } from "../utils/SDFParser";
 import type { SDFVisual } from "../utils/SDFParser";
+import { SDFParser } from "../utils/SDFParser";
 
 export interface ImportedModel {
   group: THREE.Group;
   name: string;
-  specification?: any;
+  specification?: ModelSpecification;
   config?: string;
   yaml?: string;
   scad?: string;
+  python?: string;
   physics?: Record<string, any>;
-  assets?: { filename: string; url: string; blob?: Blob }[];
+  assets?: { filename?: string; url: string; blob?: Blob }[];
 }
 
 export class ModelImporter {
@@ -23,14 +25,13 @@ export class ModelImporter {
   private gltfLoader: GLTFLoader = new GLTFLoader();
   private analyzer: GeometryAnalyzer = new GeometryAnalyzer();
 
-  private assets: { filename: string; url: string }[] = [];
-  private meshCache: Map<string, THREE.BufferGeometry> = new Map();
+  private assets: { filename?: string; url: string }[] = [];
 
   async importFromUrl(
     sdfUrl: string,
     yamlUrl?: string,
     specification?: any,
-    assets: { filename: string; url: string }[] = []
+    assets: { filename?: string; url: string }[] = []
   ): Promise<ImportedModel> {
     try {
       if (!sdfUrl.startsWith("blob:")) {
@@ -391,7 +392,7 @@ export class ModelImporter {
       ...physics,
     };
 
-    const importedAssets: { filename: string; url: string; blob?: Blob }[] = [];
+    const importedAssets: { filename?: string; url: string; blob?: Blob }[] = [];
 
     if (meshFiles.length > 0) {
       for (const meshFile of meshFiles) {
@@ -407,7 +408,12 @@ export class ModelImporter {
     }
 
     if (this.assets && this.assets.length > 0) {
-      importedAssets.push(...this.assets);
+      this.assets.forEach(a => {
+        importedAssets.push({
+          filename: a.filename,
+          url: a.url
+        });
+      });
     }
 
     return {
@@ -485,7 +491,7 @@ export class ModelImporter {
     try {
       if (visual.meshPath) {
         const meshName = visual.meshPath.split("/").pop() || visual.meshPath;
-        const asset = this.assets.find((a) => a.filename.endsWith(meshName));
+        const asset = this.assets.find((a) => a.filename?.endsWith(meshName));
         const meshUrl = asset
           ? asset.url
           : sdfUrl.substring(0, sdfUrl.lastIndexOf("/") + 1) + visual.meshPath;

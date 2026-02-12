@@ -185,14 +185,14 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
         {/* Overlay */}
         {showSidebar && (
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             onClick={() => setShowSidebar(false)}
           />
         )}
 
         {/* Sidebar */}
         <div
-          className={`fixed left-0 top-0 bottom-0 w-72 sm:w-64 bg-neutral-950 border-r border-neutral-800 z-50 transform transition-transform duration-200 ease-out lg:hidden ${
+          className={`fixed left-0 top-0 bottom-0 w-72 sm:w-64 bg-neutral-950 border-r border-neutral-800 z-50 transform transition-transform duration-200 ease-out ${
             showSidebar ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -318,7 +318,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
               <div className="flex items-center gap-2.5 sm:gap-2">
                 <button
                   onClick={() => setShowSidebar(true)}
-                  className="p-2 sm:p-1.5 hover:bg-neutral-800 rounded transition-smooth text-neutral-400 touch-manipulation lg:hidden"
+                  className="p-2 sm:p-1.5 hover:bg-neutral-800 rounded transition-smooth text-neutral-400 touch-manipulation"
                 >
                   <Menu className="w-5 h-5 sm:w-4 sm:h-4" />
                 </button>

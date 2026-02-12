@@ -1,4 +1,3 @@
-import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import {
   Center,
   GizmoHelper,
@@ -15,18 +14,15 @@ import { CustomEnvironment } from "./CustomEnvironment";
 
 interface ViewerCanvasProps {
   state: ViewerState;
-  shape?: GeneratedShape | null;
   loadedModel?: THREE.Object3D | null;
   selectedPart?: string | null;
   onSelectPart?: (partId: string | null) => void;
   highlightedParts?: Set<string>;
-  simState?: "idle" | "running" | "paused" | "completed";
   children?: React.ReactNode;
 }
 
 export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
   state,
-  shape,
   loadedModel,
   selectedPart,
   onSelectPart,
@@ -120,18 +116,18 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
         {children}
       </Suspense>
 
-      <AutoFit camera={true} object={loadedModel || null} />
+      <AutoFit object={loadedModel || null} />
     </Canvas>
   );
 };
 
-const AutoFit: React.FC<{ camera: boolean; object: THREE.Object3D | null }> = ({
+const AutoFit: React.FC<{ object: THREE.Object3D | null }> = ({
   object,
 }) => {
-  const { camera, controls } = useThree();
+  const { camera: threeCamera, controls } = useThree();
 
   useEffect(() => {
-    if (!object) return;
+    if (!object || !threeCamera) return;
 
     const box = new THREE.Box3().setFromObject(object);
     if (box.isEmpty()) return;
@@ -141,22 +137,26 @@ const AutoFit: React.FC<{ camera: boolean; object: THREE.Object3D | null }> = ({
     const maxDim = Math.max(size.x, size.y, size.z);
 
     // Fit camera logic
-    const fov = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180);
+    const perspectiveCamera = threeCamera as THREE.PerspectiveCamera;
+    const fov = perspectiveCamera.fov * (Math.PI / 180);
     let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-    cameraZ *= 5.0;
+    cameraZ *= 5.0; // Margin
 
-    camera.position.set(
+    perspectiveCamera.position.set(
       center.x + cameraZ * 0.8,
       center.y + cameraZ * 0.5,
       center.z + cameraZ * 0.8
     );
-    camera.lookAt(center);
+    perspectiveCamera.lookAt(center);
 
     if (controls) {
-      (controls as any).target.copy(center);
-      (controls as any).update();
+      const orbitControls = controls as any;
+      if (orbitControls.target) {
+        orbitControls.target.copy(center);
+        orbitControls.update();
+      }
     }
-  }, [object, camera, controls]);
+  }, [object, threeCamera, controls]);
 
   return null;
 };
@@ -208,7 +208,7 @@ const Lighting: React.FC = () => {
         shadow-bias={-0.0001}
       />
       <pointLight position={[-10, -10, -5]} intensity={0.2} color="#4ade80" />
-      <hemisphereLight args={["#ffffff", "#1f2937", 0.4]} />
+      <hemisphereLight intensity={0.4} skyColor="#ffffff" groundColor="#1f2937" />
     </>
   );
 };

@@ -12,7 +12,7 @@ import { useChatSocket } from "@/modules/ai/hooks/useChatSocket";
 import { chatService } from "@/modules/ai/services/chatService";
 import { jobService } from "@/modules/ai/services/jobService";
 import { useChatStore } from "@/modules/ai/stores/chatStore";
-import type { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { GeneratedShape, ShapePart } from "@/modules/ai/types/chat.type";
 import { CADEditor } from "@/modules/editor/components/CADEditor";
 import { useEditorStore } from "@/modules/editor/stores/editorStore";
 import type { ImportStage } from "@/modules/viewer/components/ModelImportOverlay";
@@ -30,7 +30,7 @@ import {
   Play,
   Wifi,
   WifiOff,
-  Zap
+  Zap,
 } from "lucide-react";
 import React, {
   useCallback,
@@ -63,6 +63,10 @@ const HomePage = () => {
     updateConversation,
   } = useChatStore();
   const [currentShape, setCurrentShape] = useState<GeneratedShape | null>(null);
+  const currentShapeRef = useRef<GeneratedShape | null>(null);
+  useEffect(() => {
+    currentShapeRef.current = currentShape;
+  }, [currentShape]);
   const [activeView, setActiveView] = useState<ViewMode>("editor");
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("editor");
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -71,10 +75,9 @@ const HomePage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setOriginalCode, setCode } = useEditorStore();
 
-  // WebSocket connection status
   const { isConnected: wsConnected } = useChatSocket({
     chatId: activeConversationId,
-    onEvent: () => {}, // Events handled in useChat hook
+    onEvent: () => {},
   });
 
   const [loadedModel, setLoadedModel] = useState<THREE.Group | null>(null);
@@ -85,26 +88,21 @@ const HomePage = () => {
 
     const toastId = toast.loading(`Swapping part with ${asset.name}...`);
     try {
-      // Get asset URL (prefer url over uri)
       const assetUrl = asset.url || asset.uri;
       if (!assetUrl) {
         throw new Error("Asset URL not available");
       }
 
-      // 1. Fetch asset blob
       const response = await fetch(assetUrl);
       if (!response.ok) throw new Error("Failed to download asset");
       const blob = await response.blob();
       const localUrl = URL.createObjectURL(blob);
 
-      // 2. Parse geometry
-      const importer = new ModelImporter();
       const newObject = await importer.loadSingleAsset(
         localUrl,
         asset.name || "New Part"
       );
 
-      // 3. Find target part in loadedModel
       let targetMesh: THREE.Mesh | null = null;
       let targetParent: THREE.Object3D | null = null;
 
@@ -119,29 +117,32 @@ const HomePage = () => {
         throw new Error("Target part not found in scene");
       }
 
-      // 4. Transform new object to match old object (preserve position/rotation/scale)
       const mesh = targetMesh as THREE.Mesh;
       newObject.position.copy(mesh.position);
       newObject.quaternion.copy(mesh.quaternion);
       newObject.scale.copy(mesh.scale);
 
-      // Replace in scene
       (targetParent as THREE.Object3D).remove(mesh);
       (targetParent as THREE.Object3D).add(newObject);
 
-      // 5. Update GeneratedShape
-      const updatedParts = currentShape.geometry.parts.map((p: any) => {
-        if (p.id === partId) {
-          return {
-            ...p,
-            id: newObject.uuid, // Use NEW UUID
-            name: newObject.name,
-            assetName: asset.name, // Link to new asset
-            assetUrl: asset.url,
-          };
+      if (!currentShape?.geometry?.parts) {
+        throw new Error("No shape geometry found for part swap");
+      }
+
+      const updatedParts = currentShape.geometry.parts.map(
+        (p: ShapePart) => {
+          if (p.id === partId) {
+            return {
+              ...p,
+              id: newObject.uuid,
+              name: newObject.name,
+              assetName: asset.name,
+              assetUrl: asset.url,
+            };
+          }
+          return p;
         }
-        return p;
-      });
+      );
 
       const newAssetEntry = {
         filename: asset.name,
@@ -162,8 +163,9 @@ const HomePage = () => {
 
       setCurrentShape(updatedShape);
 
-      // Trigger scene update
-      setLoadedModel(loadedModel);
+      const newGroup = new THREE.Group();
+      newGroup.copy(loadedModel);
+      setLoadedModel(new THREE.Group().add(...loadedModel.children));
 
       toast.success("Part swapped successfully!", { id: toastId });
     } catch (e) {
@@ -208,15 +210,12 @@ const HomePage = () => {
   const warningShownRef = useRef<Set<string>>(new Set());
   const importer = useMemo(() => new ModelImporter(), []);
 
-  // Track shape that needs to be fetched after initial render
   const [pendingFetchShape, setPendingFetchShape] =
     useState<GeneratedShape | null>(null);
 
-  // Check for pending messages from Landing Page
   useEffect(() => {
     const pendingMessage = sessionStorage.getItem("pending_chat_message");
     if (pendingMessage && chatRef.current) {
-      // Small delay to ensure chat is ready
       setTimeout(() => {
         chatRef.current?.sendUserMessage(pendingMessage);
         sessionStorage.removeItem("pending_chat_message");
@@ -249,7 +248,6 @@ const HomePage = () => {
 
         if (sessionId) {
           try {
-            // Deduplicate: Check if a mission for this file already exists in this chat
             const existingJob = (
               jobHistory[activeConversationId || ""] || []
             ).find((j) => j.prompt === `Imported Model: ${file.name}`);
@@ -266,7 +264,6 @@ const HomePage = () => {
               });
               jobId = job.id;
 
-              // Add to store history
               const { addJobToHistory } = useChatStore.getState();
               if (activeConversationId) {
                 addJobToHistory(activeConversationId, {
@@ -295,7 +292,6 @@ const HomePage = () => {
           setActiveView("editor");
         }
 
-        // Basic stats calculation
         let triCount = 0;
         let vertCount = 0;
         let materialSet = new Set<string>();
@@ -378,7 +374,16 @@ const HomePage = () => {
 
         setImportStage("finalizing");
 
-        const parts: any[] = [];
+        const parts: {
+          id: string;
+          name: string;
+          category: string;
+          role: string;
+          description: string;
+          material: string;
+          group: string;
+          assetName: string | null;
+        }[] = [];
         const contentsGroup = imported.group.children.find(
           (c) => c.name === "Model Contents"
         );
@@ -395,7 +400,7 @@ const HomePage = () => {
               description: "Imported part",
               material: "Standard",
               group: "Model Components",
-              assetName: mesh.userData.sourceFile || null,
+              assetName: (mesh.userData.sourceFile as string) || null,
             });
           }
         });
@@ -449,7 +454,7 @@ const HomePage = () => {
         setImportStage("complete");
         setTimeout(() => setIsImporting(false), 1000);
 
-        let message = `📁 **Imported Model: ${imported.name}**\n\n`;
+        let message = `**Imported Model: ${imported.name}**\n\n`;
         message += `Registered as Mission: \`${jobId}\`\n`;
         message += `\nYou can now analyze and modify this model in the viewer.`;
 
@@ -511,7 +516,14 @@ const HomePage = () => {
           }
         });
 
-        const parts: any[] = [];
+        const parts: {
+          id: string;
+          name: string;
+          category: string;
+          role: string;
+          group: string;
+          assetName: string | null;
+        }[] = [];
         imported.group.traverse((child: THREE.Object3D) => {
           if ((child as THREE.Mesh).isMesh) {
             parts.push({
@@ -520,36 +532,34 @@ const HomePage = () => {
               category: "component",
               role: "structural",
               group: "Model Components",
-              assetName: child.userData.sourceFile || null,
+              assetName: (child.userData.sourceFile as string) || null,
             });
           }
         });
 
-        setCurrentShape((prev) => {
-          const updated = prev
-            ? {
-                ...prev,
-                scadCode: imported.scad || prev.scadCode,
-                geometry: {
-                  ...prev.geometry,
-                  parts: parts,
-                  totalVertices: vertCount,
-                },
-              }
-            : null;
+        const updated = shape
+          ? {
+              ...shape,
+              scadCode: imported.scad || shape.scadCode,
+              geometry: {
+                ...shape.geometry,
+                parts: parts,
+                totalVertices: vertCount,
+              },
+            }
+          : null;
 
-          if (imported.scad) {
-            setOriginalCode(imported.scad);
-          }
+        setCurrentShape(updated);
 
-          if (updated && activeConversationId) {
-            updateConversation(activeConversationId, {
-              generatedShape: updated,
-            });
-          }
+        if (imported.scad) {
+          setOriginalCode(imported.scad);
+        }
 
-          return updated;
-        });
+        if (updated && activeConversationId) {
+          updateConversation(activeConversationId, {
+            generatedShape: updated,
+          });
+        }
 
         setModelStats({
           triangles: Math.round(triCount),
@@ -608,21 +618,23 @@ const HomePage = () => {
         console.log("[HomePage] Restoring model from cache:", shape.name);
         setLoadedModel(meshCache.current[shape.id]);
         setCurrentShape(shape);
-      } else if (shape.sdfUrl || (shape as any).jobId) {
+      } else if (shape.sdfUrl || shape.jobId) {
         const isStaleBlob = shape.sdfUrl?.startsWith("blob:");
 
-        if (isStaleBlob && (shape as any).jobId) {
+        if (isStaleBlob && shape.jobId) {
           console.log(
             "[HomePage] Detected stale blob URL, recovering model from backend:",
-            (shape as any).jobId
+            shape.jobId
           );
           const recoverModel = async () => {
             setIsImporting(true);
             try {
               // Fetch assets for the job first
-              const assets = await assetService.fetchAssets((shape as any).jobId!);
+              const assets = await assetService.fetchAssets(
+                shape.jobId!
+              );
               const recoveredShape = await assetService.mapToGeneratedShape(
-                (shape as any).jobId!,
+                shape.jobId!,
                 assets
               );
               if (recoveredShape) {
@@ -677,13 +689,17 @@ const HomePage = () => {
 
   const editorCode = useEditorStore((state) => state.code);
   useEffect(() => {
-    if (!activeConversationId || !currentShape) return;
+    if (!activeConversationId || !currentShapeRef.current) return;
 
-    if (editorCode === currentShape.scadCode) return;
+    if (editorCode === currentShapeRef.current.scadCode) return;
 
     const timer = setTimeout(() => {
+      if (!currentShapeRef.current) return;
       console.log("[HomePage] Persisting editor code back to chat store");
-      const updatedShape = { ...currentShape, scadCode: editorCode };
+      const updatedShape = {
+        ...currentShapeRef.current,
+        scadCode: editorCode,
+      };
       setCurrentShape(updatedShape);
       updateConversation(activeConversationId, {
         generatedShape: updatedShape,
@@ -691,7 +707,7 @@ const HomePage = () => {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [editorCode, activeConversationId, currentShape, updateConversation]);
+  }, [editorCode, activeConversationId, updateConversation]);
 
   const handleShapeGenerated = useCallback(
     (shape: GeneratedShape | null) => {
@@ -826,7 +842,6 @@ const HomePage = () => {
 
           {/* Center: View Toggle */}
           <div className="hidden lg:flex items-center gap-0.5 bg-neutral-900 border border-neutral-800 rounded-lg p-0.5">
-
             {(currentShape?.scadCode || activeView === "editor") && (
               <button
                 onClick={() => setActiveView("editor")}
@@ -1077,7 +1092,9 @@ const NavBtn: React.FC<{
       } ${!active && !disabled ? "hover:text-neutral-300 active:bg-neutral-800" : ""} ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
     >
       {active && (
-        <div className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${indicatorColors[color]} animate-pulse`} />
+        <div
+          className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${indicatorColors[color]} animate-pulse`}
+        />
       )}
       <div className="w-6 h-6 sm:w-5 sm:h-5">{icon}</div>
       <span className="text-xs sm:text-[10px] font-medium">{label}</span>

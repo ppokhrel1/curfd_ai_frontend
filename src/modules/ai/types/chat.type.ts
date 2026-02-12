@@ -1,5 +1,5 @@
 import type { GeneratedShape } from './shape.type';
-export type { GeneratedShape, ShapeType } from './shape.type';
+export type { GeneratedShape, ShapeGeometry, ShapePart, ShapeType } from './shape.type';
 
 export type MessageRole = 'user' | 'assistant' | 'system';
 
