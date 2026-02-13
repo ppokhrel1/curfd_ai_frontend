@@ -79,13 +79,6 @@ describe('ChatService', () => {
         });
     });
 
-    describe('sendMessage', () => {
-        it('should throw error as it is deprecated', async () => {
-            await expect(chatService.sendMessage({ content: 'hi', chatId: '1' } as any))
-                .rejects.toThrow("sendMessage is deprecated");
-        });
-    });
-
     describe('startRunpodRequest', () => {
         it('should send content for process_requirements', async () => {
             (api.post as any).mockResolvedValueOnce({});

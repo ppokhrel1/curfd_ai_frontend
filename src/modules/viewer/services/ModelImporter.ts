@@ -26,11 +26,13 @@ export class ModelImporter {
   private assets: { filename: string; url: string }[] = [];
   private meshCache: Map<string, THREE.BufferGeometry> = new Map();
 
+ 
   async importFromUrl(
     sdfUrl: string,
     yamlUrl?: string,
     specification?: any,
-    assets: { filename: string; url: string }[] = []
+    assets: { filename: string; url: string }[] = [],
+    originalFilename?: string                
   ): Promise<ImportedModel> {
     try {
       if (!sdfUrl.startsWith("blob:")) {
@@ -64,7 +66,6 @@ export class ModelImporter {
         sdfUrl.startsWith("blob:");
 
       if (isZipFile) {
-        console.log("ModelImporter: Loading from ZIP URL:", sdfUrl);
         const resp = await fetch(sdfUrl);
         if (!resp.ok) {
           const errorText = await resp.text().catch(() => resp.statusText);
@@ -76,13 +77,18 @@ export class ModelImporter {
         });
         return await this.importZip(file);
       } else if (isMeshFile) {
-        console.log("ModelImporter: Loading mesh file directly:", sdfUrl);
-        const fileName = sdfUrl.startsWith("blob:")
-          ? "model.glb"
-          : sdfUrl.split("/").pop() || "model";
+
+        // 👇 Use the provided originalFilename if available
+        const fileName = originalFilename 
+          ? originalFilename 
+          : (sdfUrl.startsWith("blob:")
+              ? "model.glb"                       // fallback only when no name
+              : sdfUrl.split("/").pop() || "model");
+
         const visualObj = await this.loadSingleAsset(sdfUrl, fileName);
         if (visualObj) contentsGroup.add(visualObj);
       } else {
+        // ... (rest of the SDF parsing logic unchanged) ...
         const resp = await fetch(sdfUrl);
         if (!resp.ok) {
           const errorText = await resp.text().catch(() => resp.statusText);
@@ -95,7 +101,6 @@ export class ModelImporter {
         }
 
         const visuals = this.sdfParser.parse(sdfContent);
-        console.log(`ModelImporter: Parsed ${visuals.length} visuals from SDF`);
 
         if (visuals.length === 0) {
           console.warn("ModelImporter: No visuals found in SDF file");
@@ -299,10 +304,8 @@ export class ModelImporter {
     // Extract Python code (CadQuery) or SCAD code
     if (pythonFile) {
       scad = await pythonFile.async("string");
-      console.log('[ModelImporter] Extracted Python code from:', pythonFile.name);
     } else if (scadsFile) {
       scad = await scadsFile.async("string");
-      console.log('[ModelImporter] Extracted SCAD code from:', scadsFile.name);
     }
 
     let physics = this.parsePhysicsFromYaml(yaml);
@@ -325,13 +328,9 @@ export class ModelImporter {
       return isMesh;
     });
 
-    console.log('[ModelImporter] Found mesh files in ZIP:', meshFiles.map(f => f.name));
-
     if (sdfFile) {
-      console.log("ModelImporter: Loading using SDF file");
       const sdfContent = await sdfFile.async("string");
       const visuals = this.sdfParser.parse(sdfContent);
-      console.log(`ModelImporter: Parsed ${visuals.length} visuals from SDF`);
 
       if (visuals.length === 0 && meshFiles.length > 0) {
         console.warn(
@@ -367,15 +366,9 @@ export class ModelImporter {
         }
       }
     } else if (meshFiles.length > 0) {
-      console.log(
-        `ModelImporter: No SDF, loading ${meshFiles.length} mesh files directly`
-      );
       await this.loadMeshesDirectly(meshFiles, contentsGroup);
     }
 
-    console.log(
-      `ModelImporter: importZip finalized with ${contentsGroup.children.length} meshes`
-    );
     if (contentsGroup.children.length === 0) {
       console.error("ModelImporter: No meshes were loaded from the ZIP");
     }
@@ -423,9 +416,6 @@ export class ModelImporter {
   }
 
   private async loadMeshesDirectly(meshFiles: any[], contentsGroup: THREE.Group) {
-    console.log(
-      `ModelImporter: Loading ${meshFiles.length} mesh files directly`
-    );
     for (const meshFile of meshFiles) {
       try {
         const meshBlob = await meshFile.async("blob");
@@ -469,7 +459,6 @@ export class ModelImporter {
           child.userData.sourceFile = fileName;
         });
 
-        console.log(`ModelImporter: Added ${ext?.toUpperCase()} mesh ${partName} to group`);
         contentsGroup.add(loadedObject);
         URL.revokeObjectURL(url);
       } catch (err) {
@@ -568,9 +557,6 @@ export class ModelImporter {
     group.rotation.x = -Math.PI / 2;
     group.updateWorldMatrix(true, true);
 
-    console.log(
-      "ModelImporter: Finalized model with standard coordinate transformation"
-    );
   }
 
   private getColorForPart(name: string): number {
@@ -766,11 +752,25 @@ export class ModelImporter {
     filename: string
   ): Promise<THREE.Object3D> {
     const ext = filename.split(".").pop()?.toLowerCase();
-    if (ext === "stl") return new THREE.Mesh(await this.loadSTL(url));
-    if (ext === "obj") return await this.loadOBJ(url);
-    if (ext === "glb" || ext === "gltf" || url.startsWith("blob:"))
-      return (await this.loadGLTF(url)).scene;
-    throw new Error(`Unsupported: ${ext}`);
+
+    // CHECK EXTENSION FIRST
+    if (ext === "stl") {
+      const geometry = await this.loadSTL(url);
+      return new THREE.Mesh(geometry);
+    }
+    
+    if (ext === "obj") {
+      return await this.loadOBJ(url);
+    }
+
+    // Only use GLTFLoader if it's explicitly a GLB/GLTF 
+    // or a blob that hasn't matched the above
+    if (ext === "glb" || ext === "gltf" || url.startsWith("blob:")) {
+      const gltf = await this.loadGLTF(url);
+      return gltf.scene;
+    }
+
+    throw new Error(`Unsupported format: ${ext} for file ${filename}`);
   }
 
   private loadSTL(url: string): Promise<THREE.BufferGeometry> {

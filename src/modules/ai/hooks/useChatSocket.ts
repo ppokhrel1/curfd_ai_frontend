@@ -27,10 +27,11 @@ export interface RunpodEvent {
 
 interface UseChatSocketProps {
   chatId: string | null;
+  sessionId: string | null;
   onEvent?: (event: RunpodEvent) => void;
 }
 
-export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
+export const useChatSocket = ({ chatId, sessionId, onEvent }: UseChatSocketProps) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -54,7 +55,6 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
       (socketRef.current.readyState === WebSocket.CONNECTING ||
         socketRef.current.readyState === WebSocket.OPEN)
     ) {
-      console.log("[WebSocket] Already connected or connecting, skipping...");
       return;
     }
 
@@ -117,14 +117,18 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
 
     const wsUrl = `${wsUrlBase}/chat-socket/${encodeURIComponent(
       chatId
-    )}?token=${encodeURIComponent(token)}`;
+    )}?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId || '')}`;
 
-    console.log(`[WebSocket] Connecting to chat: ${chatId} at ${wsUrlBase}`);
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
 
-    socket.onopen = () => {
-      console.log("[WebSocket] Connected successfully");
+    socket.onopen = () => {      
+      // Send the required session data immediately after connection
+      const initPayload = {
+        session_id: sessionId 
+      };
+      socket.send(JSON.stringify(initPayload));
+
       setIsConnected(true);
       setError(null);
       retryCountRef.current = 0;
@@ -134,7 +138,6 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
     socket.onmessage = (event) => {
       try {
         const data: RunpodEvent = JSON.parse(event.data);
-        console.log(`[WebSocket] Received event: ${data.type}`, data);
 
         if (!data || !data.type) {
           console.warn("[WebSocket] Received invalid event data");
@@ -156,7 +159,6 @@ export const useChatSocket = ({ chatId, onEvent }: UseChatSocketProps) => {
     };
 
     socket.onclose = (event) => {
-      console.log("[WebSocket] Closed", event.code, event.reason);
       setIsConnected(false);
       socketRef.current = null;
       connectingRef.current = false;

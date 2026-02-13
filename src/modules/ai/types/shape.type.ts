@@ -46,15 +46,34 @@ export interface GeneratedShape {
   name: string;
   description: string;
   hasSimulation: boolean;
-  geometry: any;
+  geometry: {
+    parts: any[];
+    metadata: {
+      totalVertices: number;
+      fileSize: number;
+      originalFilename?: string;   
+    };
+  };
   createdAt: Date;
+
   // ML service response data
   assetId?: string;
   jobId?: string; // Associated backend job for restoration
   assets?: { filename: string; url: string }[];
   sdfUrl?: string; // URL to model.sdf for 3D loading
   yamlUrl?: string; // URL to model.yaml config
-  scadCode?: string; // OpenSCAD source code
+  scadCode?: string; // OpenSCAD source code (top-level)
+  
+  // 👇 NEW: Raw metadata from asset service
+  metadata_json?: {
+    scadCode?: string;      // camelCase
+    scad_code?: string;    // snake_case
+    runpod_id?: string;
+    file_id?: string;
+    filename?: string;
+    [key: string]: any;    // allow any other metadata fields
+  };
+
   specification?: ModelSpecification;
   requirements?: Record<string, any>;
   metrics?: GenerationMetrics;
