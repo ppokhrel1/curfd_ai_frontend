@@ -382,67 +382,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         </div>
       )}
 
-      {/* Multi-stage Generation Loader Overlay */}
-      {isGenerating && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-neutral-950/40 backdrop-blur-[2px] animate-in fade-in duration-500">
-          <div className="relative max-w-sm w-full mx-6">
-            {/* Background Glow */}
-            <div className="absolute inset-0 bg-green-500/10 blur-[80px] rounded-full animate-pulse" />
-
-            <div className="relative bg-neutral-900/90 border border-green-500/20 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
-              <div className="flex flex-col items-center text-center">
-                {/* Advanced Animated Loader */}
-                <div className="relative w-20 h-20 mb-6">
-                  <div className="absolute inset-0 border-2 border-neutral-800 rounded-full" />
-                  <div className="absolute inset-0 border-2 border-t-green-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
-                  <div className="absolute inset-2 border border-neutral-800 rounded-full" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Cpu className="w-8 h-8 text-green-400 animate-pulse" />
-                  </div>
-
-                  {/* Floating Particles */}
-                  <div className="absolute -top-2 -right-2">
-                    <Sparkles className="w-5 h-5 text-green-500/50 animate-bounce" />
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-bold text-white mb-2 tracking-tight">
-                  CURFD Intelligence
-                </h3>
-
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="flex gap-1">
-                    <span className="w-1 h-1 bg-green-500 rounded-full animate-ping" />
-                    <span className="w-1 h-1 bg-green-500 rounded-full animate-ping [animation-delay:0.2s]" />
-                    <span className="w-1 h-1 bg-green-500 rounded-full animate-ping [animation-delay:0.4s]" />
-                  </div>
-                  <span className="text-[10px] font-bold text-green-500 uppercase tracking-[0.2em]">
-                    Inference in Progress
-                  </span>
-                </div>
-
-                {/* Status Card */}
-                <div className="w-full bg-black/40 border border-neutral-800 rounded-2xl p-4 mb-6">
-                  <p className="text-neutral-400 text-xs font-medium mb-1 uppercase tracking-widest opacity-60">
-                    Current Sequence
-                  </p>
-                  <p className="text-green-400 text-sm font-bold truncate">
-                    {currentStatus || "Initializing Neural Pipeline..."}
-                  </p>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="w-full space-y-2">
-                  <div className="h-1.5 w-full bg-neutral-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-green-500 via-emerald-400 to-green-500 w-[45%] animate-progress-indefinite shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-                  </div>
-                  <div className="flex justify-between items-center text-[9px] text-neutral-500 font-mono uppercase tracking-tighter"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 };

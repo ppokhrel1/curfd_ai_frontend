@@ -130,7 +130,6 @@ export const useChatStore = create<ChatState>()(
             isGeneratingGlobally: () => get().generatingChatIds.size > 0,
 
             clearStore: () => {
-                console.log('[ChatStore] Clearing all data');
                 set({
                     conversations: [],
                     activeConversationId: null,
@@ -193,7 +192,6 @@ export const useChatStore = create<ChatState>()(
                             chatService.setActiveChat(rehydratedState.activeConversationId);
                         }
 
-                        console.log('[ChatStore] Rehydrated state for user:', rehydratedState.currentUserId);
                     }
                 };
             }

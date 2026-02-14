@@ -44,7 +44,7 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = ({
               }}
             >
               {/* Gradient overlay on hover */}
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-emerald-500/0 group-hover:from-green-500/5 group-hover:to-emerald-500/5 transition-all duration-300" />
+              <div className="relative inset-0 bg-gradient-to-br from-green-500/0 to-emerald-500/0 group-hover:from-green-500/5 group-hover:to-emerald-500/5 transition-all duration-300" />
 
               <div className="relative flex items-start gap-3">
                 {/* Icon */}

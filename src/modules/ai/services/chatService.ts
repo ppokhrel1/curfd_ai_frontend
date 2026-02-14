@@ -1,4 +1,5 @@
-import { encryptedApi as api } from "@/lib/api/encryptedClient";
+import { api as rawApi } from "@/lib/api/client"; 
+import { encryptedApi as api } from "@/lib/api/encryptedClient"; 
 import type { Conversation, Message, SendMessageParams } from "../types/chat.type";
 
 export interface SessionResponse {
@@ -21,27 +22,7 @@ export interface MessageResponse {
   role: "user" | "assistant";
   content: string;
   created_at: string;
-}
-
-interface GeneratedModelApiResponse {
-  asset_id?: string;
-  sdf_url: string;
-  yaml_url?: string;
-  assets?: { filename: string; url: string }[];
-  model_name: string;
-  model_type: string;
-  description: string;
-  parts: any[];
-  joints: any[];
-  parameters: Record<string, any>;
-  requirements: Record<string, any>;
-  metrics: Record<string, any>;
-}
-
-interface SendMessageResponse {
-  user_message: MessageResponse;
-  assistant_message: MessageResponse;
-  generated_model?: GeneratedModelApiResponse;
+  metadata_json?: any; // Added for type safety
 }
 
 class ChatService {
@@ -51,9 +32,7 @@ class ChatService {
   private readonly SESSION_BASE_KEY = "current_session_id";
   private readonly CHAT_BASE_KEY = "current_chat_id";
 
-  constructor() {
-    // Initial restoration will be handled by setUserId when auth initializes
-  }
+  constructor() {}
 
   setUserId(id: string | null): void {
     this.currentUserId = id;
@@ -70,16 +49,10 @@ class ChatService {
     }
   }
 
-  /**
-   * Helper to get user-scoped key
-   */
   private getScopedKey(key: string): string {
     return this.currentUserId ? `user_${this.currentUserId}_${key}` : key;
   }
 
-  /**
-   * Set the active session ID
-   */
   setActiveSession(id: string | null): void {
     this.currentSessionId = id;
     const key = this.getScopedKey(this.SESSION_BASE_KEY);
@@ -91,9 +64,6 @@ class ChatService {
     }
   }
 
-  /**
-   * Set the active chat ID
-   */
   setActiveChat(id: string | null): void {
     this.currentChatId = id;
     const key = this.getScopedKey(this.CHAT_BASE_KEY);
@@ -104,42 +74,29 @@ class ChatService {
     }
   }
 
-  /**
-   * Get the current session ID
-   */
   getCurrentSessionId(): string | null {
     return this.currentSessionId;
   }
 
-  /**
-   * Get the current chat ID
-   */
   getCurrentChatId(): string | null {
     return this.currentChatId;
   }
 
-  /**
-   * Create or retrieve a session
-   */
   async ensureSession(): Promise<string> {
     if (this.currentSessionId) return this.currentSessionId;
 
     try {
-      // Create new session
       const response = await api.post<SessionResponse>("/sessions", {
         status: "active",
       });
       this.setActiveSession(response.data.id);
       return this.currentSessionId!;
     } catch (error) {
-      console.error("Failed to ensure session:", error);
+      console.error("[ChatService] Failed to ensure session:", error);
       throw error;
     }
   }
 
-  /**
-   * Create a new chat within a session
-   */
   async createChat(title: string = "New Chat"): Promise<string> {
     const sessionId = await this.ensureSession();
     try {
@@ -150,14 +107,32 @@ class ChatService {
       this.setActiveChat(response.data.id);
       return response.data.id;
     } catch (error) {
-      console.error("Failed to create chat:", error);
+      console.error("[ChatService] Failed to create chat:", error);
       throw error;
     }
   }
 
-  /**
-   * Start a Runpod request
-   */
+
+  async processRequirements(
+    chatId: string,
+    content: string,
+    jobId?: string
+  ): Promise<MessageResponse> { 
+    try {      
+      const response = await rawApi.post<MessageResponse>("/gemini/process_requirements", {
+        chat_id: chatId,
+        content: content,
+        job_id: jobId,
+        role: "user"
+      });
+      
+      return response.data; 
+    } catch (error) {
+      console.error("[ChatService] Failed to request Gemini processing:", error);
+      throw error;
+    }
+  }
+
   async startRunpodRequest(
     chatId: string,
     content: string,
@@ -166,28 +141,16 @@ class ChatService {
     metadata?: Record<string, any>
   ): Promise<void> {
     try {
-      // Build payload conditionally based on action
-      const payload: any = {
-        action: action,
-      };
+      const payload: any = { action: action };
 
       if (action === "process_requirements" || !requirementsJson) {
         payload.content = content;
       }
 
       if (requirementsJson && Object.keys(requirementsJson).length > 0) {
-        if (
-          action === "process_requirements" &&
-          requirementsJson.job_id &&
-          !metadata
-        ) {
-          payload.metadata_json = requirementsJson;
-        } else {
-          payload.requirements_json = requirementsJson;
-        }
+        payload.requirements_json = requirementsJson;
       }
 
-      // Explicit metadata override
       if (metadata) {
         payload.metadata_json = {
           ...(payload.metadata_json || {}),
@@ -195,21 +158,9 @@ class ChatService {
         };
       }
 
-      console.log(
-        `[ChatService] Sending Runpod request to /chats/${chatId}/runpod:`,
-        JSON.stringify(payload, null, 2)
-      );
-
       await api.post(`/chats/${chatId}/runpod`, payload);
-
-      console.log(
-        `[ChatService] Runpod request sent successfully for action="${action}"`
-      );
     } catch (error) {
-      console.error(
-        `[ChatService] Failed to start Runpod request for action="${action}":`,
-        error
-      );
+      console.error(`[ChatService] Failed to start Runpod request:`, error);
       throw error;
     }
   }
@@ -227,18 +178,9 @@ class ChatService {
       });
       return this.mapMessage(response.data);
     } catch (error) {
-      console.error("Failed to create message:", error);
+      console.error("[ChatService] Failed to create message:", error);
       throw error;
     }
-  }
-
-  async sendMessage(params: SendMessageParams): Promise<{
-    message: Message;
-    generatedShape?: any;
-  }> {
-    throw new Error(
-      "sendMessage is deprecated. Use startRunpodRequest and WebSocket instead."
-    );
   }
 
   async getSessions(): Promise<SessionResponse[]> {
@@ -246,7 +188,7 @@ class ChatService {
       const response = await api.get<SessionResponse[]>("/sessions");
       return response.data;
     } catch (error) {
-      console.error("Failed to get sessions:", error);
+      console.error("[ChatService] Failed to get sessions:", error);
       return [];
     }
   }
@@ -258,7 +200,7 @@ class ChatService {
       });
       return response.data;
     } catch (error) {
-      console.error("Failed to get chats:", error);
+      console.error("[ChatService] Failed to get chats:", error);
       return [];
     }
   }
@@ -270,14 +212,11 @@ class ChatService {
       });
       return response.data.map((msg) => this.mapMessage(msg));
     } catch (error) {
-      console.error("Failed to get history:", error);
+      console.error("[ChatService] Failed to get history:", error);
       return [];
     }
   }
 
-  /**
-   * Delete a session
-   */
   async deleteSession(sessionId: string): Promise<void> {
     try {
       await api.delete(`/sessions/${sessionId}`);
@@ -285,30 +224,27 @@ class ChatService {
         this.setActiveSession(null);
       }
     } catch (error) {
-      console.error("Failed to delete session:", error);
+      console.error("[ChatService] Failed to delete session:", error);
       throw error;
     }
   }
 
-  /**
-   * Rename a chat
-   */
   async renameChat(chatId: string, title: string): Promise<void> {
     try {
       await api.patch(`/chats/${chatId}`, { title });
     } catch (error) {
-      console.error("Failed to rename chat:", error);
+      console.error("[ChatService] Failed to rename chat:", error);
     }
   }
 
-  /**
-   * Delete a chat
-   */
   async deleteChat(chatId: string): Promise<void> {
     try {
       await api.delete(`/chats/${chatId}`);
+      if (this.currentChatId === chatId) {
+        this.setActiveChat(null);
+      }
     } catch (error) {
-      console.error("Failed to delete chat:", error);
+      console.error("[ChatService] Failed to delete chat:", error);
     }
   }
 
@@ -335,7 +271,7 @@ class ChatService {
 
       return newChatId;
     } catch (error) {
-      console.error("Failed to sync local conversation:", error);
+      console.error("[ChatService] Failed to sync local conversation:", error);
       throw error;
     }
   }
@@ -390,16 +326,9 @@ class ChatService {
             if (typeof v === "number") acc[k] = v;
             return acc;
           }, {} as Record<string, number>),
-          ...Object.entries(
-            model.requirements?.performance_requirements || {}
-          ).reduce((acc, [k, v]) => {
-            if (typeof v === "number") acc[k] = v;
-            return acc;
-          }, {} as Record<string, number>),
         },
       },
       createdAt: new Date(),
-
       assetId: model.asset_id,
       jobId: model.job_id,
       sdfUrl: model.sdf_url,
@@ -416,16 +345,6 @@ class ChatService {
       },
       requirements: model.requirements,
       metrics: model.metrics,
-    };
-  }
-
-  private mapSession(session: SessionResponse): Conversation {
-    return {
-      id: session.id,
-      title: "Session",
-      messages: [],
-      createdAt: new Date(session.created_at),
-      updatedAt: new Date(session.updated_at),
     };
   }
 }

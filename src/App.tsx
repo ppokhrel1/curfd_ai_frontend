@@ -5,8 +5,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { FullPageLoader } from "@/components/common/Loader";
-import HomePage from "@/pages/HomePage";
 import LandingPage from "@/pages/LandingPage";
+import HomePage from "./pages/HomePage";
 
 const AutoRoute = () => {
   const { isAuthenticated, isLoading } = useAuthStore();

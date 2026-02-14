@@ -39,7 +39,6 @@ export class ModelExporter {
 
     // Strategy A: Use Provided Assets (Highest Fidelity)
     if (assets && assets.length > 0) {
-      console.log(`ModelExporter: Fetching ${assets.length} original assets...`);
       for (const asset of assets) {
         try {
           const response = await fetch(asset.url);

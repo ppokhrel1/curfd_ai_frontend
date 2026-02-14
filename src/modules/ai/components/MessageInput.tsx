@@ -13,7 +13,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const [input, setInput] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   const handleSend = () => {
     if (input.trim() && !disabled) {
       onSendMessage(input.trim());
@@ -88,7 +87,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
               {/* AI Indicator */}
               {input.length > 0 && (
-                <div className="absolute right-3 top-3 flex items-center gap-1.5 text-[10px] text-green-400/60 font-medium">
+                <div className="relative right-3 top-3 flex items-center gap-1.5 text-[10px] text-green-400/60 font-medium">
                   <Sparkles className="w-3 h-3" />
                   <span>AI</span>
                 </div>

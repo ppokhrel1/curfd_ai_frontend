@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   REFRESH_TOKEN: 'curfd_refresh_token',
   USER_DATA: 'curfd_user_data',
   THEME: 'curfd_theme',
+  SESSION_ID: 'curfd_session_id',
 } as const;
 
 export const SIMULATION_DEFAULTS = {

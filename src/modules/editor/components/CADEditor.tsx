@@ -9,33 +9,37 @@ import {
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../stores/editorStore";
+import type { GeneratedShape } from "@/modules/ai/types/chat.type";
+import { useCADCompiler } from "@/modules/ai/hooks/useCADCompiler";
 
 interface CADEditorProps {
   className?: string;
+  onBuildComplete?: (shape: GeneratedShape | null) => void;
 }
 
-export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
+export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildComplete }) => {
+  // 1. Get state from Store
   const { 
     code, 
     setCode, 
-    compile, 
     isCompiling, 
     isDirty, 
     reset,
-    originalCode
   } = useEditorStore();
+  
+  // 2. Get compile action from the Real Hook
+  const { compile } = useCADCompiler(onBuildComplete);
+  
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [lineCount, setLineCount] = useState(1);
 
-  // Detect language from code content
   const detectedLanguage = code.includes('import cadquery') || code.includes('from cadquery') 
     ? 'Python (CadQuery)' 
     : 'OpenSCAD';
   
   const fileExtension = detectedLanguage === 'Python (CadQuery)' ? 'assembly.py' : 'model.scad';
 
-  // Sync internal line count with code
   useEffect(() => {
     const lines = code.split('\n').length;
     setLineCount(lines > 0 ? lines : 1);
@@ -113,14 +117,12 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
 
       {/* Editor Body */}
       <div className="flex-1 relative flex overflow-hidden font-mono text-sm group">
-        {/* Line Numbers */}
         <div className="flex-shrink-0 w-12 bg-neutral-900/30 border-r border-neutral-800/50 py-4 text-right pr-3 select-none text-neutral-600">
           {Array.from({ length: Math.max(lineCount, 1) }).map((_, i) => (
             <div key={i} className="leading-6">{i + 1}</div>
           ))}
         </div>
 
-        {/* Textarea */}
         <textarea
           ref={textareaRef}
           value={code}
@@ -133,8 +135,7 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
             ? `Enter ${detectedLanguage} script here...` 
             : "Please sign in to edit CAD scripts"}
         />
-
-        {/* Floating Info */}
+        
         <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
            <div className="bg-neutral-900/90 backdrop-blur-sm border border-neutral-800 rounded-full px-3 py-1.5 flex items-center gap-2 text-[10px] text-neutral-500">
               <Terminal className="w-3 h-3 text-blue-400" />
@@ -143,7 +144,6 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "" }) => {
         </div>
       </div>
 
-      {/* Compiler Status / Tools */}
       <div className="flex-shrink-0 border-t border-neutral-800 bg-neutral-900/30 px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
