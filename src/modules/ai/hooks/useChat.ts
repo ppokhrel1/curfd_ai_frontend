@@ -16,6 +16,7 @@ interface UseChatReturn {
     content: string,
     shapeData?: GeneratedShape
   ) => Promise<void>;
+  generateModel: (requirements: any) => Promise<void>; // Added function to interface
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -25,8 +26,8 @@ interface UseChatReturn {
 
 export const useChat = (
   chatId: string | null = null,
-  onShapeGenerated?: (shape: GeneratedShape) => void,
-  onMessageReceived?: (message: Message) => void
+  onShapeGenerated?: (shape: GeneratedShape, chatId: string) => void, // Added chatId
+  onMessageReceived?: (message: Message, chatId: string) => void      // Added chatId
 ): UseChatReturn => {
   const {
     conversations,
@@ -37,6 +38,7 @@ export const useChat = (
     addMessage,
     updateJobInHistory,
   } = useChatStore();
+  
   const [error, setError] = useState<string | null>(null);
   const [lastUserMessage, setLastUserMessage] = useState<string>("");
 
@@ -49,7 +51,6 @@ export const useChat = (
   // --- 1. HANDLE COMPLETION (Asset Polling) ---
   const handleJobCompletion = useCallback(
     async (event: RunpodEvent) => {
-
       if (!chatId) return;
       const jobId = event.job_id || event.runpod_id;
       if (!jobId) return;
@@ -69,13 +70,12 @@ export const useChat = (
             content: event.message.content || "Model generation completed!",
             timestamp: new Date(),
           };
-          onMessageReceived?.(newMessage);
+          onMessageReceived?.(newMessage, chatId); // Added chatId
         }
       }
 
       // Poll for assets if action is 'generate_scad'
       if (event.action === "generate_scad" && event.status === "COMPLETED") {
-        
         if (jobId) {
           updateJobInHistory(chatId, jobId, {
             status: "succeeded",
@@ -85,7 +85,7 @@ export const useChat = (
           try {
             let assets: any[] = [];
             let retryCount = 0;
-            const maxRetries = 2; 
+            const maxRetries = 2;
 
             while (retryCount < maxRetries && assets.length === 0) {
               const delay = Math.min(retryCount * 1000 + 1000, 5000);
@@ -98,11 +98,11 @@ export const useChat = (
             if (assets.length === 0) throw new Error("No assets found.");
 
             const shape = await assetService.mapToGeneratedShape(jobId, assets);
-            
+
             if (shape && onShapeGenerated) {
-              onShapeGenerated(shape);
+              onShapeGenerated(shape, chatId); // Added chatId
             } else if (assets.length > 0 && !shape) {
-               setError("Model generated but could not be displayed.");
+              setError("Model generated but could not be displayed.");
             }
           } catch (err) {
             console.error("[useChat] ❌ Failed to load assets:", err);
@@ -175,10 +175,33 @@ export const useChat = (
     [chatId, handleJobCompletion, setGenerating, updateJobInHistory]
   );
 
-
   const sendingRef = useRef(false);
 
-  // --- 3. SEND MESSAGE ---
+  // --- 3. GENERATE MODEL (Manual Trigger) ---
+  const generateModel = useCallback(
+    async (requirements: any) => {
+      if (!chatId) return;
+
+      try {
+        setGenerating(chatId, true, "Generating 3D model...");
+        
+        await chatService.startRunpodRequest(
+          chatId,
+          "Generating 3D model...",
+          "generate_scad",
+          requirements,
+          { source: "manual-trigger" }
+        );
+      } catch (err) {
+        console.error("[useChat] Failed to manual generate model:", err);
+        setError(err instanceof Error ? err.message : "Failed to generate model");
+        setGenerating(chatId, false);
+      }
+    },
+    [chatId, setGenerating]
+  );
+
+  // --- 4. SEND MESSAGE ---
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim()) return;
@@ -214,60 +237,61 @@ export const useChat = (
         // Optimistic UI update
         const userMsg: Message = {
           id: `temp-${Date.now()}`,
-          role: 'user',
+          role: "user",
           content: content.trim(),
-          timestamp: new Date()
+          timestamp: new Date(),
         };
         addMessage(targetId, userMsg);
 
-        
         // CALL BACKEND
         const aiResponse = await chatService.processRequirements(
           targetId,
           content.trim()
         );
 
-
         if (aiResponse) {
-            const aiMsg: Message = {
-                id: aiResponse.id || `ai-${Date.now()}`,
-                role: 'assistant',
-                content: aiResponse.content,
-                timestamp: new Date(),
-            };
-            addMessage(targetId, aiMsg);
+          const aiMsg: Message = {
+            id: aiResponse.id || `ai-${Date.now()}`,
+            role: "assistant",
+            content: aiResponse.content,
+            timestamp: new Date(),
+          };
+          addMessage(targetId, aiMsg);
 
-            // Extract JSON Requirements
-            const metadata = aiResponse.metadata_json;
-            let requirements = null;
+          // Extract JSON Requirements
+          const metadata = aiResponse.metadata_json;
+          let requirements = null;
 
-            if (metadata) {
-                requirements = metadata.requirements || metadata;
-            } else {
-                try {
-                    requirements = JSON.parse(aiResponse.content);
-                } catch (e) { /* Content is just text */ }
+          if (metadata) {
+            requirements = metadata.requirements || metadata;
+          } else {
+            try {
+              requirements = JSON.parse(aiResponse.content);
+            } catch (e) {
+              /* Content is just text */
             }
+          }
 
-            // Trigger 3D Generation if requirements found
-            if (requirements && (requirements.detailed_geometric_instructions || requirements.parts)) {
-                
-                setGenerating(targetId, true, "Generating 3D model...");
-                
-                await chatService.startRunpodRequest(
-                    targetId,
-                    "Generating 3D model...",
-                    "generate_scad",
-                    requirements,
-                    { source: "auto-trigger" }
-                );
-            } else {
-                setGenerating(targetId, false);
-            }
-        } else {
+          // Trigger 3D Generation if requirements found
+          if (
+            requirements &&
+            (requirements.detailed_geometric_instructions || requirements.parts)
+          ) {
+            setGenerating(targetId, true, "Generating 3D model...");
+
+            await chatService.startRunpodRequest(
+              targetId,
+              "Generating 3D model...",
+              "generate_scad",
+              requirements,
+              { source: "auto-trigger" }
+            );
+          } else {
             setGenerating(targetId, false);
+          }
+        } else {
+          setGenerating(targetId, false);
         }
-
       } catch (err) {
         console.error("[useChat] Failed to send message:", err);
         const errorMessage =
@@ -330,6 +354,7 @@ export const useChat = (
     error,
     sendMessage,
     sendSystemMessage,
+    generateModel, // Exported to fix UI crash
     clearMessages,
     retryLastMessage,
     setMessages: (newMessages: any) => {
