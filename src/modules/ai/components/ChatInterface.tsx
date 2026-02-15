@@ -68,8 +68,6 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       setConversationShape,
       addMessageToConversation,
       renameConversation,
-      clearMessages,
-      retryLastMessage,
     } = useConversations();
 
     const [showSidebar, setShowSidebar] = useState(false);
@@ -108,6 +106,8 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       sendMessage,
       generateModel,
       sendSystemMessage: persistSystemMessage,
+      clearMessages,
+      retryLastMessage,
     } = useChat(activeConversationId, handleInternalShapeGenerated, handleInternalMessageReceived);
 
     const handleSend = useCallback(
