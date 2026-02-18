@@ -6,6 +6,7 @@ interface EditorState {
     isDirty: boolean;
     isCompiling: boolean;
     lastCompiledCode: string | null;
+    mode: "requirements" | "code"; // Added mode
 
     setCode: (code: string) => void;
     setOriginalCode: (code: string) => void;
@@ -13,6 +14,7 @@ interface EditorState {
     compile: () => void;
     reset: () => void;
     clear: () => void;
+    setMode: (mode: "requirements" | "code") => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -21,6 +23,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     isDirty: false,
     isCompiling: false,
     lastCompiledCode: null,
+    mode: "code", // Default mode
 
     setCode: (code: string) => {
         set({ code, isDirty: code !== get().originalCode });
@@ -38,7 +41,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         const { code } = get();
         set({ isCompiling: true });
 
-        // Simulate compilation delay
         setTimeout(() => {
             set({
                 lastCompiledCode: code,
@@ -58,7 +60,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             code: "",
             originalCode: "",
             isDirty: false,
-            lastCompiledCode: null
+            lastCompiledCode: null,
+            mode: "code" // Reset mode
         });
     },
+
+    setMode: (mode: "requirements" | "code") => {
+        set({ mode });
+    }
 }));

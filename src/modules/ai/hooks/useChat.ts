@@ -5,6 +5,7 @@ import { useChatStore } from "../stores/chatStore";
 import type { GeneratedShape, Message } from "../types/chat.type";
 import { useChatSocket } from "./useChatSocket";
 import type { RunpodEvent } from "./useChatSocket";
+import { useAuthStore } from "@/lib/auth";
 import { STORAGE_KEYS } from "@/lib/constants";
 
 interface UseChatReturn {
@@ -16,7 +17,7 @@ interface UseChatReturn {
     content: string,
     shapeData?: GeneratedShape
   ) => Promise<void>;
-  generateModel: (requirements: any) => Promise<void>; // Added function to interface
+  generateModel: (requirements: any) => Promise<void>;
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -26,8 +27,8 @@ interface UseChatReturn {
 
 export const useChat = (
   chatId: string | null = null,
-  onShapeGenerated?: (shape: GeneratedShape, chatId: string) => void, // Added chatId
-  onMessageReceived?: (message: Message, chatId: string) => void      // Added chatId
+  onShapeGenerated?: (shape: GeneratedShape, chatId: string) => void,
+  onMessageReceived?: (message: Message, chatId: string) => void
 ): UseChatReturn => {
   const {
     conversations,
@@ -70,7 +71,7 @@ export const useChat = (
             content: event.message.content || "Model generation completed!",
             timestamp: new Date(),
           };
-          onMessageReceived?.(newMessage, chatId); // Added chatId
+          onMessageReceived?.(newMessage, chatId);
         }
       }
 
@@ -85,7 +86,7 @@ export const useChat = (
           try {
             let assets: any[] = [];
             let retryCount = 0;
-            const maxRetries = 2;
+            const maxRetries = 20;
 
             while (retryCount < maxRetries && assets.length === 0) {
               const delay = Math.min(retryCount * 1000 + 1000, 5000);
@@ -100,7 +101,7 @@ export const useChat = (
             const shape = await assetService.mapToGeneratedShape(jobId, assets);
 
             if (shape && onShapeGenerated) {
-              onShapeGenerated(shape, chatId); // Added chatId
+              onShapeGenerated(shape, chatId);
             } else if (assets.length > 0 && !shape) {
               setError("Model generated but could not be displayed.");
             }
@@ -175,6 +176,16 @@ export const useChat = (
     [chatId, handleJobCompletion, setGenerating, updateJobInHistory]
   );
 
+  const user = useAuthStore((state) => state.user);
+  const sessionId = user?.id || "anonymous-session"; // Fallback if no user is signed in
+
+
+  useChatSocket({
+    chatId,
+    sessionId,
+    onEvent: handleSocketEvent 
+  });
+
   const sendingRef = useRef(false);
 
   // --- 3. GENERATE MODEL (Manual Trigger) ---
@@ -211,8 +222,10 @@ export const useChat = (
       setError(null);
       setLastUserMessage(content.trim());
 
+      // 👉 FIX 2: Lift targetId outside try/catch so it exists in the catch block for new chats
+      let targetId = chatId;
+
       try {
-        let targetId = chatId;
         const { setActiveConversationId, setConversations, conversations } =
           useChatStore.getState();
 
@@ -286,18 +299,19 @@ export const useChat = (
               requirements,
               { source: "auto-trigger" }
             );
+
           } else {
-            setGenerating(targetId, false);
+            setGenerating(targetId, false); // Clear if no generation triggered
           }
         } else {
-          setGenerating(targetId, false);
+          setGenerating(targetId, false); // Clear if no response
         }
       } catch (err) {
         console.error("[useChat] Failed to send message:", err);
         const errorMessage =
           err instanceof Error ? err.message : "Failed to send message";
         setError(errorMessage);
-        if (chatId) setGenerating(chatId, false);
+        if (targetId) setGenerating(targetId, false); // Fixes hanging loading on error
       } finally {
         sendingRef.current = false;
       }
@@ -354,13 +368,13 @@ export const useChat = (
     error,
     sendMessage,
     sendSystemMessage,
-    generateModel, // Exported to fix UI crash
+    generateModel,
     clearMessages,
     retryLastMessage,
     setMessages: (newMessages: any) => {
       const msgs =
         typeof newMessages === "function" ? newMessages(messages) : newMessages;
-      if (chatId) updateConversation(chatId, { messages: msgs });
+        if (chatId) updateConversation(chatId, { messages: msgs });
     },
     activeChatId: chatId,
     isGeneratingGlobally: isGeneratingGlobally(),

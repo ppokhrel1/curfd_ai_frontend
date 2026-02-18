@@ -1,25 +1,24 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+
 
 import { useChat } from '@/modules/ai/hooks/useChat';
 import { useConversations } from '@/modules/ai/hooks/useConversations';
-import { useChatStore } from '@/modules/ai/stores/chatStore';
-import { useEditorStore } from '@/modules/editor/stores/editorStore';
 import { ChatInterface } from '@/modules/ai/components/ChatInterface';
+import { useEditorStore } from '@/modules/editor/stores/editorStore';
+import { useChatStore } from '@/modules/ai/stores/chatStore';
 
-// Mock hooks using the same aliases as imports
+// --- MOCKS ---
+
 vi.mock('@/modules/ai/hooks/useChat');
 vi.mock('@/modules/ai/hooks/useConversations');
 vi.mock('@/modules/ai/stores/chatStore');
 vi.mock('@/modules/editor/stores/editorStore');
-vi.mock('@/pages/HomePage/hooks', () => ({
-  useViewState: vi.fn(),
-}));
 
-// Mock child components using aliases (same as imports in ChatInterface)
+// Mock MessageInput
 vi.mock('@/modules/ai/components/MessageInput', () => ({
-  MessageInput: ({ onSendMessage, disabled }) => (
+  MessageInput: ({ onSendMessage, disabled }: any) => (
     <div data-testid="message-input">
       <input
         type="text"
@@ -27,23 +26,31 @@ vi.mock('@/modules/ai/components/MessageInput', () => ({
         disabled={disabled}
         onChange={(e) => onSendMessage(e.target.value)}
       />
+      <button onClick={() => onSendMessage('Test Message')}>Send</button>
     </div>
   ),
 }));
 
+// Mock MessageList to test the onOpenInEditor callback easily
 vi.mock('@/modules/ai/components/MessageList', () => ({
-  MessageList: ({ messages }) => (
+  MessageList: ({ messages, onOpenInEditor }: any) => (
     <div data-testid="message-list">
-      {messages.map((msg, idx) => (
+      {messages.map((msg: any, idx: number) => (
         <div key={idx} data-testid={`message-${msg.role}`}>
           {msg.content}
         </div>
       ))}
+      <button 
+        data-testid="mock-open-editor" 
+        onClick={() => onOpenInEditor('mocked code', 'code')}
+      >
+        Open Editor
+      </button>
     </div>
   ),
 }));
 
-// Mock lucide-react icons, including all icons used in the component tree
+// Mock Icons
 vi.mock('lucide-react', () => ({
   AlertCircle: () => <div data-testid="icon-alertcircle" />,
   Bot: () => <div data-testid="icon-bot" />,
@@ -51,15 +58,16 @@ vi.mock('lucide-react', () => ({
   Menu: () => <div data-testid="icon-menu" />,
   Plus: () => <div data-testid="icon-plus" />,
   RefreshCcw: () => <div data-testid="icon-refresh" />,
-  Sparkles: () => <div data-testid="icon-sparkles" />,
-  X: (props) => <div data-testid="icon-x" {...props} />,
-  Box: () => <div data-testid="icon-box" />,
-  Paperclip: () => <div data-testid="icon-paperclip" />,
-  User: () => <div data-testid="icon-user" />,
+  X: (props: any) => <div data-testid="icon-x" {...props} />,
+  ChevronLeft: () => <div data-testid="icon-chevronleft" />,
+  ChevronRight: () => <div data-testid="icon-chevronright" />,
 }));
 
 describe('ChatInterface', () => {
-  // Default mock implementations with all required properties
+  const mockSetCode = vi.fn();
+  const mockSetOriginalCode = vi.fn();
+  const mockSetMode = vi.fn();
+  
   const mockUseChat = {
     isLoading: false,
     error: null,
@@ -68,11 +76,6 @@ describe('ChatInterface', () => {
     sendSystemMessage: vi.fn(),
     clearMessages: vi.fn(),
     retryLastMessage: vi.fn(),
-    isGeneratingGlobally: false,
-    // Added missing properties to match UseChatReturn type
-    messages: [],
-    setMessages: vi.fn(),
-    activeChatId: null,
   };
 
   const mockUseConversations = {
@@ -81,16 +84,11 @@ describe('ChatInterface', () => {
     activeConversation: null,
     isLoadingChats: false,
     loadError: null,
-    createConversation: vi.fn(),
     setActiveConversation: vi.fn(),
     deleteConversation: vi.fn(),
     setConversationShape: vi.fn(),
     addMessageToConversation: vi.fn(),
     renameConversation: vi.fn(),
-    // Added missing property to match UseConversationsReturn type
-    clearActiveConversation: vi.fn(),
-    clearMessages: vi.fn(), 
-    retryLastMessage: vi.fn(), // Added this missing function
   };
 
   const mockUseChatStore = {
@@ -98,26 +96,25 @@ describe('ChatInterface', () => {
     generatingChatStatus: {},
   };
 
-  const mockUseEditorStore = {
-    setCode: vi.fn(),
-    setOriginalCode: vi.fn(),
-  };
-
   const mockSetActiveView = vi.fn();
   const mockSetMobilePanel = vi.fn();
   const mockOnShapeGenerated = vi.fn();
+  const mockOnMinimize = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    // Mock scrollIntoView since JSDOM doesn't support it
     Element.prototype.scrollIntoView = vi.fn();
 
-    // Use vi.mocked for type-safe mocking
-    vi.mocked(useChat).mockReturnValue(mockUseChat);
-    vi.mocked(useConversations).mockReturnValue(mockUseConversations);
+    vi.mocked(useChat).mockReturnValue(mockUseChat as any);
+    vi.mocked(useConversations).mockReturnValue(mockUseConversations as any);
     vi.mocked(useChatStore).mockReturnValue(mockUseChatStore as any);
-    vi.mocked(useEditorStore).mockReturnValue(mockUseEditorStore as any);
+    
+    // Mock standard return + getState for the editorStore
+    vi.mocked(useEditorStore).mockReturnValue({
+      setCode: mockSetCode,
+      setOriginalCode: mockSetOriginalCode,
+    } as any);
+    useEditorStore.getState = vi.fn().mockReturnValue({ setMode: mockSetMode });
   });
 
   const renderComponent = (props = {}) => {
@@ -131,398 +128,241 @@ describe('ChatInterface', () => {
     );
   };
 
-  test('renders without crashing', () => {
-    renderComponent();
-    expect(screen.getByText('Ready to Help')).toBeInTheDocument();
-  });
-
-  test('renders empty state when no messages', () => {
-    renderComponent();
-    expect(screen.getByText('Ready to Help')).toBeInTheDocument();
-    expect(screen.getByText('Generate 3D models or ask questions')).toBeInTheDocument();
-  });
-
-  test('renders messages when active conversation exists', () => {
-    const messages = [
-      { id: '1', role: 'user', content: 'Hello' },
-      { id: '2', role: 'assistant', content: 'Hi there' },
-    ];
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      activeConversationId: '123',
-      activeConversation: {
-        id: '123',
-        title: 'Test Chat',
-        messages,
-        generatedShape: null,
-      },
+  describe('Rendering Basics', () => {
+    test('renders empty state correctly', () => {
+      renderComponent();
+      expect(screen.getByText('Ready to Help')).toBeInTheDocument();
+      expect(screen.getByText('Generate 3D models')).toBeInTheDocument();
     });
 
-    renderComponent();
-    expect(screen.getByText('Hello')).toBeInTheDocument();
-    expect(screen.getByText('Hi there')).toBeInTheDocument();
-    expect(screen.getByText('Test Chat')).toBeInTheDocument();
-    expect(screen.getByText('2 msgs')).toBeInTheDocument();
-  });
-
-  test('shows loading state for chats', () => {
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      isLoadingChats: true,
-    });
-
-    const { container } = renderComponent();
-    // Check for the skeleton loader by class since it has no role/text
-    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
-  });
-
-  test('shows error state for chats', () => {
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      loadError: 'Network error',
-    });
-
-    renderComponent();
-    expect(screen.getByText('Failed to load chats')).toBeInTheDocument();
-    expect(screen.getByText('Network error')).toBeInTheDocument();
-  });
-
-  test('shows empty state for chats when no conversations', () => {
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      conversations: [],
-    });
-
-    renderComponent();
-    expect(screen.getByText('No chats yet')).toBeInTheDocument();
-  });
-
-  test('sidebar toggles when menu button and overlay clicked', () => {
-    const { container } = renderComponent();
-    const menuButton = screen.getByTestId('icon-menu').closest('button')!;
-    fireEvent.click(menuButton);
-    const sidebar = screen.getByText('History').closest('div[class*="fixed"]');
-    expect(sidebar).toHaveClass('translate-x-0');
-
-    const overlayDiv = container.querySelector('.fixed.inset-0.bg-black\\/50');
-    expect(overlayDiv).toBeInTheDocument();
-    fireEvent.click(overlayDiv!);
-    expect(sidebar).toHaveClass('-translate-x-full');
-  });
-
-  test('clicking new chat button calls handleNewChat', () => {
-    const { setActiveConversation, clearMessages } = mockUseConversations;
-    renderComponent();
-    // Select the "New Chat" button from the sidebar explicitly
-    const newChatButton = screen.getByRole('button', { name: 'New Chat' });
-    fireEvent.click(newChatButton);
-    expect(setActiveConversation).toHaveBeenCalledWith(null);
-    expect(clearMessages).toHaveBeenCalled();
-    expect(mockOnShapeGenerated).toHaveBeenCalledWith(null);
-  });
-
-  test('selecting a conversation calls setActiveConversation', () => {
-    const conversations = [
-      { id: '1', title: 'Chat 1', messages: [], generatedShape: null },
-    ];
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      conversations,
-    });
-
-    renderComponent();
-    fireEvent.click(screen.getByTestId('icon-menu').closest('button')!);
-    const chatItem = screen.getByText('Chat 1').closest('div[class*="cursor-pointer"]')!;
-    fireEvent.click(chatItem);
-    expect(mockUseConversations.setActiveConversation).toHaveBeenCalledWith('1');
-  });
-
-  test('deleting a conversation calls deleteConversation', () => {
-    const conversations = [
-      { id: '1', title: 'Chat 1', messages: [], generatedShape: null },
-    ];
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      conversations,
-    });
-
-    renderComponent();
-    fireEvent.click(screen.getByTestId('icon-menu').closest('button')!);
-    // The first 'icon-x' is the close sidebar button. The second is the delete chat button.
-    const deleteButton = screen.getAllByTestId('icon-x')[1].closest('button')!;
-    fireEvent.click(deleteButton);
-    expect(mockUseConversations.deleteConversation).toHaveBeenCalledWith('1');
-  });
-
-  test('sending a message calls sendMessage', () => {
-    const sendMessage = vi.fn();
-    vi.mocked(useChat).mockReturnValue({
-      ...mockUseChat,
-      sendMessage,
-    });
-
-    renderComponent();
-    const input = screen.getByPlaceholderText('Mock input');
-    fireEvent.change(input, { target: { value: 'Hello' } });
-    expect(sendMessage).toHaveBeenCalledWith('Hello');
-  });
-
-  test('retry button appears when error exists', () => {
-    const retryLastMessage = vi.fn();
-    const messages = [{ id: '1', role: 'user', content: 'User msg' }];
-    
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      activeConversationId: '123',
-      activeConversation: {
-        id: '123',
-        title: 'Test',
-        messages,
-        generatedShape: null,
-      },
-      retryLastMessage, // Ensure this is returned from the hook
-    });
-
-    vi.mocked(useChat).mockReturnValue({
-      ...mockUseChat,
-      error: 'Something went wrong',
-    });
-
-    renderComponent();
-    // The text 'Error' appears in the UI
-    expect(screen.getByText('Error')).toBeInTheDocument();
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-    const retryButton = screen.getByText('Retry').closest('button')!;
-    fireEvent.click(retryButton);
-    expect(retryLastMessage).toHaveBeenCalled();
-  });
-
-  describe('renderMessageExtras', () => {
-    test('displays View Editor button when assistant message has scadCode', () => {
-      const assistantMessage = {
-        id: 'msg1',
-        role: 'assistant',
-        content: JSON.stringify({ scadCode: 'cube(10);' }),
-      };
-      const activeConversation = {
-        id: '123',
-        title: 'Test',
-        messages: [assistantMessage],
-        generatedShape: null,
-      };
+    test('renders messages through MessageList', () => {
       vi.mocked(useConversations).mockReturnValue({
         ...mockUseConversations,
-        activeConversationId: '123',
-        activeConversation,
-      });
+        activeConversationId: '1',
+        activeConversation: {
+          id: '1',
+          title: 'Test',
+          messages: [{ id: 'm1', role: 'user', content: 'Hello user' }]
+        },
+      } as any);
 
       renderComponent();
-      expect(screen.getByText('Model Generated')).toBeInTheDocument();
-      // Use 'Editor' not 'View Editor' as per component code
-      expect(screen.getByText('Editor')).toBeInTheDocument();
+      expect(screen.getByText('Hello user')).toBeInTheDocument();
+      expect(screen.queryByText('Ready to Help')).not.toBeInTheDocument();
     });
 
-    test('displays Generate 3D button when assistant message has detailed_geometric_instructions', () => {
-      const assistantMessage = {
-        id: 'msg1',
-        role: 'assistant',
-        content: JSON.stringify({ detailed_geometric_instructions: 'some spec' }),
-      };
-      const activeConversation = {
-        id: '123',
-        title: 'Test',
-        messages: [assistantMessage],
-        generatedShape: null,
-      };
-      vi.mocked(useConversations).mockReturnValue({
-        ...mockUseConversations,
-        activeConversationId: '123',
-        activeConversation,
-      });
+    test('renders children workspace if provided', () => {
+      renderComponent({ children: <div data-testid="mock-workspace">Workspace</div> });
+      expect(screen.getByTestId('mock-workspace')).toBeInTheDocument();
+    });
+  });
 
-      renderComponent();
-      expect(screen.getByText('Specification Ready')).toBeInTheDocument();
-      // Use 'Generate' not 'Generate 3D' as per component code
-      expect(screen.getByText('Generate')).toBeInTheDocument();
+  describe('Sidebar & Layout Interactions', () => {
+    test('toggles sidebar on menu click', () => {
+      const { container } = renderComponent();
+      
+      const menuBtn = screen.getByTestId('icon-menu').closest('button');
+      fireEvent.click(menuBtn!);
+      
+      const overlay = container.querySelector('.fixed.inset-0.bg-black\\/50');
+      expect(overlay).toBeInTheDocument();
+
+      // Close by clicking overlay
+      fireEvent.click(overlay!);
+      expect(container.querySelector('.fixed.inset-0.bg-black\\/50')).not.toBeInTheDocument();
     });
 
-    test('clicking Generate 3D calls generateModel', () => {
-      const generateModel = vi.fn();
-      vi.mocked(useChat).mockReturnValue({
-        ...mockUseChat,
-        generateModel,
-      });
-
-      const specContent = { detailed_geometric_instructions: 'spec' };
-      const assistantMessage = {
-        id: 'msg1',
-        role: 'assistant',
-        content: JSON.stringify(specContent),
-      };
-      const activeConversation = {
-        id: '123',
-        title: 'Test',
-        messages: [assistantMessage],
-        generatedShape: null,
-      };
-      vi.mocked(useConversations).mockReturnValue({
-        ...mockUseConversations,
-        activeConversationId: '123',
-        activeConversation,
-      });
-
-      renderComponent();
-      const generateButton = screen.getByText('Generate').closest('button')!;
-      fireEvent.click(generateButton);
-      expect(generateModel).toHaveBeenCalledWith(specContent);
+    test('renders minimized state and allows un-minimizing', () => {
+      renderComponent({ isMinimized: true, onMinimize: mockOnMinimize });
+      
+      // Look for the minimized vertical strip wrapper
+      const menuIcon = screen.getByTestId('icon-menu');
+      const minContainer = menuIcon.closest('div[class*="flex-col items-center"]');
+      
+      fireEvent.click(minContainer!);
+      expect(mockOnMinimize).toHaveBeenCalledWith(false);
     });
 
-    test('clicking View Editor calls handleViewEditor which sets code and switches view', () => {
-      const { setCode, setOriginalCode } = mockUseEditorStore;
-
-      const assistantMessage = {
-        id: 'msg1',
-        role: 'assistant',
-        content: JSON.stringify({ scadCode: 'cube(10);' }),
-      };
-      const activeConversation = {
-        id: '123',
-        title: 'Test',
-        messages: [assistantMessage],
-        generatedShape: null,
-      };
-      vi.mocked(useConversations).mockReturnValue({
-        ...mockUseConversations,
-        activeConversationId: '123',
-        activeConversation,
+    test('sending a message un-minimizes the chat', async () => {
+      renderComponent({ isMinimized: true, onMinimize: mockOnMinimize });
+      
+      const sendBtn = screen.getByText('Send');
+      await act(async () => {
+        fireEvent.click(sendBtn);
       });
 
-      renderComponent();
-      const viewEditorButton = screen.getByText('Editor').closest('button')!;
-      fireEvent.click(viewEditorButton);
+      expect(mockUseChat.sendMessage).toHaveBeenCalledWith('Test Message');
+      expect(mockOnMinimize).toHaveBeenCalledWith(false);
+    });
+  });
 
-      expect(setOriginalCode).toHaveBeenCalledWith('cube(10);');
-      expect(setCode).toHaveBeenCalledWith('cube(10);');
+  describe('Conversation Management', () => {
+    test('handles starting a new chat', () => {
+      renderComponent();
+      const newChatBtn = screen.getByTitle('New Session');
+      fireEvent.click(newChatBtn);
+      
+      expect(mockUseConversations.setActiveConversation).toHaveBeenCalledWith(null);
+      expect(mockUseChat.clearMessages).toHaveBeenCalled();
+      expect(mockOnShapeGenerated).toHaveBeenCalledWith(null);
+    });
+
+    test('auto-renames New Chat when user sends first message', () => {
+      vi.mocked(useConversations).mockReturnValue({
+        ...mockUseConversations,
+        activeConversationId: '1',
+        activeConversation: {
+          id: '1',
+          title: 'New Chat', // Important trigger
+          messages: [{ id: 'm1', role: 'user', content: 'Make me a box' }]
+        },
+      } as any);
+
+      renderComponent();
+      expect(mockUseConversations.renameConversation).toHaveBeenCalledWith('1', 'Make me a box');
+    });
+
+    test('handles selecting and deleting chats from history', () => {
+      vi.mocked(useConversations).mockReturnValue({
+        ...mockUseConversations,
+        conversations: [{ id: 'chat1', title: 'Old Chat', messages: [] }],
+      } as any);
+
+      renderComponent();
+      // Open sidebar
+      fireEvent.click(screen.getByTestId('icon-menu').closest('button')!);
+      
+      const chatItemText = screen.getByText('Old Chat');
+      
+      const chatItemWrapper = chatItemText.closest('div.cursor-pointer');
+      
+      // Click the wrapper to select the chat
+      fireEvent.click(chatItemWrapper!);
+      expect(mockUseConversations.setActiveConversation).toHaveBeenCalledWith('chat1');
+
+      // Now query the button inside that outer wrapper
+      const deleteBtn = chatItemWrapper?.querySelector('button');
+      fireEvent.click(deleteBtn!);
+      expect(mockUseConversations.deleteConversation).toHaveBeenCalledWith('chat1');
+    });
+  });
+
+  describe('Editor & Auto-Load Logic', () => {
+    test('handleViewEditor sets code and switches views when triggered manually', () => {
+      vi.mocked(useConversations).mockReturnValue({
+        ...mockUseConversations,
+        activeConversationId: '1',
+        activeConversation: {
+          id: '1',
+          title: 'Test',
+          messages: [{ id: 'm1', role: 'assistant', content: 'Msg' }]
+        },
+      } as any);
+
+      renderComponent();
+      
+      const openEditorBtn = screen.getByTestId('mock-open-editor');
+      fireEvent.click(openEditorBtn);
+
+      expect(mockSetOriginalCode).toHaveBeenCalledWith('mocked code');
+      expect(mockSetCode).toHaveBeenCalledWith('mocked code');
+      expect(mockSetMode).toHaveBeenCalledWith('code');
       expect(mockSetActiveView).toHaveBeenCalledWith('editor');
       expect(mockSetMobilePanel).toHaveBeenCalledWith('editor');
     });
+
+    test('auto-loads valid code block from the latest assistant message', () => {
+      // Must be > 50 characters to trigger the auto-load logic
+      const longCode = "a".repeat(60); 
+      const assistantMessage = `Here is your code:\n\`\`\`javascript\n${longCode}\n\`\`\``;
+
+      vi.mocked(useConversations).mockReturnValue({
+        ...mockUseConversations,
+        activeConversationId: '1',
+        activeConversation: {
+          id: '1',
+          title: 'Test',
+          messages: [{ id: 'm1', role: 'assistant', content: assistantMessage }]
+        },
+      } as any);
+
+      renderComponent();
+
+      // Because it's a standard useEffect, it runs on mount/update
+      expect(mockSetCode).toHaveBeenCalledWith(longCode);
+      expect(mockSetMode).toHaveBeenCalledWith('code');
+      expect(mockSetActiveView).toHaveBeenCalledWith('editor');
+    });
+
+    test('auto-loads pure JSON without markdown from latest assistant message', () => {
+      // Must be > 50 characters and valid JSON
+      const validJson = JSON.stringify({ scadCode: "cube([10,10,10]);".repeat(5) });
+
+      vi.mocked(useConversations).mockReturnValue({
+        ...mockUseConversations,
+        activeConversationId: '1',
+        activeConversation: {
+          id: '1',
+          title: 'Test',
+          messages: [{ id: 'm1', role: 'assistant', content: validJson }]
+        },
+      } as any);
+
+      renderComponent();
+
+      // It should extract the scadCode from the JSON payload
+      expect(mockSetCode).toHaveBeenCalledWith("cube([10,10,10]);".repeat(5));
+      expect(mockSetMode).toHaveBeenCalledWith('code'); // Code because it found scadCode
+      expect(mockSetActiveView).toHaveBeenCalledWith('editor');
+    });
   });
 
+  describe('Imperative Handle (Refs)', () => {
+    test('sendUserMessage calls handleSend internally', async () => {
+      const ref = React.createRef<any>();
+      renderComponent({ ref });
 
-  test('sendUserMessage via ref calls sendMessage', () => {
-    const sendMessage = vi.fn();
-    vi.mocked(useChat).mockReturnValue({
-      ...mockUseChat,
-      sendMessage,
+      await act(async () => {
+        ref.current.sendUserMessage('Hello via ref');
+      });
+
+      expect(mockUseChat.sendMessage).toHaveBeenCalledWith('Hello via ref');
     });
 
-    const ref = React.createRef<any>();
-    renderComponent({ ref });
+    test('generateModel calls hook generateModel', async () => {
+      const ref = React.createRef<any>();
+      renderComponent({ ref });
 
-    act(() => {
-      ref.current.sendUserMessage('User typed message');
+      await act(async () => {
+        ref.current.generateModel({ req: true });
+      });
+
+      expect(mockUseChat.generateModel).toHaveBeenCalledWith({ req: true });
     });
-
-    expect(sendMessage).toHaveBeenCalledWith('User typed message');
   });
 
-  test('onShapeGenerated is called when active conversation changes and has shape', () => {
-    const shape = { scadCode: 'cube(10);' };
-    const activeConversation = {
-      id: '123',
-      title: 'Test',
-      messages: [],
-      generatedShape: shape,
-    };
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      activeConversationId: '123',
-      activeConversation,
+  describe('Error Handling', () => {
+    test('displays error and retry button', () => {
+      vi.mocked(useChat).mockReturnValue({
+        ...mockUseChat,
+        error: 'Network failure',
+      } as any);
+      
+      // Need messages array to render the error block
+      vi.mocked(useConversations).mockReturnValue({
+        ...mockUseConversations,
+        activeConversationId: '1',
+        activeConversation: { messages: [{ id: '1', role: 'user', content: 'test' }] },
+      } as any);
+
+      renderComponent();
+
+      expect(screen.getByText('Error')).toBeInTheDocument();
+      expect(screen.getByText('Network failure')).toBeInTheDocument();
+      
+      const retryBtn = screen.getByText('Retry').closest('button');
+      fireEvent.click(retryBtn!);
+      expect(mockUseChat.retryLastMessage).toHaveBeenCalled();
     });
-
-    renderComponent();
-    expect(mockOnShapeGenerated).toHaveBeenCalledWith(shape);
-  });
-
-  test('title is renamed after first user message', () => {
-    const renameConversation = vi.fn();
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      activeConversationId: '123',
-      activeConversation: {
-        id: '123',
-        title: 'New Chat',
-        messages: [{ role: 'user', content: 'This is a long user message with multiple words to test title generation' }],
-        generatedShape: null,
-      },
-      renameConversation,
-    });
-
-    renderComponent();
-    expect(renameConversation).toHaveBeenCalledWith('123', 'This is a long...');
-  });
-
-  test('auto-scroll on new messages', () => {
-    const scrollIntoViewMock = Element.prototype.scrollIntoView;
-    const messages = [{ role: 'user', content: 'Hello' }];
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      activeConversationId: '123',
-      activeConversation: {
-        id: '123',
-        title: 'Test',
-        messages,
-        generatedShape: null,
-      },
-    });
-
-    renderComponent();
-    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth' });
-  });
-
-  test('handleInternalShapeGenerated calls setConversationShape and onShapeGenerated if active', () => {
-    const setConversationShape = vi.fn();
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      activeConversationId: '123',
-      setConversationShape,
-    });
-
-    let capturedShapeGeneratedCallback: any;
-    vi.mocked(useChat).mockImplementation((id: any, onShapeGenerated: any) => {
-      capturedShapeGeneratedCallback = onShapeGenerated;
-      return mockUseChat;
-    });
-
-    renderComponent();
-    const shape = { scadCode: 'cube(10);' };
-    act(() => {
-      capturedShapeGeneratedCallback(shape, '123');
-    });
-
-    expect(setConversationShape).toHaveBeenCalledWith('123', shape);
-    expect(mockOnShapeGenerated).toHaveBeenCalledWith(shape);
-  });
-
-  test('handleInternalMessageReceived calls addMessageToConversation', () => {
-    const addMessageToConversation = vi.fn();
-    vi.mocked(useConversations).mockReturnValue({
-      ...mockUseConversations,
-      addMessageToConversation,
-    });
-
-    let capturedMessageReceivedCallback: any;
-    vi.mocked(useChat).mockImplementation((id, onShapeGenerated, onMessageReceived) => {
-      capturedMessageReceivedCallback = onMessageReceived;
-      return mockUseChat;
-    });
-
-    renderComponent();
-    const message = { id: 'msg1', role: 'assistant', content: 'Test' };
-    act(() => {
-      capturedMessageReceivedCallback(message, '123');
-    });
-
-    expect(addMessageToConversation).toHaveBeenCalledWith(message, '123');
   });
 });

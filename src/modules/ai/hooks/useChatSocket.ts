@@ -27,7 +27,7 @@ export interface RunpodEvent {
 
 interface UseChatSocketProps {
   chatId: string | null;
-  sessionId: string | null;
+  sessionId: string | number | null; // 👉 FIX 1: Allow number types for IDs
   onEvent?: (event: RunpodEvent) => void;
 }
 
@@ -115,17 +115,20 @@ export const useChatSocket = ({ chatId, sessionId, onEvent }: UseChatSocketProps
       return;
     }
 
+    // 👉 FIX 2: Safely convert sessionId to a string for the URL
+    const safeSessionId = sessionId ? String(sessionId) : '';
+    
     const wsUrl = `${wsUrlBase}/chat-socket/${encodeURIComponent(
       chatId
-    )}?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(sessionId || '')}`;
+    )}?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(safeSessionId)}`;
 
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
 
     socket.onopen = () => {      
-      // Send the required session data immediately after connection
+      // 👉 FIX 3: Ensure session payload is stringified properly
       const initPayload = {
-        session_id: sessionId 
+        session_id: safeSessionId 
       };
       socket.send(JSON.stringify(initPayload));
 

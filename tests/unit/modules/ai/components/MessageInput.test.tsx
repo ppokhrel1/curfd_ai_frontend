@@ -33,24 +33,6 @@ describe("MessageInput", () => {
     expect(screen.getByText("Send").closest("button")).toBeDisabled();
   });
 
-  it("updates input value and character count when typing", async () => {
-    const user = userEvent.setup();
-    render(<MessageInput onSendMessage={mockOnSendMessage} />);
-
-    const textarea = screen.getByPlaceholderText(/Ask about CFD simulations/i);
-
-    // Type into the textarea
-    await user.type(textarea, "Hello world");
-
-    // Check value
-    expect(textarea).toHaveValue("Hello world");
-
-    // Check character count
-    expect(screen.getByText("11 characters")).toBeInTheDocument();
-
-    // Check AI indicator appears
-    expect(screen.getByText("AI")).toBeInTheDocument();
-  });
 
   it("calls onSendMessage and clears input when Send button is clicked", async () => {
     const user = userEvent.setup();

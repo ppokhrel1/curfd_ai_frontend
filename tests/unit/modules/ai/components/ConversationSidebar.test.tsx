@@ -28,7 +28,6 @@ const mockConversations = [
     id: "1",
     title: "Project Alpha",
     messages: [
-      // Fix: Use 'as const' to satisfy the strict MessageRole type
       { id: "m1", role: "user" as const, content: "Hello", timestamp: new Date() },
       { id: "m2", role: "assistant" as const, content: "Hi", timestamp: new Date() }
     ],
