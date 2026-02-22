@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState, useMemo } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
 import * as THREE from 'three';
 import { useAuthStore } from '@/lib/auth';
@@ -21,7 +21,7 @@ import {
 import { MOBILE_TRANSITION_MS } from './constants';
 import type { ChatInterfaceRef } from '@/modules/ai/components/ChatInterface';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
-import { useEditorStore } from '@/modules/editor/stores/editorStore';
+import { useEditorStore, type EditorParameter } from '@/modules/editor/stores/editorStore'; 
 import { DesktopLayout, HomePageHeader, MobileLayout, MobileNav } from './components';
 import { STORAGE_KEYS } from '@/lib/constants';
 
@@ -58,47 +58,82 @@ const HomePage = () => {
   // --- HELPER: Robust Extraction ---
   const extractScadCode = (shape: any): string | undefined => {
     if (!shape) return undefined;
-    
-    // 1. Direct Access
     if (shape.scadCode) return shape.scadCode;
     if (shape.scad_code) return shape.scad_code; 
 
-    // 2. Metadata parsing
     let metadata = shape.metadata_json || shape.metadata;
-    
-    // Handle stringified metadata
     if (typeof metadata === 'string') {
-        try {
-            metadata = JSON.parse(metadata);
-        } catch (e) {
-            console.warn("Failed to parse metadata_json", e);
-        }
+        try { metadata = JSON.parse(metadata); } 
+        catch (e) { console.warn("Failed to parse metadata_json", e); }
     }
 
-    if (metadata) {
-        return metadata.scadCode || metadata.scad_code || metadata.code;
-    }
-
+    if (metadata) return metadata.scadCode || metadata.scad_code || metadata.code || metadata.openscad_code;
     return undefined;
   };
 
-  const handleShapeGenerated = useCallback((shape: GeneratedShape | null) => {
-    // GUARD: If the editor is currently compiling, so it does not let the chat history sync overwrite the local state.
-    const isCompiling = useEditorStore.getState().isCompiling;
-    if (isCompiling && shape === null) {
-        return;
+  // --- NEW: The Regex Auto-Parser for History Loading ---
+  const extractParametersFromCode = (code: string): EditorParameter[] => {
+    if (!code) return [];
+    const parameters: EditorParameter[] = [];
+    const regex = /^\s*([a-zA-Z0-9_]+)\s*=\s*([-+]?[0-9]*\.?[0-9]+)\s*;/gm;
+    const ignoredVars = ['$fn', '$fa', '$fs', 'eps', 'epsilon'];
+    
+    let match;
+    while ((match = regex.exec(code)) !== null) {
+      const name = match[1];
+      const val = parseFloat(match[2]);
+
+      if (!ignoredVars.includes(name) && !isNaN(val)) {
+        let min_val = val > 0 ? Math.floor(val * 0.5) : val - 10;
+        let max_val = val > 0 ? Math.ceil(val * 1.5) : val + 10;
+        if (min_val === max_val) {
+          min_val -= 5;
+          max_val += 5;
+        }
+        parameters.push({
+          name,
+          default_val: val,
+          min_val,
+          max_val,
+          description: `Auto-extracted: ${name}`
+        });
+      }
     }
+    return parameters;
+  };
+
+  // --- HELPER: Extract Parameters from History DB ---
+  const extractParameters = (shape: any): EditorParameter[] => {
+    if (!shape) return [];
+    let metadata = shape.metadata_json || shape.metadata;
+    if (typeof metadata === 'string') {
+        try { metadata = JSON.parse(metadata); } catch (e) {}
+    }
+    return metadata?.parameters && Array.isArray(metadata.parameters) ? metadata.parameters : [];
+  };
+
+  const handleShapeGenerated = useCallback((shape: GeneratedShape | null) => {
+    const store = useEditorStore.getState();
+    const isCompiling = store.isCompiling;
+    if (isCompiling && shape === null) return;
 
     if (!shape) {
         setCurrentShape(null);
         setLoadedModel(null);
         setModelStats(undefined);
-        useEditorStore.getState().clear();
+        store.clear();
         return;
     }
 
-    
     const scadCode = extractScadCode(shape);
+    let params = extractParameters(shape); 
+
+    // 🔥 THE FIX: Auto-parsing parameters from code during history load
+    if ((!params || params.length === 0) && scadCode) {
+        console.log("History Load: Auto-parsing parameters from code...");
+        params = extractParametersFromCode(scadCode);
+    }
+
     const updatedShape = { ...shape, scadCode };
 
     // --- Cached Path ---
@@ -108,9 +143,13 @@ const HomePage = () => {
         setCurrentShape(updatedShape); 
                 
         if (scadCode) {
-            const store = useEditorStore.getState();
             store.setOriginalCode(scadCode);
-            store.setCode(scadCode); // ✅ Explicitly set active code
+            store.setCode(scadCode); 
+            // Safe execution check for the test environment
+            if (typeof store.setParameters === 'function') {
+              store.setParameters([]); 
+              if (params.length > 0) store.setParameters(params); 
+            }
             if (activeView !== 'editor') setActiveView('editor');
         }
         return;
@@ -124,15 +163,17 @@ const HomePage = () => {
         setModelStats(undefined);
         
         if (scadCode) {
-            const store = useEditorStore.getState();
             store.setOriginalCode(scadCode);
-            store.setCode(scadCode); // ✅ Explicitly set active code
-            
+            store.setCode(scadCode); 
+            // Safe execution check for the test environment
+            if (typeof store.setParameters === 'function') {
+              store.setParameters([]); 
+              if (params.length > 0) store.setParameters(params); 
+            }
             if (activeView !== 'editor') setActiveView('editor');
         }
         
-        // Fetch files if we have a URL (standard path)
-        if (shape.sdfUrl) {
+        if (shape.sdfUrl && updatedShape) {
             fetchModelFiles(updatedShape);
         }
     }
@@ -183,13 +224,21 @@ const HomePage = () => {
     }
   }, [activeConversationId, updateConversation]);
 
+  // --- NEW: Optimization Handler ---
+  const handleOptimizeClick = useCallback(async (parameters: any[]) => {
+    const currentCode = useEditorStore.getState().code;
+    toast.success('Optimization task initiated. Check console for now.');
+    console.log("SENDING TO API:", { code: currentCode, parameters });
+    
+    // TODO: Add your fetch("/optimize/custom") polling logic here in the next step!
+  }, []);
+
   usePendingMessage(chatRef);
 
-  // Sync hook that monitors conversation/messages to load shapes
   useActiveConversationSync({
     activeConversationId,
     activeConv,
-    messages: activeConv?.messages || [], // [] for TS Error
+    messages: activeConv?.messages || [], 
     modelCache,
     modelFetch: { fetchModelFiles, recoverModel },
     onShapeLoaded: handleShapeGenerated,
@@ -218,7 +267,6 @@ const HomePage = () => {
       },
     }),
   });
-
 
   return (
     <div className="h-screen bg-neutral-950 flex flex-col overflow-hidden">
@@ -259,6 +307,7 @@ const HomePage = () => {
             setActiveView={setActiveView}
             setMobilePanel={setMobilePanel}
             activeView={activeView}
+            onOptimizeClick={handleOptimizeClick} 
         />
         <MobileLayout
             mobilePanel={mobilePanel}
@@ -274,6 +323,7 @@ const HomePage = () => {
             onMobilePanelSwitch={handleMobilePanelSwitch}
             setActiveView={setActiveView}
             setMobilePanel={setMobilePanel}
+            onOptimizeClick={handleOptimizeClick} 
         />
     </main>
 

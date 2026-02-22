@@ -89,25 +89,22 @@ export const useChatStore = create<ChatState>()(
                 )
             })),
 
-            setGenerating: (chatId, isGenerating, status, action) => set((state) => {
-                const nextIds = new Set(state.generatingChatIds);
-                const nextStatus = { ...state.generatingChatStatus };
-                const nextActions = { ...state.generatingChatActions };
+            setGenerating: (chatId: string, isGenerating: boolean, status?: string) =>
+                set((state) => {
+                // 1. Create a brand new Set based on the old one
+                const newGeneratingIds = new Set(state.generatingChatIds);
 
+                // 2. Add or remove the ID
                 if (isGenerating) {
-                    nextIds.add(chatId);
-                    if (status) nextStatus[chatId] = status;
-                    if (action) nextActions[chatId] = action;
+                    newGeneratingIds.add(chatId);
                 } else {
-                    nextIds.delete(chatId);
-                    delete nextStatus[chatId];
-                    delete nextActions[chatId];
+                    newGeneratingIds.delete(chatId);
                 }
 
-                return {
-                    generatingChatIds: nextIds,
-                    generatingChatStatus: nextStatus,
-                    generatingChatActions: nextActions
+                // 3. Return the NEW Set so React knows to re-render the UI
+                return { 
+                    generatingChatIds: newGeneratingIds,
+                    generatingStatus: status || "",
                 };
             }),
 

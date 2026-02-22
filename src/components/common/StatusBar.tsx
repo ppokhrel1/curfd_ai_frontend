@@ -20,12 +20,13 @@ export const StatusBar = ({ currentShape, activeView, onOpenSimulation }: Status
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span className="text-neutral-400">Model:</span>
-              <span className="text-white font-medium">{currentShape.name}</span>
+              <span className="text-white font-medium">{currentShape.name || 'Untitled'}</span>
             </div>
             <div className="h-3 w-px bg-neutral-800" />
             <div className="flex items-center gap-1.5 text-neutral-500">
               <Box className="w-3 h-3" />
-              <span className="capitalize">{currentShape.type.replace('_', ' ')}</span>
+              {/* 🔥 THE FIX: Added a fallback string so .replace() never crashes */}
+              <span className="capitalize">{(currentShape.type || 'model').replace('_', ' ')}</span>
             </div>
             {currentShape.hasSimulation && (
               <>

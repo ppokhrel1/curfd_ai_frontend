@@ -1,11 +1,11 @@
 import React from 'react';
 import { ChatInterface } from '@/modules/ai/components/ChatInterface';
 import { Viewer3D } from '@/modules/viewer/components/Viewer3D';
+import { EditorContainer } from '@/modules/editor/components'; // <-- Updated Import
 import type { ChatInterfaceRef } from '@/modules/ai/components/ChatInterface';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
 import type { MobilePanel, ModelStats } from '../types';
 import * as THREE from 'three';
-
 
 interface MobileLayoutProps {
   mobilePanel: MobilePanel;
@@ -21,6 +21,7 @@ interface MobileLayoutProps {
   onMobilePanelSwitch: (panel: MobilePanel) => void;
   setActiveView: (view: any) => void;
   setMobilePanel: (panel: any) => void;
+  onOptimizeClick?: (parameters: any[]) => void;
 }
 
 export const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -39,9 +40,9 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
   setMobilePanel,
 }) => {
   return (
-    <div className={`lg:hidden h-full flex flex-col transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+    <div className={`lg:hidden h-full flex flex-col bg-neutral-950 transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
       <div className="flex-1 overflow-hidden relative">
-        {mobilePanel === 'chat' ? (
+        {mobilePanel === 'chat' && (
           <ChatInterface
             key="mobile-chat"
             ref={chatRef}
@@ -49,7 +50,9 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
             setActiveView={setActiveView}  
             setMobilePanel={setMobilePanel} 
           />
-        ) : (
+        )}
+        
+        {mobilePanel === 'viewer' && (
           <Viewer3D
             shape={currentShape}
             loadedModel={loadedModel}
@@ -59,31 +62,57 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
             onSwapPart={onSwapPart}
           />
         )}
+
+        {mobilePanel === 'editor' && (
+          <div className="h-full flex flex-col bg-neutral-950">
+             {/* <-- Swapped to EditorContainer --> */}
+             <EditorContainer 
+                onBuildComplete={onShapeGenerated}
+                onGenerateShape={(reqs) => chatRef.current?.generateModel(reqs)} 
+                onOptimizeClick={(params) => {
+                  console.log("Trigger AI Optimization for:", params);
+                  // TODO: Call your /optimize/custom endpoint here
+                }}
+             />
+          </div>
+        )}
       </div>
-      <div className="flex-shrink-0 border-t border-neutral-800 bg-neutral-900 p-2 flex gap-2">
-        <button
+      
+      {/* Footer Navigation */}
+      <div className="flex-shrink-0 border-t border-neutral-800 bg-neutral-900 p-2 flex gap-1.5">
+        <TabButton 
+          active={mobilePanel === 'chat'} 
           onClick={() => onMobilePanelSwitch('chat')}
-          className={`flex-1 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
-            mobilePanel === 'chat'
-              ? 'bg-neutral-800 text-white'
-              : 'text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-          Chat
-        </button>
-        <button
+          label="Chat"
+          color="bg-blue-500"
+        />
+        <TabButton 
+          active={mobilePanel === 'editor'} 
+          onClick={() => onMobilePanelSwitch('editor')}
+          label="Editor"
+          color="bg-purple-500"
+        />
+        <TabButton 
+          active={mobilePanel === 'viewer'} 
           onClick={() => onMobilePanelSwitch('viewer')}
-          className={`flex-1 py-3 rounded-lg text-sm font-medium flex items-center justify-center gap-2 ${
-            mobilePanel === 'viewer'
-              ? 'bg-neutral-800 text-white'
-              : 'text-neutral-400 hover:text-neutral-200'
-          }`}
-        >
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-          3D View
-        </button>
+          label="3D View"
+          color="bg-green-500"
+        />
       </div>
     </div>
   );
 };
+
+const TabButton = ({ active, onClick, label, color }: any) => (
+  <button
+    onClick={onClick}
+    className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+      active
+        ? 'bg-neutral-800 text-white shadow-inner'
+        : 'text-neutral-500 hover:text-neutral-300'
+    }`}
+  >
+    <div className={`w-1.5 h-1.5 rounded-full ${active ? color : 'bg-neutral-700'}`} />
+    {label}
+  </button>
+);

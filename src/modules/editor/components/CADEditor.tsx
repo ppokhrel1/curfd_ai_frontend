@@ -5,7 +5,8 @@ import {
     Play,
     RotateCcw,
     Settings2,
-    Terminal
+    Terminal,
+    Box
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../stores/editorStore";
@@ -15,30 +16,26 @@ import { useCADCompiler } from "@/modules/ai/hooks/useCADCompiler";
 interface CADEditorProps {
   className?: string;
   onBuildComplete?: (shape: GeneratedShape | null) => void;
+  onGenerateShape?: (requirements: any) => void; // Added to trigger shape generation
 }
 
-export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildComplete }) => {
-  // 1. Get state from Store
+export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildComplete, onGenerateShape }) => {
   const { 
     code, 
     setCode, 
     isCompiling, 
     isDirty, 
     reset,
+    mode // Added mode
   } = useEditorStore();
   
-  // 2. Get compile action from the Real Hook
   const { compile } = useCADCompiler(onBuildComplete);
-  
-  
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [lineCount, setLineCount] = useState(1);
 
-  const detectedLanguage = code.includes('import cadquery') || code.includes('from cadquery') 
-    ? 'Python (CadQuery)' 
-    : 'OpenSCAD';
-  
-  const fileExtension = detectedLanguage === 'Python (CadQuery)' ? 'assembly.py' : 'model.scad';
+  const isRequirements = mode === "requirements";
+  const detectedLanguage = isRequirements ? "JSON" : (code.includes('import cadquery') || code.includes('from cadquery') ? 'Python (CadQuery)' : 'OpenSCAD');
+  const fileExtension = isRequirements ? 'requirements.json' : (detectedLanguage === 'Python (CadQuery)' ? 'assembly.py' : 'model.scad');
 
   useEffect(() => {
     const lines = code.split('\n').length;
@@ -63,6 +60,19 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
     }
     
     if (e.ctrlKey && e.key === 'Enter') {
+      handleAction();
+    }
+  };
+
+  const handleAction = () => {
+    if (isRequirements) {
+      try {
+        const parsedContent = JSON.parse(code);
+        onGenerateShape?.(parsedContent);
+      } catch (e) {
+        console.error("Invalid JSON format");
+      }
+    } else {
       compile();
     }
   };
@@ -72,11 +82,13 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
       {/* Editor Header */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900/50">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <Code2 className="w-4 h-4 text-blue-400" />
+          <div className={`p-1.5 rounded-lg border ${isRequirements ? 'bg-purple-500/10 border-purple-500/20' : 'bg-blue-500/10 border-blue-500/20'}`}>
+            <Code2 className={`w-4 h-4 ${isRequirements ? 'text-purple-400' : 'text-blue-400'}`} />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white">CAD Script Editor</h2>
+            <h2 className="text-sm font-bold text-white">
+              {isRequirements ? "Specification Editor" : "CAD Script Editor"}
+            </h2>
             <div className="flex items-center gap-2">
                <span className="text-[10px] text-neutral-500 font-mono uppercase">{fileExtension}</span>
                {isDirty && (
@@ -97,20 +109,22 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
           </button>
           
           <button
-            onClick={compile}
+            onClick={handleAction}
             disabled={isCompiling}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-              isDirty 
-                ? "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20" 
+              isDirty || isRequirements
+                ? (isRequirements ? "bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/20" : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20")
                 : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
             } disabled:opacity-50`}
           >
             {isCompiling ? (
               <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+            ) : isRequirements ? (
+              <Box className="w-3.5 h-3.5" />
             ) : (
               <Play className="w-3.5 h-3.5" />
             )}
-            <span>{isCompiling ? "Compiling..." : "Run Script"}</span>
+            <span>{isCompiling ? "Processing..." : (isRequirements ? "Generate Shape" : "Run Script")}</span>
           </button>
         </div>
       </div>
@@ -138,12 +152,13 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
         
         <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
            <div className="bg-neutral-900/90 backdrop-blur-sm border border-neutral-800 rounded-full px-3 py-1.5 flex items-center gap-2 text-[10px] text-neutral-500">
-              <Terminal className="w-3 h-3 text-blue-400" />
-              <span>CTRL + ENTER to Run</span>
+              <Terminal className={`w-3 h-3 ${isRequirements ? 'text-purple-400' : 'text-blue-400'}`} />
+              <span>CTRL + ENTER to {isRequirements ? "Generate" : "Run"}</span>
            </div>
         </div>
       </div>
 
+      {/* Footer */}
       <div className="flex-shrink-0 border-t border-neutral-800 bg-neutral-900/30 px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
@@ -162,7 +177,7 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
         <div className="flex items-center gap-3 text-[10px] text-neutral-500">
            <span className="flex items-center gap-1">
              <Info className="w-3 h-3" />
-             Click 'Run' to update 3D preview
+             {isRequirements ? "Click 'Generate Shape' to render model" : "Click 'Run' to update 3D preview"}
            </span>
         </div>
       </div>

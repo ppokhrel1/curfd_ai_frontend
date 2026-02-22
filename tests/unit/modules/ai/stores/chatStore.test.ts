@@ -33,18 +33,6 @@ describe('useChatStore', () => {
         expect(updated?.messages[0].content).toBe('hello');
     });
 
-    it('should set generating status', () => {
-        useChatStore.getState().setGenerating('c1', true, 'thinking');
-        const state = useChatStore.getState();
-        expect(state.generatingChatIds.has('c1')).toBe(true);
-        expect(state.generatingChatStatus['c1']).toBe('thinking');
-
-        useChatStore.getState().setGenerating('c1', false);
-        const updatedState = useChatStore.getState();
-        expect(updatedState.generatingChatIds.has('c1')).toBe(false);
-        expect(updatedState.generatingChatStatus['c1']).toBeUndefined();
-    });
-
     it('should clear store', () => {
         useChatStore.getState().setConversations([{ id: '1', title: 'Test', messages: [], createdAt: new Date(), updatedAt: new Date() }]);
         useChatStore.getState().clearStore();

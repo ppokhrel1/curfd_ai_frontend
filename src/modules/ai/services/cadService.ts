@@ -1,4 +1,5 @@
 import api from '@/lib/api/client';
+import { input } from '@testing-library/user-event/dist/cjs/event/input.js';
 
 interface GenerateResponse {
   task_id: string;
@@ -10,13 +11,17 @@ export const cadService = {
    * Matches @router.post("/generate")
    * Expected payload: { script: string, format: "STL" | "GLTF" | ... }
    */
-  async generate(script: string, format: string = 'GLTF'): Promise<string> {
-    const response = await api.post<GenerateResponse>('/cadquery/generate', { 
+  async generate(script: string, input_format: string = 'openscad-3d',format: string = 'GLTF'): Promise<string> {
+        
+
+    const response = await api.post<GenerateResponse>(`/${input_format}/generate`, { 
       script: script,
-      format: format.toUpperCase() // Must be uppercase to pass Literal check
+      format: format.toUpperCase() 
     });
     return response.data.task_id;
   },
+
+  
 
   /**
    * Matches @router.post("/upload")
@@ -38,13 +43,14 @@ export const cadService = {
    */
   connectToTask(
     taskId: string, 
+    input_format: string,
     onComplete: (filename: string) => void, 
     onError: (err: string | any) => void,
     retryCount = 0
   ) {
     const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://clownfish-app-ipxaa.ondigitalocean.app/api/v1';
     const wsBaseUrl = apiBaseUrl.replace(/^http/, 'ws');
-    const wsUrl = `${wsBaseUrl.replace(/\/$/, '')}/cadquery/ws/${taskId}`;
+    const wsUrl = `${wsBaseUrl.replace(/\/$/, '')}/${input_format}/ws/${taskId}`;
 
     const socket = new WebSocket(wsUrl);
 
@@ -82,8 +88,8 @@ export const cadService = {
     return socket;
   },
 
-  async downloadAndCreateBlob(filename: string): Promise<{ url: string; blob: Blob; filename: string }> {
-    const response = await api.get(`/cadquery/download/${filename}`, { responseType: 'blob' });
+  async downloadAndCreateBlob(filename: string, input_format: string = 'openscad-3d'): Promise<{ url: string; blob: Blob; filename: string }> {
+    const response = await api.get(`/${input_format}/download/${filename}`, { responseType: 'blob' });
     const blob = new Blob([response.data]);
     return { url: URL.createObjectURL(blob), blob, filename };
   }

@@ -20,9 +20,9 @@ export interface ChatResponse {
 export interface MessageResponse {
   id: string;
   role: "user" | "assistant";
-  content: string;
+  content: string | null; // <-- Now allows null from backend
   created_at: string;
-  metadata_json?: any; // Added for type safety
+  metadata_json?: any;
 }
 
 class ChatService {
@@ -112,14 +112,13 @@ class ChatService {
     }
   }
 
-
-  async processRequirements(
+  async processRequirementsGeminiOpenSCAD(
     chatId: string,
     content: string,
     jobId?: string
   ): Promise<MessageResponse> { 
     try {      
-      const response = await rawApi.post<MessageResponse>("/gemini/process_requirements", {
+      const response = await rawApi.post<MessageResponse>("/openscad/process_requirements", {
         chat_id: chatId,
         content: content,
         job_id: jobId,
@@ -129,6 +128,53 @@ class ChatService {
       return response.data; 
     } catch (error) {
       console.error("[ChatService] Failed to request Gemini processing:", error);
+      throw error;
+    }
+  }
+
+  // --- OPTIMIZATION LOOP ---
+  async optimizeParameters(
+    openscadCode: string,
+    parameters: any[],
+    populationSize: number = 20, 
+    generations: number = 10
+  ): Promise<{ optimized_parameters: any, fitness_score: number, result: string }> {
+    try {
+      const response = await rawApi.post("/optimize/custom", {
+        openscad_code: openscadCode,
+        parameters: parameters,
+        population_size: populationSize,
+        generations: generations
+      });
+
+      const taskId = response.data.task_id;
+      if (!taskId) throw new Error("No task ID returned from optimizer");
+
+      return new Promise((resolve, reject) => {
+        const poll = async () => {
+          try {
+            const statusRes = await rawApi.get(`/optimize/status/${taskId}`);
+            const data = statusRes.data;
+
+            if (data.status === "Completed") {
+              if (data.result.error) {
+                reject(new Error(data.result.error));
+              } else {
+                resolve(data.result);
+              }
+            } else if (data.status === "Processing" || data.status === "PENDING") {
+              setTimeout(poll, 2000);
+            } else {
+              reject(new Error(`Unknown status: ${data.status}`));
+            }
+          } catch (err) {
+            reject(err);
+          }
+        };
+        setTimeout(poll, 2000); 
+      });
+    } catch (error) {
+      console.error("[ChatService] Optimization failed:", error);
       throw error;
     }
   }
@@ -281,9 +327,11 @@ class ChatService {
   }
 
   private mapMessage(msg: MessageResponse): Message {
-    let content = msg.content;
+    // 🔥 THE FIX: Guarantee content is ALWAYS a string to prevent `.replace` or `.split` crashes
+    let content = msg.content || ""; 
     let shapeData: any = undefined;
 
+    // 1. Legacy Fallback (for old messages)
     const parts = content.split("\n\n|||JSON_DATA|||");
     if (parts.length > 1) {
       content = parts[0];
@@ -292,6 +340,33 @@ class ChatService {
         shapeData = this.mapToGeneratedShape(modelData);
       } catch (e) {
         console.error("Failed to parse persisted model data", e);
+      }
+    } 
+    // 2. NEW: Parse from Structured metadata_json
+    else if (msg.metadata_json) {
+      let meta = msg.metadata_json;
+      if (typeof meta === 'string') {
+        try { meta = JSON.parse(meta); } catch(e) {}
+      }
+      
+      // If we find code in the metadata, build the shapeData object
+      if (meta && (meta.openscad_code || meta.scad_code || meta.parameters)) {
+        
+        // Keep the text extremely short
+        if (!content || content.includes("module ") || content.includes(";") || content.includes("$fn")) {
+          content = "Model loaded from memory."; 
+        }
+        
+        shapeData = {
+          id: msg.id || `shape-${Date.now()}`,
+          type: "generic", 
+          name: meta.model_type || "OpenSCAD Model",
+          description: "Click to load into editor.",
+          scadCode: meta.openscad_code || meta.scad_code,
+          parameters: meta.parameters || [],
+          hasSimulation: false,
+          metadata_json: meta
+        };
       }
     }
 

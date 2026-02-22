@@ -5,7 +5,44 @@ import { useChatStore } from "../stores/chatStore";
 import type { GeneratedShape, Message } from "../types/chat.type";
 import { useChatSocket } from "./useChatSocket";
 import type { RunpodEvent } from "./useChatSocket";
+import { useAuthStore } from "@/lib/auth";
 import { STORAGE_KEYS } from "@/lib/constants";
+import { useEditorStore } from "@/modules/editor/stores/editorStore";
+
+// --- HELPER: Auto-Parse OpenSCAD Variables ---
+const extractParametersFromCode = (code: string) => {
+  const parameters = [];
+  // Matches lines like: width = 20.5; 
+  const regex = /^\s*([a-zA-Z0-9_]+)\s*=\s*([-+]?[0-9]*\.?[0-9]+)\s*;/gm;
+  const ignoredVars = ['$fn', '$fa', '$fs', 'eps', 'epsilon']; // Ignore system/utility vars
+  
+  let match;
+  while ((match = regex.exec(code)) !== null) {
+    const name = match[1];
+    const val = parseFloat(match[2]);
+
+    if (!ignoredVars.includes(name) && !isNaN(val)) {
+      // Intelligently guess slider bounds (±50% of the default value)
+      let min_val = val > 0 ? Math.floor(val * 0.5) : val - 10;
+      let max_val = val > 0 ? Math.ceil(val * 1.5) : val + 10;
+      
+      // Ensure there's a usable range
+      if (min_val === max_val) {
+        min_val -= 5;
+        max_val += 5;
+      }
+
+      parameters.push({
+        name,
+        default_val: val,
+        min_val,
+        max_val,
+        description: `Auto-extracted: ${name}`
+      });
+    }
+  }
+  return parameters;
+};
 
 interface UseChatReturn {
   messages: Message[];
@@ -16,7 +53,7 @@ interface UseChatReturn {
     content: string,
     shapeData?: GeneratedShape
   ) => Promise<void>;
-  generateModel: (requirements: any) => Promise<void>; // Added function to interface
+  generateModel: (requirements: any) => Promise<void>;
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
@@ -26,8 +63,8 @@ interface UseChatReturn {
 
 export const useChat = (
   chatId: string | null = null,
-  onShapeGenerated?: (shape: GeneratedShape, chatId: string) => void, // Added chatId
-  onMessageReceived?: (message: Message, chatId: string) => void      // Added chatId
+  onShapeGenerated?: (shape: GeneratedShape, chatId: string) => void,
+  onMessageReceived?: (message: Message, chatId: string) => void
 ): UseChatReturn => {
   const {
     conversations,
@@ -70,7 +107,7 @@ export const useChat = (
             content: event.message.content || "Model generation completed!",
             timestamp: new Date(),
           };
-          onMessageReceived?.(newMessage, chatId); // Added chatId
+          onMessageReceived?.(newMessage, chatId);
         }
       }
 
@@ -85,7 +122,7 @@ export const useChat = (
           try {
             let assets: any[] = [];
             let retryCount = 0;
-            const maxRetries = 2;
+            const maxRetries = 20;
 
             while (retryCount < maxRetries && assets.length === 0) {
               const delay = Math.min(retryCount * 1000 + 1000, 5000);
@@ -100,7 +137,7 @@ export const useChat = (
             const shape = await assetService.mapToGeneratedShape(jobId, assets);
 
             if (shape && onShapeGenerated) {
-              onShapeGenerated(shape, chatId); // Added chatId
+              onShapeGenerated(shape, chatId);
             } else if (assets.length > 0 && !shape) {
               setError("Model generated but could not be displayed.");
             }
@@ -114,6 +151,7 @@ export const useChat = (
       } else {
         setGenerating(chatId, false);
       }
+      setGenerating(chatId, false)
     },
     [
       chatId,
@@ -125,6 +163,7 @@ export const useChat = (
     ]
   );
 
+  
   // --- 2. SOCKET EVENT HANDLER ---
   const handleSocketEvent = useCallback(
     async (event: RunpodEvent) => {
@@ -175,6 +214,16 @@ export const useChat = (
     [chatId, handleJobCompletion, setGenerating, updateJobInHistory]
   );
 
+  const user = useAuthStore((state) => state.user);
+  const sessionId = user?.id || "anonymous-session";
+
+
+  useChatSocket({
+    chatId,
+    sessionId,
+    onEvent: handleSocketEvent 
+  });
+
   const sendingRef = useRef(false);
 
   // --- 3. GENERATE MODEL (Manual Trigger) ---
@@ -211,8 +260,9 @@ export const useChat = (
       setError(null);
       setLastUserMessage(content.trim());
 
+      let targetId = chatId;
+
       try {
-        let targetId = chatId;
         const { setActiveConversationId, setConversations, conversations } =
           useChatStore.getState();
 
@@ -243,49 +293,111 @@ export const useChat = (
         };
         addMessage(targetId, userMsg);
 
-        // CALL BACKEND
-        const aiResponse = await chatService.processRequirements(
+        // CALL BACKEND gemini openscad endpoint
+        const aiResponse = await chatService.processRequirementsGeminiOpenSCAD(
           targetId,
           content.trim()
         );
 
         if (aiResponse) {
+
+          let parsedMetadata = aiResponse.metadata_json;
+
+          // 1. If metadata_json is a string (FastAPI sometimes double-stringifies JSON columns)
+          if (typeof parsedMetadata === 'string') {
+              try {
+                  parsedMetadata = JSON.parse(parsedMetadata);
+              } catch (e) {
+                  console.warn("⚠️ Failed to parse metadata_json string:", parsedMetadata);
+              }
+          }
+
+          // 2. Aggressive Fallback: Try parsing the raw content
+          if (!parsedMetadata || (!parsedMetadata.parameters && !parsedMetadata.openscad_code)) {
+            if (aiResponse.content) {
+              try {
+                // Strip markdown code blocks
+                const cleanJson = aiResponse.content.replace(/```(json)?/gi, '').replace(/```/g, '').trim();
+                const fallbackParsed = JSON.parse(cleanJson);
+                
+                // Merge fallback data if it contains the keys we need
+                if (fallbackParsed.parameters || fallbackParsed.openscad_code) {
+                     parsedMetadata = fallbackParsed;
+                }
+              } catch (e) {
+                console.warn("⚠️ Could not parse AI content as fallback JSON.");
+              }
+            }
+          }
+
+          // 🔥 AGGRESSIVE LOGGING: Check your console!
+          console.group("🚀 AI RESPONSE DEBUGGER");
+          console.log("1. Raw aiResponse:", aiResponse);
+          console.log("2. aiResponse.metadata_json (Type):", typeof aiResponse.metadata_json);
+          console.log("3. Final parsedMetadata:", parsedMetadata);
+          
+          let extractedParams: any[] = [];
+          
+          // --- THE NEW HYBRID EXTRACTION LOGIC ---
+          if (parsedMetadata?.parameters && Array.isArray(parsedMetadata.parameters) && parsedMetadata.parameters.length > 0) {
+             // 1. Try to use AI-generated JSON parameters
+             extractedParams = parsedMetadata.parameters;
+          } else if (parsedMetadata?.response?.parameters && Array.isArray(parsedMetadata.response.parameters) && parsedMetadata.response.parameters.length > 0) {
+             // Handle potential nested "response" wrapper
+             extractedParams = parsedMetadata.response.parameters;
+             parsedMetadata = parsedMetadata.response;
+          } else if (parsedMetadata?.openscad_code) {
+             // 2. Regex Fallback: AI generated code but failed JSON array
+             console.log("⚠️ AI missed parameters array. Auto-parsing from code...");
+             extractedParams = extractParametersFromCode(parsedMetadata.openscad_code);
+          } else if (aiResponse.content) {
+             // 3. Last Resort Fallback: Parse from raw raw content
+             console.log("⚠️ AI missed JSON entirely. Auto-parsing from raw content...");
+             extractedParams = extractParametersFromCode(aiResponse.content);
+          }
+          // ----------------------------------------
+          
+          console.log("4. Extracted Parameters Array:", extractedParams);
+          console.log("5. Extracted Code Length:", parsedMetadata?.openscad_code?.length || 0);
+          console.groupEnd();
+
           const aiMsg: Message = {
             id: aiResponse.id || `ai-${Date.now()}`,
             role: "assistant",
-            content: aiResponse.content,
+            content: parsedMetadata?.openscad_code 
+               ? "✨ **Model Generated successfully!**\n\nI have created the OpenSCAD geometry and extracted the tunable parameters. Click the model card below to load it into your Editor." 
+               : aiResponse.content,
             timestamp: new Date(),
           };
           addMessage(targetId, aiMsg);
 
-          // Extract JSON Requirements
-          const metadata = aiResponse.metadata_json;
-          let requirements = null;
-
-          if (metadata) {
-            requirements = metadata.requirements || metadata;
-          } else {
-            try {
-              requirements = JSON.parse(aiResponse.content);
-            } catch (e) {
-              /* Content is just text */
+          // Handle the Structured JSON Output
+          if (parsedMetadata) {
+            
+            // 1. Load OpenSCAD code into the Editor
+            if (parsedMetadata.openscad_code) {
+              useEditorStore.getState().setCode(parsedMetadata.openscad_code);
             }
-          }
 
-          // Trigger 3D Generation if requirements found
-          if (
-            requirements &&
-            (requirements.detailed_geometric_instructions || requirements.parts)
-          ) {
-            setGenerating(targetId, true, "Generating 3D model...");
+            // 2. Load extracted Tunable Parameters into the Editor state
+            if (extractedParams && Array.isArray(extractedParams) && extractedParams.length > 0) {
+              console.log("✅ SUCCESS! Saving parameters to store...", extractedParams);
+              useEditorStore.getState().setParameters(extractedParams);
+            } else {
+              console.warn("❌ FAIL: No parameters found to save!");
+            }
 
-            await chatService.startRunpodRequest(
-              targetId,
-              "Generating 3D model...",
-              "generate_scad",
-              requirements,
-              { source: "auto-trigger" }
-            );
+            // 3. Trigger 3D Generation automatically
+            // if (parsedMetadata.openscad_code) {
+            //   setGenerating(targetId, true, "Rendering 3D model...");
+            //   await chatService.startRunpodRequest(
+            //     targetId,
+            //     "Rendering initial model...",
+            //     "generate_scad",
+            //     { script: parsedMetadata.openscad_code, format: "STL" },
+            //     { source: "auto-trigger" }
+            //   );
+            // }
           } else {
             setGenerating(targetId, false);
           }
@@ -297,7 +409,8 @@ export const useChat = (
         const errorMessage =
           err instanceof Error ? err.message : "Failed to send message";
         setError(errorMessage);
-        if (chatId) setGenerating(chatId, false);
+        
+        if (targetId) setGenerating(targetId, false); // Fixes hanging loading on error
       } finally {
         sendingRef.current = false;
       }
@@ -335,6 +448,7 @@ export const useChat = (
     [chatId, addMessage, updateConversation]
   );
 
+  
   const retryLastMessage = useCallback(async () => {
     if (lastUserMessage) {
       await sendMessage(lastUserMessage);
@@ -354,13 +468,13 @@ export const useChat = (
     error,
     sendMessage,
     sendSystemMessage,
-    generateModel, // Exported to fix UI crash
+    generateModel,
     clearMessages,
     retryLastMessage,
     setMessages: (newMessages: any) => {
       const msgs =
         typeof newMessages === "function" ? newMessages(messages) : newMessages;
-      if (chatId) updateConversation(chatId, { messages: msgs });
+        if (chatId) updateConversation(chatId, { messages: msgs });
     },
     activeChatId: chatId,
     isGeneratingGlobally: isGeneratingGlobally(),

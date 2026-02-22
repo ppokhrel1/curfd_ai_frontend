@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, Minimize2, Play } from 'lucide-react';
+import { Box, MessageSquare, Minimize2, Pencil, Play } from 'lucide-react';
 import type { ViewMode, MobilePanel } from '../types';
 
 interface MobileNavProps {
@@ -30,6 +30,7 @@ const NavBtn: React.FC<{
   </button>
 );
 
+
 export const MobileNav: React.FC<MobileNavProps> = ({
   mobilePanel,
   activeView,
@@ -38,17 +39,23 @@ export const MobileNav: React.FC<MobileNavProps> = ({
 }) => {
   return (
     <div className="lg:hidden flex-shrink-0 border-t border-neutral-800 bg-neutral-950 p-1.5">
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-4 gap-1"> {/* Changed to grid-cols-4 */}
         <NavBtn
           icon={<MessageSquare />}
-          label="Chat"
-          active={mobilePanel === 'chat' && activeView === 'chat-viewer'}
+          label="AI Chat"
+          active={mobilePanel === 'chat'}
           onClick={() => onMobilePanelSwitch('chat')}
         />
         <NavBtn
-          icon={<Minimize2 />}
+          icon={<Pencil />}
+          label="Editor"
+          active={mobilePanel === 'editor'}
+          onClick={() => onMobilePanelSwitch('editor')}
+        />
+        <NavBtn
+          icon={<Box />}
           label="Viewer"
-          active={mobilePanel === 'viewer' && activeView === 'chat-viewer'}
+          active={mobilePanel === 'viewer'}
           onClick={() => onMobilePanelSwitch('viewer')}
         />
         <NavBtn

@@ -1,6 +1,6 @@
 
 export type ViewMode = 'chat-viewer' | 'simulation' | 'editor';
-export type MobilePanel = 'chat' | 'viewer';
+export type MobilePanel = 'chat' | 'viewer' | 'editor';
 
 export interface ModelStats {
   triangles: number;
