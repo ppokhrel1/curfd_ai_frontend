@@ -27,7 +27,7 @@ export interface RunpodEvent {
 
 interface UseChatSocketProps {
   chatId: string | null;
-  sessionId: string | number | null; // 👉 FIX 1: Allow number types for IDs
+  sessionId: string | number | null; 
   onEvent?: (event: RunpodEvent) => void;
 }
 
@@ -118,13 +118,14 @@ export const useChatSocket = ({ chatId, sessionId, onEvent }: UseChatSocketProps
     // 👉 FIX 2: Safely convert sessionId to a string for the URL
     const safeSessionId = sessionId ? String(sessionId) : '';
     
-    const wsUrl = `${wsUrlBase}/chat-socket/${encodeURIComponent(
-      chatId
-    )}?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(safeSessionId)}`;
+    try {
+      const wsUrl = `${wsUrlBase}/chat-socket/${encodeURIComponent(
+        chatId
+      )}?token=${encodeURIComponent(token)}&session_id=${encodeURIComponent(safeSessionId)}`;
 
-    const socket = new WebSocket(wsUrl);
-    socketRef.current = socket;
-
+      const socket = new WebSocket(wsUrl);
+      socketRef.current = socket;
+    
     socket.onopen = () => {      
       // 👉 FIX 3: Ensure session payload is stringified properly
       const initPayload = {
@@ -193,6 +194,12 @@ export const useChatSocket = ({ chatId, sessionId, onEvent }: UseChatSocketProps
         setError("Connection failed after multiple attempts");
       }
     };
+    } catch (e) {
+        console.error("[WebSocket] Setup error:", e);
+        connectingRef.current = false; // Add this!
+        setError("Failed to initialize connection");
+        return;
+      }
   }, [chatId]);
 
   useEffect(() => {

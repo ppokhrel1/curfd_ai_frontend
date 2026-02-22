@@ -1,12 +1,20 @@
 import { create } from "zustand";
 
+export interface EditorParameter {
+  name: string;
+  min_val: number;
+  max_val: number;
+  default_val: number;
+  description?: string;
+}
+
 interface EditorState {
     code: string;
     originalCode: string;
     isDirty: boolean;
     isCompiling: boolean;
     lastCompiledCode: string | null;
-    mode: "requirements" | "code"; // Added mode
+    mode: "requirements" | "code";
 
     setCode: (code: string) => void;
     setOriginalCode: (code: string) => void;
@@ -15,6 +23,10 @@ interface EditorState {
     reset: () => void;
     clear: () => void;
     setMode: (mode: "requirements" | "code") => void;
+
+
+    parameters: EditorParameter[];
+    setParameters: (params: EditorParameter[]) => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -23,7 +35,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     isDirty: false,
     isCompiling: false,
     lastCompiledCode: null,
-    mode: "code", // Default mode
+    mode: "code", 
+
+
+    parameters: [],
 
     setCode: (code: string) => {
         set({ code, isDirty: code !== get().originalCode });
@@ -61,11 +76,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             originalCode: "",
             isDirty: false,
             lastCompiledCode: null,
-            mode: "code" // Reset mode
+            mode: "code",
+
+            parameters: [] 
         });
     },
 
     setMode: (mode: "requirements" | "code") => {
         set({ mode });
+    },
+
+
+    setParameters: (params: EditorParameter[]) => {
+        set({ parameters: params });
     }
 }));

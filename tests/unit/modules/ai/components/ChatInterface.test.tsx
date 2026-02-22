@@ -2,7 +2,6 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-
 import { useChat } from '@/modules/ai/hooks/useChat';
 import { useConversations } from '@/modules/ai/hooks/useConversations';
 import { ChatInterface } from '@/modules/ai/components/ChatInterface';
@@ -329,16 +328,6 @@ describe('ChatInterface', () => {
       expect(mockUseChat.sendMessage).toHaveBeenCalledWith('Hello via ref');
     });
 
-    test('generateModel calls hook generateModel', async () => {
-      const ref = React.createRef<any>();
-      renderComponent({ ref });
-
-      await act(async () => {
-        ref.current.generateModel({ req: true });
-      });
-
-      expect(mockUseChat.generateModel).toHaveBeenCalledWith({ req: true });
-    });
   });
 
   describe('Error Handling', () => {

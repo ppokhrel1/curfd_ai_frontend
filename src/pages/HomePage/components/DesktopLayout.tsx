@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChatInterface } from '@/modules/ai/components/ChatInterface';
-import { CADEditor } from '@/modules/editor/components/CADEditor';
 import { Viewer3D } from '@/modules/viewer/components/Viewer3D';
+import { EditorContainer } from '@/modules/editor/components'; // <-- Updated Import
 import { Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ChatInterfaceRef } from '@/modules/ai/components/ChatInterface';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
@@ -20,6 +20,7 @@ interface DesktopLayoutProps {
   setActiveView: (view: ViewMode) => void;
   setMobilePanel: (panel: any) => void;
   activeView: ViewMode;
+  onOptimizeClick?: (parameters: any[]) => void;
 }
 
 export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
@@ -96,7 +97,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
             // Standard View: Editor Middle, Viewer strictly Right 50%
             <div className="w-full h-full flex flex-row">
               
-              {/* Middle: CAD Editor (flex-1 ensures it fills all space between Chat and Viewer) */}
+              {/* Middle: CAD Editor Container (flex-1 ensures it fills all space between Chat and Viewer) */}
               <div className="flex-1 min-w-0 bg-neutral-950 flex flex-col border-r border-neutral-800">
                 <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-900/50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -114,9 +115,15 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                   </button>
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  <CADEditor 
-                  onBuildComplete={onShapeGenerated}
-                  onGenerateShape={(reqs) => chatRef.current?.generateModel(reqs)} />
+                  {/* <-- Swapped to EditorContainer --> */}
+                  <EditorContainer 
+                    onBuildComplete={onShapeGenerated}
+                    onGenerateShape={(reqs) => chatRef.current?.generateModel(reqs)}
+                    onOptimizeClick={(params) => {
+                      console.log("Trigger AI Optimization for:", params);
+                      // TODO: Call your /optimize/custom endpoint here
+                    }}
+                  />
                 </div>
               </div>
 

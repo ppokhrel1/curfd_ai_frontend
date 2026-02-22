@@ -117,7 +117,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       sendSystemMessage: persistSystemMessage,
       clearMessages,
       retryLastMessage,
-      generateModel,
+      generateModel, // Keep this here in case you need it for manual triggers later
     } = useChat(activeConversationId, handleInternalShapeGenerated, handleInternalMessageReceived);
 
     const handleSend = useCallback(
@@ -146,7 +146,10 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
         handleSend(message);
       },
       generateModel: async (requirements: any) => {
-        await generateModel(requirements);
+        // --- RUNPOD DISABLED ---
+        // Uncomment the line below to re-enable manual Runpod triggers
+        // await generateModel(requirements);
+        console.log("Runpod generation is currently disabled. Requirements:", requirements);
       },
     }));
 
@@ -164,7 +167,6 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       const cleanContent = latestMsg.content.split("|||JSON_DATA|||")[0].trim();
       let rawData = "";
       let isJson = false;
-
       const parts = cleanContent.split(/(```[\s\S]*?```)/g).filter(Boolean);
       const codeBlocks = parts.filter((p) => p.startsWith("```") && p.endsWith("```"));
 
@@ -180,7 +182,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
         if (lang === "json" || rawData.startsWith("{") || rawData.startsWith("[")) {
           try { 
             const parsed = JSON.parse(rawData); 
-            const extractedCode = parsed.scadCode || parsed.metadata_json?.scadCode || parsed.metadata_json?.scad_code;
+            const extractedCode = parsed.scadCode || parsed.openscad_code ||parsed.metadata_json?.scadCode || parsed.metadata_json?.scad_code;
             if (extractedCode) {
               rawData = extractedCode;
               isJson = false; 
@@ -190,12 +192,12 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
           } catch (e) {
             isJson = lang === "json";
           }
-        }
+        } 
       } else if (cleanContent.startsWith("{") || cleanContent.startsWith("[")) {
         // Fallback for raw JSON dumped without markdown formatting
         try {
           const parsed = JSON.parse(cleanContent);
-          const extractedCode = parsed.scadCode || parsed.metadata_json?.scadCode || parsed.metadata_json?.scad_code;
+          const extractedCode = parsed.scadCode || parsed.openscad_code || parsed.metadata_json?.scadCode || parsed.metadata_json?.scad_code;
           if (extractedCode) {
             rawData = extractedCode;
             isJson = false; // It's code, switch to code editor mode!

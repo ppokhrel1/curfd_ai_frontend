@@ -42,7 +42,14 @@ vi.mock('@/modules/ai/stores/chatStore', () => ({
 
 vi.mock('@/modules/editor/stores/editorStore', () => ({
   useEditorStore: {
-    getState: vi.fn(),
+    getState: () => ({
+      code: '',
+      setCode: vi.fn(),
+      setOriginalCode: vi.fn(),
+      setParameters: vi.fn(),
+      isCompiling: false,
+      setCompiling: vi.fn(),
+    }),
   },
 }));
 

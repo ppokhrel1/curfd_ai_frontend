@@ -46,6 +46,7 @@ export interface GeneratedShape {
   name: string;
   description: string;
   hasSimulation: boolean;
+  parameters?: any[];
   geometry: {
     parts: any[];
     metadata: {

@@ -7,7 +7,7 @@ export type MessageStatus = 'sending' | 'sent' | 'error' | 'streaming';
 
 export interface Message {
   id: string;
-  content: string;
+  content: string | null;
   role: MessageRole;
   timestamp: Date;
   isLoading?: boolean;
