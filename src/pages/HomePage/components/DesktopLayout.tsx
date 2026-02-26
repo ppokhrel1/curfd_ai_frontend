@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChatInterface } from '@/modules/ai/components/ChatInterface';
 import { Viewer3D } from '@/modules/viewer/components/Viewer3D';
-import { EditorContainer } from '@/modules/editor/components'; // <-- Updated Import
+import { EditorContainer } from '@/modules/editor/components';
 import { Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ChatInterfaceRef } from '@/modules/ai/components/ChatInterface';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
@@ -9,6 +9,8 @@ import type { ModelStats, ViewMode } from '../types';
 import * as THREE from 'three';
 
 interface DesktopLayoutProps {
+  chatId: string;
+  token: string;
   chatRef: React.RefObject<ChatInterfaceRef | null>;
   currentShape: GeneratedShape | null;
   loadedModel: THREE.Group | null;
@@ -17,13 +19,15 @@ interface DesktopLayoutProps {
   onOpenSimulation: () => void;
   onImportModel: () => void;
   onSwapPart: (partId: string, asset: any) => Promise<void>;
+  onAddToAssembly?: (shape: GeneratedShape, jobId: string) => void;
   setActiveView: (view: ViewMode) => void;
   setMobilePanel: (panel: any) => void;
   activeView: ViewMode;
-  onOptimizeClick?: (parameters: any[]) => void;
 }
 
 export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
+  chatId,
+  token,
   chatRef,
   currentShape,
   loadedModel,
@@ -32,6 +36,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
   onOpenSimulation,
   onImportModel,
   onSwapPart,
+  onAddToAssembly,
   setActiveView,
   setMobilePanel,
   activeView,
@@ -70,16 +75,6 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
           
           {isEditorMinimized ? (
             <div className="w-full h-full flex flex-row">
-              {/* Minimized Editor Strip */}
-              <div
-                className="w-12 flex-shrink-0 border-r border-neutral-800 bg-neutral-950 flex flex-col items-center py-4 gap-4 cursor-pointer hover:bg-neutral-800 transition-colors z-20"
-                onClick={() => handleMinimizeEditor(false)}
-              >
-                <Pencil className="w-5 h-5 text-neutral-400" />
-                <div className="flex-1" />
-                <ChevronRight className="w-5 h-5 text-neutral-500" />
-              </div>
-              
               {/* Full Width Viewer (Expands when editor is minimized) */}
               <div className="flex-1 min-w-0 relative">
                 <Viewer3D
@@ -89,16 +84,40 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                   onOpenSimulation={onOpenSimulation}
                   onImportModel={onImportModel}
                   onSwapPart={onSwapPart}
+                  onAddToAssembly={onAddToAssembly}
                 />
+              </div>
+
+              {/* Minimized Editor Strip — on the right */}
+              <div
+                className="w-12 flex-shrink-0 border-l border-neutral-800 bg-neutral-950 flex flex-col items-center py-4 gap-4 cursor-pointer hover:bg-neutral-800 transition-colors z-20"
+                onClick={() => handleMinimizeEditor(false)}
+              >
+                <Pencil className="w-5 h-5 text-neutral-400" />
+                <div className="flex-1" />
+                <ChevronLeft className="w-5 h-5 text-neutral-500" />
               </div>
             </div>
           ) : (
             
-            // Standard View: Editor Middle, Viewer strictly Right 50%
+            // Standard View: Chat (left) | Viewer (center, flex-1) | Editor (right)
             <div className="w-full h-full flex flex-row">
-              
-              {/* Middle: CAD Editor Container (flex-1 ensures it fills all space between Chat and Viewer) */}
-              <div className="flex-1 min-w-0 bg-neutral-950 flex flex-col border-r border-neutral-800">
+
+              {/* Center: 3D Viewer */}
+              <div className="flex-1 min-w-0 relative overflow-hidden bg-neutral-900">
+                <Viewer3D
+                  shape={currentShape}
+                  loadedModel={loadedModel}
+                  customStats={modelStats}
+                  onOpenSimulation={onOpenSimulation}
+                  onImportModel={onImportModel}
+                  onSwapPart={onSwapPart}
+                  onAddToAssembly={onAddToAssembly}
+                />
+              </div>
+
+              {/* Right: CAD Editor */}
+              <div className="w-[380px] flex-shrink-0 bg-neutral-950 flex flex-col border-l border-neutral-800">
                 <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-900/50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Pencil className="w-4 h-4 text-green-400" />
@@ -115,30 +134,15 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
                   </button>
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  {/* <-- Swapped to EditorContainer --> */}
-                  <EditorContainer 
+                  <EditorContainer
+                    chatId={chatId}
+                    token={token}
                     onBuildComplete={onShapeGenerated}
                     onGenerateShape={(reqs) => chatRef.current?.generateModel(reqs)}
-                    onOptimizeClick={(params) => {
-                      console.log("Trigger AI Optimization for:", params);
-                      // TODO: Call your /optimize/custom endpoint here
-                    }}
                   />
                 </div>
               </div>
 
-              {/* Right: Viewer 3D (w-[50vw] forces it to permanently take 50% of your screen) */}
-              <div className="w-[50vw] flex-shrink-0 relative overflow-hidden bg-neutral-900">
-                <Viewer3D
-                  shape={currentShape}
-                  loadedModel={loadedModel}
-                  customStats={modelStats}
-                  onOpenSimulation={onOpenSimulation}
-                  onImportModel={onImportModel}
-                  onSwapPart={onSwapPart}
-                />
-              </div>
-              
             </div>
           )}
         </div>

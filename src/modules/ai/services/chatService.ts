@@ -353,9 +353,9 @@ class ChatService {
       if (meta && (meta.openscad_code || meta.scad_code || meta.parameters)) {
         
         // Keep the text extremely short
-        if (!content || content.includes("module ") || content.includes(";") || content.includes("$fn")) {
-          content = "Model loaded from memory."; 
-        }
+        // if (!content || content.includes("module ") || content.includes(";") || content.includes("$fn")) {
+        //   content = "Model loaded from memory."; 
+        // }
         
         shapeData = {
           id: msg.id || `shape-${Date.now()}`,

@@ -22,6 +22,8 @@ interface MobileLayoutProps {
   setActiveView: (view: any) => void;
   setMobilePanel: (panel: any) => void;
   onOptimizeClick?: (parameters: any[]) => void;
+  chatId: string; 
+  token: string;  
 }
 
 export const MobileLayout: React.FC<MobileLayoutProps> = ({
@@ -38,6 +40,8 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
   onMobilePanelSwitch,
   setActiveView,    
   setMobilePanel,
+  chatId, 
+  token,
 }) => {
   return (
     <div className={`lg:hidden h-full flex flex-col bg-neutral-950 transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
@@ -65,14 +69,11 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
 
         {mobilePanel === 'editor' && (
           <div className="h-full flex flex-col bg-neutral-950">
-             {/* <-- Swapped to EditorContainer --> */}
-             <EditorContainer 
+             <EditorContainer
+                chatId={chatId}
+                token={token}
                 onBuildComplete={onShapeGenerated}
-                onGenerateShape={(reqs) => chatRef.current?.generateModel(reqs)} 
-                onOptimizeClick={(params) => {
-                  console.log("Trigger AI Optimization for:", params);
-                  // TODO: Call your /optimize/custom endpoint here
-                }}
+                onGenerateShape={(reqs) => chatRef.current?.generateModel(reqs)}
              />
           </div>
         )}

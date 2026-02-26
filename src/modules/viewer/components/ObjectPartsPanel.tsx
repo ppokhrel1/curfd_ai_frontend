@@ -2,10 +2,12 @@ import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import {
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Download,
   Eye,
   EyeOff,
   FileCode,
+  Minus,
   RefreshCw,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -64,6 +66,7 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
       : defaultGenericParts;
   }, [shape]);
 
+  const [isMinimized, setIsMinimized] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     new Set(["Structure", "Model Components", "Core"])
   );
@@ -115,15 +118,26 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
   return (
     <div className="bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl overflow-hidden shadow-xl">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-neutral-800 bg-gradient-to-r from-blue-500/10 to-cyan-500/10">
-        <h3 className="text-sm font-medium text-white">Object Parts</h3>
-        <p className="text-xs text-neutral-500 mt-0.5">
-          {parts.length} components • Click to select
-        </p>
+      <div className="px-4 py-3 border-b border-neutral-800 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-white">Object Parts</h3>
+          {!isMinimized && (
+            <p className="text-xs text-neutral-500 mt-0.5">
+              {parts.length} components • Click to select
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => setIsMinimized(v => !v)}
+          className="p-1 rounded text-neutral-500 hover:text-white hover:bg-neutral-800 transition-colors"
+          title={isMinimized ? "Expand" : "Minimize"}
+        >
+          {isMinimized ? <ChevronDown className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
+        </button>
       </div>
 
       {/* Parts List */}
-      <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-neutral-900">
+      {!isMinimized && <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-neutral-900">
         {Object.entries(groupedParts).map(([group, groupParts]) => (
           <div key={group}>
             {/* Group Header */}
@@ -195,10 +209,10 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
             )}
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* Selection Info */}
-      {selectedPart && (
+      {!isMinimized && selectedPart && (
         <div className="px-4 py-3 border-t border-neutral-800 bg-blue-500/5">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">

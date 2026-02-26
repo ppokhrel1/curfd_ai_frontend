@@ -1,32 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CADEditor } from './CADEditor';
-import { ParameterPanel } from './ParameterPanel';
 import { Code2, SlidersHorizontal } from 'lucide-react';
 import { useEditorStore } from '../stores/editorStore';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
+import { OptimizationPanel } from './OptimizationPanel';
 
 export interface EditorContainerProps {
   className?: string;
+  chatId: string; 
+  token: string;  
   onBuildComplete?: (shape: GeneratedShape | null) => void;
   onGenerateShape?: (requirements: any) => void;
-  onOptimizeClick?: (parameters: any[]) => void;
 }
 
 export const EditorContainer: React.FC<EditorContainerProps> = ({
   className = "",
+  chatId,
+  token,
   onBuildComplete,
-  onGenerateShape,
-  onOptimizeClick
+  onGenerateShape
 }) => {
   const [activeTab, setActiveTab] = useState<'code' | 'parameters'>('code');
-  
-  // Read from the store to see if we actually have parameters to show
+
   const { parameters } = useEditorStore();
   const hasParameters = parameters && parameters.length > 0;
 
-  console.log('EditorContainer Rendered with parameters:', parameters, 'Active Tab:', activeTab);
-  // Auto-switch back to code view if parameters are cleared
-  React.useEffect(() => {
+  // Auto-switch TO parameters as soon as they arrive (e.g. after AI generation)
+  useEffect(() => {
+    if (hasParameters) {
+      setActiveTab('parameters');
+    }
+  }, [hasParameters]);
+
+  // Auto-switch back to code if parameters are cleared
+  useEffect(() => {
     if (!hasParameters && activeTab === 'parameters') {
       setActiveTab('code');
     }
@@ -77,14 +84,17 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
           <CADEditor
             onBuildComplete={onBuildComplete}
             onGenerateShape={onGenerateShape}
-            className="border-r-0" // Removed to prevent double borders
+            className="border-r-0"
           />
         ) : (
-          <div className="h-full overflow-y-auto bg-neutral-950">
-            {/* We pass the onOptimizeClick prop down. If it's not provided yet, 
-              we pass a safe empty function to prevent crashes.
+          <div className="h-full bg-neutral-950 flex flex-col">
+            {/* Pass the chatId and token to the panel so it can manage its own API calls 
+              via Server-Sent Events without muddying up the EditorContainer.
             */}
-            <ParameterPanel onOptimizeClick={onOptimizeClick || (() => console.log('Optimize clicked', parameters))} />
+            <OptimizationPanel 
+              onBuildComplete={onBuildComplete} 
+              onSwitchToCode={() => setActiveTab('code')} 
+            />
           </div>
         )}
       </div>

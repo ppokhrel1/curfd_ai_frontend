@@ -37,8 +37,18 @@ export const proxifyUrl = (url: string): string => {
         return normalizedUrl;
     }
 
+    // B2 pre-signed URLs contain the auth token in the query string and can be
+    // fetched directly by the browser — no backend proxy needed.
+    if (normalizedUrl.includes("backblazeb2.com")) {
+        return normalizedUrl;
+    }
+
     try {
-        const isMesh = normalizedUrl
+        // Use pathname only for extension detection so B2/S3 signed URLs
+        // with query params (e.g., ?Authorization=...) are correctly classified.
+        let pathForExtCheck = normalizedUrl;
+        try { pathForExtCheck = new URL(normalizedUrl).pathname; } catch { /* use full url */ }
+        const isMesh = pathForExtCheck
             .toLowerCase()
             .match(/\.(stl|obj|glb|gltf|bin)$/);
 

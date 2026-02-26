@@ -1,37 +1,14 @@
 import { Github, Linkedin, Mail, Twitter, Zap } from "lucide-react";
 
 export const Footer = () => {
-  const navigation = {
-    product: [
-      { name: "Features", href: "#features" },
-      { name: "Pricing", href: "#pricing" },
-      { name: "Documentation", href: "#docs" },
-      { name: "API", href: "#api" },
-    ],
-    company: [
-      { name: "About", href: "#about" },
-      { name: "Blog", href: "#blog" },
-      { name: "Careers", href: "#careers" },
-      { name: "Contact", href: "#contact" },
-    ],
-    resources: [
-      { name: "Tutorials", href: "#tutorials" },
-      { name: "Examples", href: "#examples" },
-      { name: "Community", href: "#community" },
-      { name: "Support", href: "#support" },
-    ],
-    legal: [
-      { name: "Privacy", href: "#privacy" },
-      { name: "Terms", href: "#terms" },
-      { name: "Security", href: "#security" },
-      { name: "Cookies", href: "#cookies" },
-    ],
-  };
+  const productLinks = [
+    { name: "Features", href: "#features" },
+  ];
 
   const socialLinks = [
-    { icon: Twitter, href: "https://twitter.com", label: "Twitter" },
-    { icon: Github, href: "https://github.com", label: "GitHub" },
-    { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
+    { icon: Twitter, href: "https://twitter.com/curfdai", label: "Twitter" },
+    { icon: Github, href: "https://github.com/curfdai", label: "GitHub" },
+    { icon: Linkedin, href: "https://linkedin.com/company/curfdai", label: "LinkedIn" },
     { icon: Mail, href: "mailto:contact@curfd-ai.com", label: "Email" },
   ];
 
@@ -39,9 +16,9 @@ export const Footer = () => {
     <footer className="bg-neutral-950 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Main Footer Content */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
+        <div className="flex flex-col md:flex-row justify-between gap-8 mb-8">
           {/* Brand Column */}
-          <div className="col-span-2 md:col-span-1">
+          <div className="max-w-xs">
             <a href="/" className="flex items-center gap-2 mb-4 group">
               <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-2 rounded-lg shadow-lg shadow-emerald-500/30 group-hover:shadow-emerald-500/50 transition-all">
                 <Zap className="w-5 h-5 text-black" />
@@ -77,7 +54,7 @@ export const Footer = () => {
           <div>
             <h3 className="text-white font-semibold mb-4">Product</h3>
             <ul className="space-y-2">
-              {navigation.product.map((item) => (
+              {productLinks.map((item) => (
                 <li key={item.name}>
                   <a
                     href={item.href}
@@ -90,54 +67,18 @@ export const Footer = () => {
             </ul>
           </div>
 
-          {/* Company Column */}
+          {/* Contact Column */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Company</h3>
+            <h3 className="text-white font-semibold mb-4">Contact</h3>
             <ul className="space-y-2">
-              {navigation.company.map((item) => (
-                <li key={item.name}>
-                  <a
-                    href={item.href}
-                    className="text-sm text-neutral-400 hover:text-emerald-400 transition-colors"
-                  >
-                    {item.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Resources Column */}
-          <div>
-            <h3 className="text-white font-semibold mb-4">Resources</h3>
-            <ul className="space-y-2">
-              {navigation.resources.map((item) => (
-                <li key={item.name}>
-                  <a
-                    href={item.href}
-                    className="text-sm text-neutral-400 hover:text-emerald-400 transition-colors"
-                  >
-                    {item.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Legal Column */}
-          <div>
-            <h3 className="text-white font-semibold mb-4">Legal</h3>
-            <ul className="space-y-2">
-              {navigation.legal.map((item) => (
-                <li key={item.name}>
-                  <a
-                    href={item.href}
-                    className="text-sm text-neutral-400 hover:text-emerald-400 transition-colors"
-                  >
-                    {item.name}
-                  </a>
-                </li>
-              ))}
+              <li>
+                <a
+                  href="mailto:contact@curfd-ai.com"
+                  className="text-sm text-neutral-400 hover:text-emerald-400 transition-colors"
+                >
+                  contact@curfd-ai.com
+                </a>
+              </li>
             </ul>
           </div>
         </div>

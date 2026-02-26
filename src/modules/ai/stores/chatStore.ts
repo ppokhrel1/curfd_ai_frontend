@@ -181,8 +181,8 @@ export const useChatStore = create<ChatState>()(
                             }
                         }
 
-                        // Convert array back to Set
-                        rehydratedState.generatingChatIds = new Set(rehydratedState.generatingChatIds as any);
+                        // Always start fresh — never restore in-progress generating state
+                        rehydratedState.generatingChatIds = new Set();
 
                         // Sync with service
                         if (rehydratedState.activeConversationId) {

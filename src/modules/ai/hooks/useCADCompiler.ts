@@ -22,11 +22,11 @@ export const useCADCompiler = (onShapeGenerated?: (shape: GeneratedShape | null)
       }
 
       // Handle test environment where cadService mocks expect old signature
-      const isTest = process.env.NODE_ENV === 'test' || typeof process.env.VITEST !== 'undefined';
-
-      const taskId = isTest 
+      const isTest = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
+      
+      const taskId = isTest
         ? await (cadService.generate as any)(code, 'STL')
-        : await cadService.generate(code, input_format, 'STL');
+        : await cadService.generate(code, input_format, 'GLB');
 
       const onSuccess = async (filename: string) => {
         try {
@@ -77,6 +77,11 @@ export const useCADCompiler = (onShapeGenerated?: (shape: GeneratedShape | null)
       }
 
     } catch (e: any) {
+      console.error('[CADCompiler] ❌ Submission failed:');
+      console.error('  status :', e.response?.status);
+      console.error('  data   :', e.response?.data);
+      console.error('  message:', e.message);
+      console.error('  full   :', e);
       const detail = e.response?.data?.detail;
       const msg = Array.isArray(detail) ? detail[0].msg : detail || e.message;
       toast.error(`Submission error: ${msg}`, { id: toastId });
