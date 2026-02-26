@@ -9,6 +9,8 @@ interface ModelSidebarProps {
   shape?: GeneratedShape | null;
   className?: string;
   onExport?: () => void;
+  onScreenshot?: () => void;
+  onShare?: () => void;
 }
 
 export const ModelSidebar: React.FC<ModelSidebarProps> = ({
@@ -16,6 +18,8 @@ export const ModelSidebar: React.FC<ModelSidebarProps> = ({
   shape,
   className = "",
   onExport,
+  onScreenshot,
+  onShare,
 }) => {
   const [isInfoExpanded, setIsInfoExpanded] = useState(true);
   const [isAnalysisExpanded, setIsAnalysisExpanded] = useState(true);
@@ -184,8 +188,8 @@ export const ModelSidebar: React.FC<ModelSidebarProps> = ({
         </h3>
         <div className="space-y-2">
           <ActionButton label="Export Model" icon="📥" onClick={onExport} />
-          <ActionButton label="Take Screenshot" icon="📸" />
-          <ActionButton label="Share Model" icon="🔗" />
+          <ActionButton label="Take Screenshot" icon="📸" onClick={onScreenshot} />
+          <ActionButton label="Share Model" icon="🔗" onClick={onShare} />
           <ActionButton label="Run Simulation" icon="⚡" variant="primary" />
         </div>
       </div>

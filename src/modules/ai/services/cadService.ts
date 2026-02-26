@@ -1,5 +1,4 @@
 import api from '@/lib/api/client';
-import { input } from '@testing-library/user-event/dist/cjs/event/input.js';
 
 interface GenerateResponse {
   task_id: string;
@@ -42,15 +41,24 @@ export const cadService = {
    * Step 2: WebSocket Monitoring
    */
   connectToTask(
-    taskId: string, 
+    taskId: string,
     input_format: string,
-    onComplete: (filename: string) => void, 
+    onComplete: (filename: string) => void,
     onError: (err: string | any) => void,
     retryCount = 0
   ) {
     const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://clownfish-app-ipxaa.ondigitalocean.app/api/v1';
-    const wsBaseUrl = apiBaseUrl.replace(/^http/, 'ws');
-    const wsUrl = `${wsBaseUrl.replace(/\/$/, '')}/${input_format}/ws/${taskId}`;
+
+    // Build an absolute WebSocket URL. When VITE_API_URL is a relative path
+    // (e.g. "/api/v1"), we resolve it against the current page origin so the
+    // WebSocket constructor receives a valid absolute URL.
+    let wsUrl: string;
+    if (apiBaseUrl.startsWith('/')) {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${proto}//${window.location.host}${apiBaseUrl.replace(/\/$/, '')}/${input_format}/ws/${taskId}`;
+    } else {
+      wsUrl = `${apiBaseUrl.replace(/^http/, 'ws').replace(/\/$/, '')}/${input_format}/ws/${taskId}`;
+    }
 
     const socket = new WebSocket(wsUrl);
 
@@ -61,7 +69,7 @@ export const cadService = {
         // Handle "Task not found" (Wait for manager to register task)
         if (data.error === "Task not found" && retryCount < 3) {
           socket.close();
-          setTimeout(() => this.connectToTask(taskId, onComplete, onError, retryCount + 1), 1500);
+          setTimeout(() => this.connectToTask(taskId, input_format, onComplete, onError, retryCount + 1), 1500);
           return;
         }
 

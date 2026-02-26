@@ -51,4 +51,27 @@ describe('useEditorStore', () => {
         expect(state.code).toBe('original');
         expect(state.isDirty).toBe(false);
     });
+
+    it('should NOT clear optimization jobs when clear() is called', () => {
+        // Add an optimization job to the store
+        const mockJob = {
+            id: 'job-123',
+            status: 'Completed' as const,
+            fitness_score: 0.95,
+            result_url: 'https://example.com/model.stl',
+            optimized_parameters: { param1: 10 },
+        };
+        useEditorStore.getState().addOptimizationJob(mockJob);
+
+        // Verify the job was added
+        expect(useEditorStore.getState().optimizationJobs).toHaveLength(1);
+        expect(useEditorStore.getState().optimizationJobs[0].id).toBe('job-123');
+
+        // Clear the editor state
+        useEditorStore.getState().clear();
+
+        // Optimization jobs should persist (not be cleared)
+        expect(useEditorStore.getState().optimizationJobs).toHaveLength(1);
+        expect(useEditorStore.getState().optimizationJobs[0].id).toBe('job-123');
+    });
 });

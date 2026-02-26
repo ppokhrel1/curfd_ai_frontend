@@ -3,6 +3,7 @@ import AuthModal from "../components/auth/AuthModal";
 import { Footer } from "../components/landing/Footer";
 import { Hero } from "../components/landing/Hero";
 import { Navbar } from "../components/landing/Navbar";
+import { Pricing } from "../components/landing/Pricing";
 import PromptBox from "../components/landing/PromptBox";
 import { ShowcaseGrid } from "../components/landing/ShowcaseGrid";
 
@@ -57,6 +58,9 @@ const LandingPage = () => {
         {/* FEATURE GRID */}
         <ShowcaseGrid />
 
+        {/* PRICING SECTION */}
+        <Pricing onAuthClick={openAuth} />
+
         {/* STATS SECTION */}
         <section className="py-24 border-t border-white/10 bg-neutral-950">
           <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-12 text-center px-6">
@@ -103,9 +107,9 @@ const LandingPage = () => {
                 🚀 Start for Free
               </button>
 
-              <a href="#docs">
+              <a href="#features">
                 <button className="px-10 py-4 rounded-xl border border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10 text-white font-semibold transition-all duration-300">
-                  📄 Documentation
+                  ✨ See Features
                 </button>
               </a>
             </div>

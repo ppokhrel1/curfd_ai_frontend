@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import * as THREE from 'three';
 import { useAuthStore } from '@/lib/auth';
 import { useChatStore } from '@/modules/ai/stores/chatStore';
+import { useAssemblyStore } from '@/modules/viewer/stores/assemblyStore';
 import { useChatSocket } from '@/modules/ai/hooks/useChatSocket';
 import { useKeyboardShortcuts, getDefaultShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { StatusBar } from '@/components/common/StatusBar';
@@ -26,7 +27,8 @@ import { DesktopLayout, HomePageHeader, MobileLayout, MobileNav } from './compon
 import { STORAGE_KEYS } from '@/lib/constants';
 
 const HomePage = () => {
-  const { user, signOut } = useAuthStore();
+  // 1. Grab the token from your auth store (adjust this if your token is stored differently, e.g., user?.access_token)
+  const { user, signOut, token } = useAuthStore(); 
   
   const activeConversationId = useChatStore(state => state.activeConversationId);
   const updateConversation = useChatStore(state => state.updateConversation);
@@ -39,6 +41,9 @@ const HomePage = () => {
   const [currentShape, setCurrentShape] = useState<GeneratedShape | null>(null);
   const [loadedModel, setLoadedModel] = useState<THREE.Group | null>(null);
   const [modelStats, setModelStats] = useState<any>();
+
+  // Tracks if the next model load result should be routed to the assembly store
+  const pendingAssemblyPartId = useRef<string | null>(null);
 
   const { 
     activeView, setActiveView, 
@@ -53,7 +58,33 @@ const HomePage = () => {
   const { fetchModelFiles, recoverModel } = useModelFetch({
     activeConversationId,
     addToCache: modelCache.addToCache,
+    onModelLoaded: (group, stats, shape) => {
+      if (pendingAssemblyPartId.current) {
+        // Route this load to the assembly store instead of the main viewer
+        useAssemblyStore.getState().updatePartModel(pendingAssemblyPartId.current, group);
+        pendingAssemblyPartId.current = null;
+      } else {
+        setLoadedModel(group);
+        setModelStats(stats);
+        setCurrentShape(shape);
+      }
+    },
+    onShapeUpdated: (shape) => {
+      if (!pendingAssemblyPartId.current) {
+        setCurrentShape(shape);
+      }
+    },
   });
+
+  const handleAddToAssembly = useCallback(async (shape: GeneratedShape, jobId: string) => {
+    const id = useAssemblyStore.getState().addPart(shape, jobId);
+    pendingAssemblyPartId.current = id;
+    try {
+      await fetchModelFiles(shape);
+    } catch {
+      // addPart already created the slot; isLoading will stay true but that's visible
+    }
+  }, [fetchModelFiles]);
 
   // --- HELPER: Robust Extraction ---
   const extractScadCode = (shape: any): string | undefined => {
@@ -128,7 +159,7 @@ const HomePage = () => {
     const scadCode = extractScadCode(shape);
     let params = extractParameters(shape); 
 
-    // 🔥 THE FIX: Auto-parsing parameters from code during history load
+    // --- Existing Parameter Auto-parsing Logic ---
     if ((!params || params.length === 0) && scadCode) {
         console.log("History Load: Auto-parsing parameters from code...");
         params = extractParametersFromCode(scadCode);
@@ -136,7 +167,30 @@ const HomePage = () => {
 
     const updatedShape = { ...shape, scadCode };
 
-    // --- Cached Path ---
+    // --- NEW: Optimization/B2 Explicit Path ---
+    // If the shape comes from the optimization worker (has sdfUrl), 
+    // we bypass the cache check and force a new fetch to render the B2 file.
+    if (shape.sdfUrl) {
+      console.log("Optimization Result Detected: Fetching from B2...");
+      setCurrentShape(updatedShape);
+      setLoadedModel(null); // Clear view to show loading state
+      setModelStats(undefined);
+
+      if (scadCode) {
+          store.setOriginalCode(scadCode);
+          store.setCode(scadCode); 
+          if (typeof store.setParameters === 'function') {
+            store.setParameters([]); 
+            if (params.length > 0) store.setParameters(params); 
+          }
+      }
+      
+      fetchModelFiles(updatedShape);
+      if (window.innerWidth < 1024) setMobilePanel('viewer');
+      return;
+    }
+
+    // --- Existing Cached Path ---
     const cached = modelCache.getFromCache(shape.id);
     if (shape.id && cached) {
         setLoadedModel(cached);
@@ -145,7 +199,6 @@ const HomePage = () => {
         if (scadCode) {
             store.setOriginalCode(scadCode);
             store.setCode(scadCode); 
-            // Safe execution check for the test environment
             if (typeof store.setParameters === 'function') {
               store.setParameters([]); 
               if (params.length > 0) store.setParameters(params); 
@@ -155,7 +208,7 @@ const HomePage = () => {
         return;
     }
 
-    // --- Fresh Load / Non-Cached Path ---
+    // --- Existing Fresh Load Path ---
     setCurrentShape(updatedShape);
     
     if (shape.id) {
@@ -165,7 +218,6 @@ const HomePage = () => {
         if (scadCode) {
             store.setOriginalCode(scadCode);
             store.setCode(scadCode); 
-            // Safe execution check for the test environment
             if (typeof store.setParameters === 'function') {
               store.setParameters([]); 
               if (params.length > 0) store.setParameters(params); 
@@ -180,7 +232,7 @@ const HomePage = () => {
     
     if (window.innerWidth < 1024) setMobilePanel('viewer');
   }, [fetchModelFiles, modelCache, setActiveView, setMobilePanel, activeView]);
-
+  
   const handleImportComplete = useCallback((shape: GeneratedShape, group: THREE.Group) => {
     const scadCode = extractScadCode(shape);
     const updatedShape = { ...shape, scadCode };
@@ -224,15 +276,6 @@ const HomePage = () => {
     }
   }, [activeConversationId, updateConversation]);
 
-  // --- NEW: Optimization Handler ---
-  const handleOptimizeClick = useCallback(async (parameters: any[]) => {
-    const currentCode = useEditorStore.getState().code;
-    toast.success('Optimization task initiated. Check console for now.');
-    console.log("SENDING TO API:", { code: currentCode, parameters });
-    
-    // TODO: Add your fetch("/optimize/custom") polling logic here in the next step!
-  }, []);
-
   usePendingMessage(chatRef);
 
   useActiveConversationSync({
@@ -268,6 +311,10 @@ const HomePage = () => {
     }),
   });
 
+  // Ensure a fallback empty string is passed so we don't pass undefined.
+  const safeChatId = activeConversationId || "";
+  const safeToken = token || user?.access_token || ""; // Fallbacks based on common auth setups
+
   return (
     <div className="h-screen bg-neutral-950 flex flex-col overflow-hidden">
       <input
@@ -296,6 +343,8 @@ const HomePage = () => {
 
       <main className="flex-1 overflow-hidden relative">
         <DesktopLayout
+            chatId={safeChatId}  // 2. Passed the IDs down!
+            token={safeToken}
             chatRef={chatRef}
             currentShape={currentShape}
             loadedModel={loadedModel}
@@ -304,12 +353,14 @@ const HomePage = () => {
             onOpenSimulation={handleOpenSimulation}
             onImportModel={modelImport.handleImportModel}
             onSwapPart={handlePartSwap}
+            onAddToAssembly={handleAddToAssembly}
             setActiveView={setActiveView}
             setMobilePanel={setMobilePanel}
             activeView={activeView}
-            onOptimizeClick={handleOptimizeClick} 
         />
         <MobileLayout
+            chatId={safeChatId} 
+            token={safeToken}
             mobilePanel={mobilePanel}
             isTransitioning={isTransitioning}
             chatRef={chatRef}
@@ -323,7 +374,6 @@ const HomePage = () => {
             onMobilePanelSwitch={handleMobilePanelSwitch}
             setActiveView={setActiveView}
             setMobilePanel={setMobilePanel}
-            onOptimizeClick={handleOptimizeClick} 
         />
     </main>
 

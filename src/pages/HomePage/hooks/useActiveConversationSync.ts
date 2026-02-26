@@ -157,6 +157,12 @@ export const useActiveConversationSync = ({
         onShapeLoaded(shapeWithCode);
         await modelFetch.recoverModel((shape as any).jobId, shapeWithCode);
       }
+      else if (shape.sdfUrl?.startsWith('blob:')) {
+        // Blob URLs are revoked after page reload; restore the shape to UI
+        // and let CADEditor's auto-compile re-render the model from scadCode.
+        setCurrentShape(shapeWithCode);
+        console.log("[Sync] Blob URL invalid after reload; auto-compile will re-render model.");
+      }
       else if (shape.sdfUrl || shape.id) {
         onShapeLoaded(shapeWithCode);
       }

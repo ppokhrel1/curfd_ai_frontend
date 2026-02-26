@@ -48,20 +48,25 @@ const generateTitle = (content: string): string => {
 
 export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
   ({ className, onShapeGenerated, setActiveView, setMobilePanel, isMinimized = false, onMinimize, children }, ref) => {
-    const { setCode, setOriginalCode } = useEditorStore();
+    const { setCode, setOriginalCode, requestCompile } = useEditorStore();
 
     const handleViewEditor = useCallback((content: string, type: "requirements" | "code") => {
       setOriginalCode(content);
       setCode(content);
-      
+
       const editorStore = useEditorStore.getState() as any;
       if (editorStore.setMode) {
         editorStore.setMode(type);
       }
 
+      // Trigger 3D compilation when opening code in the editor
+      if (type === 'code') {
+        requestCompile();
+      }
+
       setActiveView('editor');
-      setMobilePanel('editor'); 
-    }, [setActiveView, setMobilePanel, setCode, setOriginalCode]);
+      setMobilePanel('editor');
+    }, [setActiveView, setMobilePanel, setCode, setOriginalCode, requestCompile]);
 
     const {
       conversations,
@@ -334,25 +339,27 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
             </div>
           ) : (
             <div className={`flex-shrink-0 bg-neutral-950 border-r border-neutral-800 flex flex-col z-20 ${children ? 'w-[320px]' : 'w-full'}`}>
+              {/* Header */}
               <div className="flex-shrink-0 border-b border-neutral-800 bg-neutral-900/50 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <button onClick={() => setShowSidebar(true)} className="p-1.5 hover:bg-neutral-800 rounded text-neutral-400">
                     <Menu className="w-4 h-4" />
                   </button>
-                  <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">Components</h3>
+                  <h3 className="text-[11px] font-bold text-white uppercase tracking-widest">Chat</h3>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={handleNewChat} className="p-1.5 bg-green-500/10 hover:bg-green-500/20 rounded text-green-400 transition-colors" title="New Session">
+                  <button onClick={handleNewChat} className="p-1.5 bg-green-500/10 hover:bg-green-500/20 rounded text-green-400 transition-colors" title="New Chat">
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                   {onMinimize && (
-                    <button onClick={() => onMinimize?.(true)} className="p-1.5 hover:bg-neutral-800 rounded text-neutral-400 transition-colors" title="Collapse Sidebar">
+                    <button onClick={() => onMinimize?.(true)} className="p-1.5 hover:bg-neutral-800 rounded text-neutral-400 transition-colors" title="Collapse">
                       <ChevronLeft className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
               </div>
 
+              {/* Messages */}
               <div className="flex-1 overflow-y-auto px-2 sm:px-3 py-4 scrollbar-thin scrollbar-thumb-neutral-700 w-full">
                 {displayMessages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center p-4">
@@ -364,16 +371,16 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                         </div>
                       </div>
                       <h2 className="text-sm font-bold text-white mb-1">Ready to Help</h2>
-                      <p className="text-neutral-500 text-[11px]">Generate 3D models</p>
+                      <p className="text-neutral-500 text-[11px]">Describe a shape to generate</p>
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-col justify-end min-h-0 w-full">
                     {displayMessages.map((msg, idx) => (
                       <div key={msg.id || idx} className="mb-4 w-full">
-                        <MessageList 
-                          messages={[msg]} 
-                          onOpenInEditor={handleViewEditor} 
+                        <MessageList
+                          messages={[msg]}
+                          onOpenInEditor={handleViewEditor}
                         />
                       </div>
                     ))}
@@ -395,6 +402,11 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                   </div>
                 )}
               </div>
+
+              {/* Input — pinned to bottom of chat column */}
+              <div className="flex-shrink-0">
+                <MessageInput onSendMessage={handleSend} disabled={isLoading} />
+              </div>
             </div>
           )}
 
@@ -404,11 +416,6 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
               {children}
             </div>
           )}
-        </div>
-
-        {/* BOTTOM BAR: Minimal Full-Width Input */}
-        <div className="flex-shrink-0 z-40 bg-neutral-950/90 backdrop-blur-md">
-          <MessageInput onSendMessage={handleSend} disabled={isLoading} />
         </div>
       </div>
     );

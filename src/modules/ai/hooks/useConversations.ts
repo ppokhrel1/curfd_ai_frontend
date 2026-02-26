@@ -127,6 +127,15 @@ export const useConversations = (): UseConversationsReturn => {
             `[useConversations] Fetching chats for ${sessions.length} sessions...`
           );
 
+          // If the backend returned no sessions (e.g. fresh local DB), keep the
+          // localStorage-persisted conversations rather than overwriting with [].
+          if (sessions.length === 0) {
+            console.log(
+              "[useConversations] No sessions found — preserving local conversations"
+            );
+            return;
+          }
+
           const chatPromises = sessions.map(async (session) => {
             if (!session || !session.id) {
               console.warn(
@@ -262,10 +271,18 @@ export const useConversations = (): UseConversationsReturn => {
           );
         }
 
-        updateConversation(activeConversationId, {
-          messages: validatedHistory,
-          generatedShape: latestShape,
-        });
+        // Only replace messages if the server returned history OR the conversation
+        // has no local messages yet. Prevents wiping optimistic user messages that
+        // were added before the server persisted them (race condition on new chats).
+        const existingMsgs = useChatStore.getState().conversations.find(c => c.id === activeConversationId)?.messages ?? [];
+        if (validatedHistory.length > 0 || existingMsgs.length === 0) {
+          updateConversation(activeConversationId, {
+            messages: validatedHistory,
+            generatedShape: latestShape,
+          });
+        } else if (latestShape) {
+          updateConversation(activeConversationId, { generatedShape: latestShape });
+        }
 
         console.log(
           `[useConversations] Loaded ${validatedHistory.length} messages for chat ${activeConversationId}`

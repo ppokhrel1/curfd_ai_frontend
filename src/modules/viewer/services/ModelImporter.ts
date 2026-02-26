@@ -60,10 +60,14 @@ export class ModelImporter {
         if (resp.ok) yaml = await resp.text();
       }
 
-      const isZipFile = sdfUrl.toLowerCase().endsWith(".zip");
+      // Extract pathname for extension detection; for blob URLs also check originalFilename
+      const urlPathname = (() => { try { return new URL(sdfUrl).pathname; } catch { return sdfUrl; } })();
+      // For blob URLs the pathname is meaningless — use the original download filename if available
+      const typeCheckName = (sdfUrl.startsWith("blob:") && originalFilename) ? originalFilename : urlPathname;
+      const isZipFile = typeCheckName.toLowerCase().endsWith(".zip");
       const isMeshFile =
-        sdfUrl.toLowerCase().match(/\.(glb|gltf|stl|obj)$/) ||
-        sdfUrl.startsWith("blob:");
+        typeCheckName.toLowerCase().match(/\.(glb|gltf|stl|obj)$/) ||
+        (sdfUrl.startsWith("blob:") && !isZipFile);
 
       if (isZipFile) {
         const resp = await fetch(sdfUrl);
@@ -72,18 +76,17 @@ export class ModelImporter {
           throw new Error(`Failed to fetch ZIP (${resp.status}): ${errorText}`);
         }
         const blob = await resp.blob();
-        const file = new File([blob], sdfUrl.split("/").pop() || "model.zip", {
-          type: "application/zip",
-        });
+        const zipName = originalFilename || urlPathname.split("/").pop() || "model.zip";
+        const file = new File([blob], zipName, { type: "application/zip" });
         return await this.importZip(file);
       } else if (isMeshFile) {
 
         // 👇 Use the provided originalFilename if available
-        const fileName = originalFilename 
-          ? originalFilename 
+        const fileName = originalFilename
+          ? originalFilename
           : (sdfUrl.startsWith("blob:")
-              ? "model.glb"                       // fallback only when no name
-              : sdfUrl.split("/").pop() || "model");
+              ? "model.glb"
+              : urlPathname.split("/").pop() || "model");
 
         const visualObj = await this.loadSingleAsset(sdfUrl, fileName);
         if (visualObj) contentsGroup.add(visualObj);

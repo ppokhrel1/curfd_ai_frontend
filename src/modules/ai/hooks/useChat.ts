@@ -364,19 +364,31 @@ export const useChat = (
           const aiMsg: Message = {
             id: aiResponse.id || `ai-${Date.now()}`,
             role: "assistant",
-            content: parsedMetadata?.openscad_code 
-               ? "✨ **Model Generated successfully!**\n\nI have created the OpenSCAD geometry and extracted the tunable parameters. Click the model card below to load it into your Editor." 
+            content: parsedMetadata?.openscad_code
+               ? "✨ **Model Generated successfully!**\n\nI have created the OpenSCAD geometry and extracted the tunable parameters. Click the model card below to load it into your Editor."
                : aiResponse.content,
             timestamp: new Date(),
+            // Attach shapeData so FormattedContent renders a ModelCard immediately
+            shapeData: parsedMetadata?.openscad_code ? {
+              id: aiResponse.id || `shape-${Date.now()}`,
+              name: parsedMetadata.name || 'Generated Model',
+              scadCode: parsedMetadata.openscad_code,
+              type: 'generic',
+              description: '',
+              hasSimulation: false,
+              geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+              createdAt: new Date(),
+            } as any : undefined,
           };
           addMessage(targetId, aiMsg);
 
           // Handle the Structured JSON Output
           if (parsedMetadata) {
-            
+
             // 1. Load OpenSCAD code into the Editor
             if (parsedMetadata.openscad_code) {
               useEditorStore.getState().setCode(parsedMetadata.openscad_code);
+              useEditorStore.getState().setOriginalCode(parsedMetadata.openscad_code);
             }
 
             // 2. Load extracted Tunable Parameters into the Editor state
@@ -387,25 +399,20 @@ export const useChat = (
               console.warn("❌ FAIL: No parameters found to save!");
             }
 
-            // 3. Trigger 3D Generation automatically
-            // if (parsedMetadata.openscad_code) {
-            //   setGenerating(targetId, true, "Rendering 3D model...");
-            //   await chatService.startRunpodRequest(
-            //     targetId,
-            //     "Rendering initial model...",
-            //     "generate_scad",
-            //     { script: parsedMetadata.openscad_code, format: "STL" },
-            //     { source: "auto-trigger" }
-            //   );
-            // }
+            // Clear generating state on success
+            setGenerating(targetId, false);
           } else {
             setGenerating(targetId, false);
           }
         } else {
           setGenerating(targetId, false);
         }
-      } catch (err) {
-        console.error("[useChat] Failed to send message:", err);
+      } catch (err: any) {
+        console.error('[useChat] ❌ sendMessage failed:');
+        console.error('  status :', err?.response?.status);
+        console.error('  data   :', err?.response?.data);
+        console.error('  message:', err?.message);
+        console.error('  full   :', err);
         const errorMessage =
           err instanceof Error ? err.message : "Failed to send message";
         setError(errorMessage);

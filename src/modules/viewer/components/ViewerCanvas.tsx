@@ -1,4 +1,5 @@
 import type { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { AssemblyPart } from "@/modules/viewer/stores/assemblyStore";
 import {
   Center,
   Environment,
@@ -7,9 +8,10 @@ import {
   Grid,
   OrbitControls,
   PerspectiveCamera,
+  TransformControls,
 } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef, useCallback } from "react";
 import * as THREE from "three";
 import type { ViewerState } from "../types/viewer.type";
 
@@ -21,6 +23,12 @@ interface ViewerCanvasProps {
   onSelectPart?: (partId: string | null) => void;
   highlightedParts?: Set<string>;
   simState?: "idle" | "running" | "paused" | "completed";
+  transformMode?: "translate" | "rotate" | "scale" | null;
+  assemblyParts?: AssemblyPart[];
+  selectedAssemblyPartId?: string | null;
+  onSelectAssemblyPart?: (id: string | null) => void;
+  onAssemblyTransformChange?: (id: string, position: [number, number, number], rotation: [number, number, number]) => void;
+  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
   children?: React.ReactNode;
 }
 
@@ -31,6 +39,12 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
   selectedPart,
   onSelectPart,
   highlightedParts,
+  transformMode,
+  assemblyParts,
+  selectedAssemblyPartId,
+  onSelectAssemblyPart,
+  onAssemblyTransformChange,
+  onCanvasReady,
   children,
 }) => {
   return (
@@ -42,6 +56,7 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
         alpha: false,
         powerPreference: "high-performance",
         stencil: false,
+        preserveDrawingBuffer: true,
       }}
       dpr={[1, 2]}
       onCreated={({ gl }) => {
@@ -53,6 +68,7 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
         canvas.addEventListener("webglcontextrestored", () => {
           console.log("[ViewerCanvas] WebGL Context Restored.");
         });
+        onCanvasReady?.(canvas);
       }}
     >
       {/* Camera */}
@@ -100,29 +116,152 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
 
       {/* Scene Content */}
       <Suspense fallback={<LoadingModel />}>
+        {/* Primary single model */}
         {loadedModel ? (
-          <group>
-            <Center>
-              <ModelWithSelection
-                model={loadedModel}
-                selectedPart={selectedPart || null}
-                onSelectPart={onSelectPart}
-                highlightedParts={highlightedParts || new Set()}
-              />
-            </Center>
-            <SimulationEffects
-              model={loadedModel}
-              simState={state.simState || "idle"}
-            />
-          </group>
-        ) : (
+          <ModelScene
+            model={loadedModel}
+            selectedPart={selectedPart || null}
+            onSelectPart={onSelectPart}
+            highlightedParts={highlightedParts || new Set()}
+            simState={state.simState || "idle"}
+            transformMode={transformMode || null}
+          />
+        ) : (!assemblyParts || assemblyParts.length === 0) ? (
           <EmptyState />
-        )}
+        ) : null}
+
+        {/* Assembly parts — each rendered with click selection + optional TransformControls */}
+        {assemblyParts?.filter(p => p.visible && p.model).map(p => (
+          <AssemblyPartScene
+            key={p.id}
+            part={p}
+            isSelected={selectedAssemblyPartId === p.id}
+            transformMode={transformMode || null}
+            onSelect={(id) => onSelectAssemblyPart?.(id)}
+            onTransformChange={(id, pos, rot) => onAssemblyTransformChange?.(id, pos, rot)}
+          />
+        ))}
+
         {children}
       </Suspense>
 
       <AutoFit camera={true} object={loadedModel || null} />
     </Canvas>
+  );
+};
+
+// AssemblyPartScene: renders a single assembly part with click selection + TransformControls
+const AssemblyPartScene: React.FC<{
+  part: AssemblyPart;
+  isSelected: boolean;
+  transformMode: "translate" | "rotate" | "scale" | null;
+  onSelect: (id: string) => void;
+  onTransformChange: (id: string, position: [number, number, number], rotation: [number, number, number]) => void;
+}> = ({ part, isSelected, transformMode, onSelect, onTransformChange }) => {
+  const groupRef = useRef<THREE.Group>(null!);
+  const { controls } = useThree();
+  const isDraggingRef = useRef(false);
+
+  // Imperatively sync position/rotation from store (skipped while dragging to avoid R3F conflict)
+  useEffect(() => {
+    if (!groupRef.current || isDraggingRef.current) return;
+    const [rx, ry, rz] = part.rotation.map(d => (d * Math.PI) / 180);
+    groupRef.current.position.set(part.position[0], part.position[1], part.position[2]);
+    groupRef.current.rotation.set(rx, ry, rz);
+  }, [part.position, part.rotation]);
+
+  // Highlight selected part with emissive tint
+  useEffect(() => {
+    if (!part.model) return;
+    part.model.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        if (!mat) return;
+        if (!mat.emissive) return;
+        mat.emissive.setHex(isSelected ? 0x7c3aed : 0x000000);
+        mat.emissiveIntensity = isSelected ? 0.35 : 0;
+        mat.needsUpdate = true;
+      }
+    });
+  }, [isSelected, part.model]);
+
+  const handleMouseUp = useCallback(() => {
+    isDraggingRef.current = false;
+    if (controls) (controls as any).enabled = true;
+    if (!groupRef.current) return;
+    const p = groupRef.current.position;
+    const r = groupRef.current.rotation;
+    const toDeg = (rad: number) => parseFloat(((rad * 180) / Math.PI).toFixed(2));
+    onTransformChange(
+      part.id,
+      [parseFloat(p.x.toFixed(3)), parseFloat(p.y.toFixed(3)), parseFloat(p.z.toFixed(3))],
+      [toDeg(r.x), toDeg(r.y), toDeg(r.z)]
+    );
+  }, [controls, onTransformChange, part.id]);
+
+  if (!part.model) return null;
+
+  return (
+    <>
+      {/* TransformControls attaches to groupRef externally — group stays always mounted */}
+      {isSelected && transformMode && (
+        <TransformControls
+          object={groupRef}
+          mode={transformMode}
+          onMouseDown={() => {
+            isDraggingRef.current = true;
+            if (controls) (controls as any).enabled = false;
+          }}
+          onMouseUp={handleMouseUp}
+        />
+      )}
+      <group
+        ref={groupRef}
+        onClick={(e) => { e.stopPropagation(); onSelect(part.id); }}
+      >
+        <primitive object={part.model} />
+      </group>
+    </>
+  );
+};
+
+// ModelScene: renders the model wrapped in optional TransformControls
+const ModelScene: React.FC<{
+  model: THREE.Object3D;
+  selectedPart: string | null;
+  onSelectPart?: (partId: string | null) => void;
+  highlightedParts: Set<string>;
+  simState: string;
+  transformMode: "translate" | "rotate" | "scale" | null;
+}> = ({ model, selectedPart, onSelectPart, highlightedParts, simState, transformMode }) => {
+  const { controls } = useThree();
+  const groupRef = useRef<THREE.Group>(null!);
+
+  const content = (
+    <group ref={groupRef}>
+      <Center>
+        <ModelWithSelection
+          model={model}
+          selectedPart={selectedPart}
+          onSelectPart={onSelectPart}
+          highlightedParts={highlightedParts}
+        />
+      </Center>
+      <SimulationEffects model={model} simState={simState} />
+    </group>
+  );
+
+  if (!transformMode) return content;
+
+  return (
+    <TransformControls
+      object={groupRef}
+      mode={transformMode}
+      onMouseDown={() => { if (controls) (controls as any).enabled = false; }}
+      onMouseUp={() => { if (controls) (controls as any).enabled = true; }}
+    >
+      {content}
+    </TransformControls>
   );
 };
 
@@ -248,13 +387,6 @@ const ModelWithSelection: React.FC<{
   useEffect(() => {
     if (!model) return;
 
-    console.log("[ModelWithSelection] Applying selection:", {
-      selectedPart,
-      highlightedParts: Array.from(highlightedParts),
-    });
-
-    let foundSelected = false;
-
     model.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
@@ -262,35 +394,34 @@ const ModelWithSelection: React.FC<{
 
         if (!material) return;
 
-        const originalColor = mesh.userData.originalColor;
+        // Store original color on first encounter
+        if (mesh.userData.originalColor === undefined) {
+          mesh.userData.originalColor = material.color.getHex();
+        }
 
-        const isSelected = selectedPart === mesh.uuid;
-        const isHighlighted = highlightedParts.has(mesh.uuid);
+        // Match by mesh name (shape part id) or uuid
+        const meshKey = mesh.name || mesh.uuid;
+        const isSelected = !!selectedPart && (
+          meshKey === selectedPart ||
+          mesh.uuid === selectedPart
+        );
+        const isHighlighted = highlightedParts.has(meshKey) || highlightedParts.has(mesh.uuid);
 
         if (isSelected) {
-          foundSelected = true;
-          console.log(
-            "[ModelWithSelection] Found selected mesh:",
-            mesh.name,
-            mesh.uuid
-          );
-          // Bright blue for selected part
           material.color.setHex(0x3b82f6);
           material.emissive.setHex(0x60a5fa);
           material.emissiveIntensity = 0.6;
           material.metalness = 0.7;
           material.roughness = 0.2;
         } else if (isHighlighted) {
-          // Green for highlighted parts
           material.color.setHex(0x22c55e);
           material.emissive.setHex(0x4ade80);
           material.emissiveIntensity = 0.4;
           material.metalness = 0.6;
           material.roughness = 0.3;
         } else {
-          // Restore original color
-          if (originalColor !== undefined) {
-            material.color.setHex(originalColor);
+          if (mesh.userData.originalColor !== undefined) {
+            material.color.setHex(mesh.userData.originalColor);
           }
           material.emissive.setHex(0x000000);
           material.emissiveIntensity = 0;
@@ -301,26 +432,21 @@ const ModelWithSelection: React.FC<{
         material.needsUpdate = true;
       }
     });
-
-    if (selectedPart && !foundSelected) {
-      console.warn(
-        "[ModelWithSelection] Selected part not found in model:",
-        selectedPart
-      );
-    }
   }, [model, selectedPart, highlightedParts]);
 
   useFrame((state) => {
     if (!model || !selectedPart) return;
 
     model.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh && child.uuid === selectedPart) {
+      if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        const material = mesh.material as THREE.MeshStandardMaterial;
-
-        if (material) {
-          const pulse = Math.sin(state.clock.elapsedTime * 2) * 0.2 + 0.6;
-          material.emissiveIntensity = pulse;
+        const meshKey = mesh.name || mesh.uuid;
+        if (meshKey === selectedPart || mesh.uuid === selectedPart) {
+          const material = mesh.material as THREE.MeshStandardMaterial;
+          if (material) {
+            const pulse = Math.sin(state.clock.elapsedTime * 2) * 0.2 + 0.6;
+            material.emissiveIntensity = pulse;
+          }
         }
       }
     });
@@ -331,8 +457,10 @@ const ModelWithSelection: React.FC<{
       object={model}
       onClick={(e: any) => {
         e.stopPropagation();
-        if (onSelectPart && e.object.uuid) {
-          onSelectPart(selectedPart === e.object.uuid ? null : e.object.uuid);
+        if (onSelectPart) {
+          // Prefer the mesh name (matches shape part ids) over the THREE.js uuid
+          const id = e.object.name || e.object.uuid;
+          onSelectPart(selectedPart === id ? null : id);
         }
       }}
       onPointerMissed={(e: any) => {
