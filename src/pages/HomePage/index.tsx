@@ -178,15 +178,14 @@ const HomePage = () => {
 
       if (scadCode) {
           store.setOriginalCode(scadCode);
-          store.setCode(scadCode); 
+          store.setCode(scadCode);
           if (typeof store.setParameters === 'function') {
-            store.setParameters([]); 
-            if (params.length > 0) store.setParameters(params); 
+            store.setParameters([]);
+            if (params.length > 0) store.setParameters(params);
           }
       }
-      
+
       fetchModelFiles(updatedShape);
-      if (window.innerWidth < 1024) setMobilePanel('viewer');
       return;
     }
 
@@ -198,12 +197,13 @@ const HomePage = () => {
                 
         if (scadCode) {
             store.setOriginalCode(scadCode);
-            store.setCode(scadCode); 
+            store.setCode(scadCode);
             if (typeof store.setParameters === 'function') {
-              store.setParameters([]); 
-              if (params.length > 0) store.setParameters(params); 
+              store.setParameters([]);
+              if (params.length > 0) store.setParameters(params);
             }
-            if (activeView !== 'editor') setActiveView('editor');
+            // Desktop: auto-switch to editor. Mobile: respect user's panel choice
+            if (activeView !== 'editor' && window.innerWidth >= 1024) setActiveView('editor');
         }
         return;
     }
@@ -217,20 +217,19 @@ const HomePage = () => {
         
         if (scadCode) {
             store.setOriginalCode(scadCode);
-            store.setCode(scadCode); 
+            store.setCode(scadCode);
             if (typeof store.setParameters === 'function') {
-              store.setParameters([]); 
-              if (params.length > 0) store.setParameters(params); 
+              store.setParameters([]);
+              if (params.length > 0) store.setParameters(params);
             }
-            if (activeView !== 'editor') setActiveView('editor');
+            // Desktop: auto-switch to editor. Mobile: respect user's panel choice
+            if (activeView !== 'editor' && window.innerWidth >= 1024) setActiveView('editor');
         }
-        
+
         if (shape.sdfUrl && updatedShape) {
             fetchModelFiles(updatedShape);
         }
     }
-    
-    if (window.innerWidth < 1024) setMobilePanel('viewer');
   }, [fetchModelFiles, modelCache, setActiveView, setMobilePanel, activeView]);
   
   const handleImportComplete = useCallback((shape: GeneratedShape, group: THREE.Group) => {
