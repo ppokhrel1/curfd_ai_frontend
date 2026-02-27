@@ -118,7 +118,7 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
   };
 
   // Auto-compile: debounce 1.5s after last code change (OpenSCAD/CadQuery only)
-  // Skip on initial mount so switching back to the Code tab doesn't re-trigger a build
+  // Only compile when user manually edits (isDirty=true), not when loading from history
   useEffect(() => {
     if (!isMountedRef.current) {
       isMountedRef.current = true;
@@ -128,9 +128,12 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
       setCompilePending(false);
       return;
     }
-    // Skip auto-compile when code was set programmatically without user edits
-    // (e.g. "Apply & View" from OptimizationPanel sets originalCode = code so isDirty = false)
-    if (!useEditorStore.getState().isDirty) return;
+
+    // Only auto-compile on user edits (isDirty), not programmatic changes
+    // This prevents multiple compiles when loading shapes from conversation history
+    const state = useEditorStore.getState();
+    if (!state.isDirty) return;
+
     setCompilePending(true);
     const timer = setTimeout(() => {
       setCompilePending(false);

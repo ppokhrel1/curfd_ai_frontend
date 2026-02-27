@@ -147,14 +147,18 @@ export const useActiveConversationSync = ({
 
     // --- E. Load Model ---
     const loadModel = async () => {
+      // Skip calling onShapeLoaded if we already loaded this exact shape
+      // (onShapeLoaded triggers handleShapeGenerated which auto-compiles)
+      const alreadyLoadedThisShape = lastSyncedId.current === shape.id;
+
       if (shape.id && modelCache.hasInCache(shape.id)) {
         const cached = modelCache.getFromCache(shape.id)!;
         setLoadedModel(cached);
         setCurrentShape(shapeWithCode);
-        onShapeLoaded(shapeWithCode);
+        if (!alreadyLoadedThisShape) onShapeLoaded(shapeWithCode);
       }
       else if ((shape as any).jobId && (!shape.sdfUrl || shape.sdfUrl.startsWith('blob:'))) {
-        onShapeLoaded(shapeWithCode);
+        if (!alreadyLoadedThisShape) onShapeLoaded(shapeWithCode);
         await modelFetch.recoverModel((shape as any).jobId, shapeWithCode);
       }
       else if (shape.sdfUrl?.startsWith('blob:')) {
@@ -164,7 +168,7 @@ export const useActiveConversationSync = ({
         console.log("[Sync] Blob URL invalid after reload; auto-compile will re-render model.");
       }
       else if (shape.sdfUrl || shape.id) {
-        onShapeLoaded(shapeWithCode);
+        if (!alreadyLoadedThisShape) onShapeLoaded(shapeWithCode);
       }
       else {
         setCurrentShape(shapeWithCode);
