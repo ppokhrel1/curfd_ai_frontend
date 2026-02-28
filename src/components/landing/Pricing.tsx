@@ -16,7 +16,7 @@ const tiers: PricingTier[] = [
     name: "Standard",
     price: "Free",
     period: "forever",
-    description: "For designers exploring AI-assisted CAD with common shapes.",
+    description: "Get started with basic shapes and tools.",
     features: [
       "AI shape generation from text",
       "Standard CAD editor",
@@ -31,9 +31,9 @@ const tiers: PricingTier[] = [
   },
   {
     name: "Professional",
-    price: "$29",
+    price: "$19.99",
     period: "/ month",
-    description: "For engineers who need complex geometry optimization.",
+    description: "For serious projects that need full power.",
     badge: "Most Popular",
     features: [
       "Everything in Standard",
@@ -52,7 +52,7 @@ const tiers: PricingTier[] = [
     name: "Enterprise",
     price: "Custom",
     period: "",
-    description: "For teams that need scale, API access, and SLA guarantees.",
+    description: "For teams that need API access and dedicated support.",
     features: [
       "Everything in Professional",
       "REST API access",
@@ -90,18 +90,11 @@ export const Pricing = ({ onAuthClick }: PricingProps) => {
       <div className="relative max-w-7xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-full text-sm border border-white/10 bg-white/5 text-neutral-400 mb-4">
-            💳 Pricing
-          </span>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Simple,{" "}
-            <span className="bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent">
-              Transparent
-            </span>{" "}
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
             Pricing
           </h2>
-          <p className="text-lg text-neutral-400 max-w-2xl mx-auto">
-            Start free with standard shapes. Upgrade when your designs get complex.
+          <p className="text-neutral-400 max-w-2xl mx-auto">
+            Start free. Upgrade when you need more.
           </p>
         </div>
 

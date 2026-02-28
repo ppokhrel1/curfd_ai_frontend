@@ -30,7 +30,7 @@ import { ModelSidebar } from "./ModelSidebar";
 import { ObjectPartsPanel } from "./ObjectPartsPanel";
 import { StatsDisplay } from "./StatsDisplay";
 import { Toolbar } from "./Toolbar";
-import { ViewerCanvas } from "./ViewerCanvas";
+import { ViewerCanvas, type PartTransform } from "./ViewerCanvas";
 
 interface Viewer3DProps {
   shape?: GeneratedShape | null;
@@ -86,6 +86,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
   const [transformMode, setTransformMode] = useState<"translate" | "rotate" | "scale" | null>(null);
   const [swappingPartId, setSwappingPartId] = useState<string | null>(null);
   const [highlightedParts, setHighlightedParts] = useState<Set<string>>(new Set());
+  const [partTransforms, setPartTransforms] = useState<Record<string, PartTransform>>({});
 
   const exporter = useMemo(() => new ModelExporter(), []);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -195,6 +196,18 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     });
   }, []);
 
+  const handlePartTransformChange = useCallback((partId: string, transform: PartTransform) => {
+    setPartTransforms(prev => ({ ...prev, [partId]: transform }));
+  }, []);
+
+  const handleResetPartTransform = useCallback((partId: string) => {
+    setPartTransforms(prev => {
+      const next = { ...prev };
+      delete next[partId];
+      return next;
+    });
+  }, []);
+
   const handleInitiateSwap = (partId: string) => {
     setSwappingPartId(partId);
     setActivePanel("swap");
@@ -261,6 +274,8 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           selectedAssemblyPartId={selectedAssemblyPartId}
           onSelectAssemblyPart={handleSelectAssemblyPart}
           onAssemblyTransformChange={handleAssemblyTransformChange}
+          onPartTransformChange={handlePartTransformChange}
+          partTransforms={partTransforms}
           onCanvasReady={(c) => { canvasRef.current = c; }}
         />
       </div>
@@ -341,6 +356,8 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
             highlightedParts={highlightedParts}
             onToggleHighlight={handleToggleHighlight}
             onSwapPart={handleInitiateSwap}
+            partTransforms={partTransforms}
+            onResetPartTransform={handleResetPartTransform}
           />
         </div>
       )}

@@ -162,17 +162,35 @@ export const useActiveConversationSync = ({
         await modelFetch.recoverModel((shape as any).jobId, shapeWithCode);
       }
       else if (shape.sdfUrl?.startsWith('blob:')) {
-        // Blob URLs are revoked after page reload; restore the shape to UI
-        // and let CADEditor's auto-compile re-render the model from scadCode.
+        // Blob URLs are revoked after page reload; restore the shape and
+        // trigger a compile so the model re-renders from scadCode.
         setCurrentShape(shapeWithCode);
-        console.log("[Sync] Blob URL invalid after reload; auto-compile will re-render model.");
+        const code = getCode(shapeWithCode);
+        if (code) {
+          const es = useEditorStore.getState();
+          es.setOriginalCode(code);
+          es.setCode(code);
+          // Small delay so the CADEditor mounts before the compile request fires
+          setTimeout(() => useEditorStore.getState().requestCompile(), 300);
+          console.log("[Sync] Blob URL expired; triggering recompile from scadCode.");
+        } else {
+          console.log("[Sync] Blob URL invalid and no scadCode available.");
+        }
       }
       else if (shape.sdfUrl || shape.id) {
         if (!alreadyLoadedThisShape) onShapeLoaded(shapeWithCode);
       }
       else {
+        // No sdfUrl, no jobId — set the shape and try to compile from code
         setCurrentShape(shapeWithCode);
-        if (shape.id && !warningShownRef.current.has(shape.id)) {
+        const code = getCode(shapeWithCode);
+        if (code) {
+          const es = useEditorStore.getState();
+          es.setOriginalCode(code);
+          es.setCode(code);
+          setTimeout(() => useEditorStore.getState().requestCompile(), 300);
+          console.log("[Sync] No sdfUrl; triggering compile from scadCode.");
+        } else if (shape.id && !warningShownRef.current.has(shape.id)) {
           warningShownRef.current.add(shape.id);
         }
       }

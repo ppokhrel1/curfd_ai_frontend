@@ -8,46 +8,46 @@ interface FeatureItem {
 
 const features: FeatureItem[] = [
   {
-    title: "AI Shape Generator",
-    desc: "Describe any 3D shape in natural language and watch AI generate precise CAD geometry in seconds.",
+    title: "Text to CAD",
+    desc: "Describe a shape in plain English and get parametric CAD geometry back. Supports OpenSCAD and common 3D formats.",
     icon: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z",
     gradient: "from-purple-500 to-pink-500",
-    stats: "10K+ shapes",
+    stats: "OpenSCAD",
   },
   {
     title: "CFD Simulation",
-    desc: "Run computational fluid dynamics simulations with real-time physics & accuracy at scale.",
+    desc: "Run fluid dynamics simulations on your geometry. Visualize airflow, pressure fields, and drag forces.",
     icon: "M13 10V3L4 14h7v7l9-11h-7z",
     gradient: "from-blue-500 to-cyan-500",
-    stats: "99.9% accuracy",
+    stats: "OpenFOAM",
   },
   {
-    title: "Real-Time AI Chat",
-    desc: "Collaborate with AI to iterate designs, ask questions, and refine your projects instantly.",
+    title: "AI Chat Interface",
+    desc: "Talk to the AI to refine your designs. Ask it to adjust dimensions, add features, or optimize parameters.",
     icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
     gradient: "from-green-500 to-emerald-500",
-    stats: "Sub-second",
+    stats: "Iterative",
   },
   {
-    title: "Intelligent Component Analysis",
-    desc: "Automatically decompose imported mesh assemblies into individual components with detailed hierarchy and visualization.",
+    title: "Part Decomposition",
+    desc: "Multi-part models are automatically broken down into individual components you can select, swap, or move.",
     icon: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z",
     gradient: "from-orange-500 to-red-500",
-    stats: "Auto-parsing",
+    stats: "Per-part",
   },
   {
     title: "3D Viewer",
-    desc: "Visualize your CAD in a real-time rendered 3D viewport with physics-based lighting.",
+    desc: "Inspect your models in a built-in 3D viewport with orbit controls, part selection, and STL export.",
     icon: "M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5",
     gradient: "from-teal-500 to-green-500",
-    stats: "Real-time",
+    stats: "Three.js",
   },
   {
-    title: "Scientific Physics Analysis",
-    desc: "Calculate precise volume ($m^3$), surface area ($m^2$), mass ($kg$), and bounding box dimensions for any rigid body geometry.",
+    title: "Physics Analysis",
+    desc: "Get volume, surface area, mass, and bounding box dimensions calculated automatically for any geometry.",
     icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
     gradient: "from-indigo-500 to-purple-500",
-    stats: "Signed Volume Algo",
+    stats: "Signed volume",
   },
 ];
 
@@ -63,17 +63,11 @@ export const ShowcaseGrid = () => {
       <div className="relative max-w-7xl mx-auto px-6">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-full text-sm border border-white/10 bg-white/5 text-neutral-400 mb-4">
-            ⚡ Core Capabilities
-          </span>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Everything You Need to{" "}
-            <span className="bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent">
-              Build Better
-            </span>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            What you can do
           </h2>
-          <p className="text-lg text-neutral-400 max-w-2xl mx-auto">
-            AI-driven engineering, simulation & real-time computational design
+          <p className="text-neutral-400 max-w-xl mx-auto">
+            Generate geometry, simulate physics, and iterate on designs — all in one place.
           </p>
         </div>
 

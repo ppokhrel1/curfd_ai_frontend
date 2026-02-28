@@ -37,6 +37,8 @@ export const MobileNav: React.FC<MobileNavProps> = ({
   onMobilePanelSwitch,
   onOpenSimulation,
 }) => {
+  if (mobilePanel === 'chooser') return null;
+
   return (
     <div className="lg:hidden flex-shrink-0 border-t border-neutral-800 bg-neutral-950 p-1.5">
       <div className="grid grid-cols-4 gap-1"> {/* Changed to grid-cols-4 */}

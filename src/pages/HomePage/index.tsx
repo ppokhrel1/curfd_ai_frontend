@@ -226,8 +226,12 @@ const HomePage = () => {
             if (activeView !== 'editor' && window.innerWidth >= 1024) setActiveView('editor');
         }
 
-        if (shape.sdfUrl && updatedShape) {
+        const hasValidSdfUrl = shape.sdfUrl && !shape.sdfUrl.startsWith('blob:');
+        if (hasValidSdfUrl && updatedShape) {
             fetchModelFiles(updatedShape);
+        } else if (scadCode) {
+            // No valid sdfUrl — trigger compile so the model renders from code
+            setTimeout(() => useEditorStore.getState().requestCompile(), 300);
         }
     }
   }, [fetchModelFiles, modelCache, setActiveView, setMobilePanel, activeView]);

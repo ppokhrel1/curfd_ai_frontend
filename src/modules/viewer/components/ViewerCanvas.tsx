@@ -15,6 +15,12 @@ import { Suspense, useEffect, useRef, useCallback } from "react";
 import * as THREE from "three";
 import type { ViewerState } from "../types/viewer.type";
 
+export interface PartTransform {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+}
+
 interface ViewerCanvasProps {
   state: ViewerState;
   shape?: GeneratedShape | null;
@@ -28,6 +34,8 @@ interface ViewerCanvasProps {
   selectedAssemblyPartId?: string | null;
   onSelectAssemblyPart?: (id: string | null) => void;
   onAssemblyTransformChange?: (id: string, position: [number, number, number], rotation: [number, number, number]) => void;
+  onPartTransformChange?: (partId: string, transform: PartTransform) => void;
+  partTransforms?: Record<string, PartTransform>;
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
   children?: React.ReactNode;
 }
@@ -44,6 +52,8 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
   selectedAssemblyPartId,
   onSelectAssemblyPart,
   onAssemblyTransformChange,
+  onPartTransformChange,
+  partTransforms,
   onCanvasReady,
   children,
 }) => {
@@ -125,6 +135,8 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
             highlightedParts={highlightedParts || new Set()}
             simState={state.simState || "idle"}
             transformMode={transformMode || null}
+            onPartTransformChange={onPartTransformChange}
+            partTransforms={partTransforms}
           />
         ) : (!assemblyParts || assemblyParts.length === 0) ? (
           <EmptyState />
@@ -225,6 +237,56 @@ const AssemblyPartScene: React.FC<{
   );
 };
 
+// PartTransformGizmo: attaches TransformControls to a specific mesh within the model
+const PartTransformGizmo: React.FC<{
+  model: THREE.Object3D;
+  partId: string;
+  mode: "translate" | "rotate" | "scale";
+  onTransformChange?: (partId: string, transform: PartTransform) => void;
+}> = ({ model, partId, mode, onTransformChange }) => {
+  const { controls } = useThree();
+  const meshRef = useRef<THREE.Object3D | null>(null);
+
+  // Find the target mesh by name or uuid
+  useEffect(() => {
+    let found: THREE.Object3D | null = null;
+    model.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const key = child.name || child.uuid;
+        if (key === partId || child.uuid === partId) {
+          found = child;
+        }
+      }
+    });
+    meshRef.current = found;
+  }, [model, partId]);
+
+  const handleMouseUp = useCallback(() => {
+    if (controls) (controls as any).enabled = true;
+    if (!meshRef.current || !onTransformChange) return;
+    const p = meshRef.current.position;
+    const r = meshRef.current.rotation;
+    const s = meshRef.current.scale;
+    const toDeg = (rad: number) => parseFloat(((rad * 180) / Math.PI).toFixed(2));
+    onTransformChange(partId, {
+      position: [parseFloat(p.x.toFixed(3)), parseFloat(p.y.toFixed(3)), parseFloat(p.z.toFixed(3))],
+      rotation: [toDeg(r.x), toDeg(r.y), toDeg(r.z)],
+      scale: [parseFloat(s.x.toFixed(3)), parseFloat(s.y.toFixed(3)), parseFloat(s.z.toFixed(3))],
+    });
+  }, [controls, onTransformChange, partId]);
+
+  if (!meshRef.current) return null;
+
+  return (
+    <TransformControls
+      object={meshRef.current}
+      mode={mode}
+      onMouseDown={() => { if (controls) (controls as any).enabled = false; }}
+      onMouseUp={handleMouseUp}
+    />
+  );
+};
+
 // ModelScene: renders the model wrapped in optional TransformControls
 const ModelScene: React.FC<{
   model: THREE.Object3D;
@@ -233,9 +295,34 @@ const ModelScene: React.FC<{
   highlightedParts: Set<string>;
   simState: string;
   transformMode: "translate" | "rotate" | "scale" | null;
-}> = ({ model, selectedPart, onSelectPart, highlightedParts, simState, transformMode }) => {
+  onPartTransformChange?: (partId: string, transform: PartTransform) => void;
+  partTransforms?: Record<string, PartTransform>;
+}> = ({ model, selectedPart, onSelectPart, highlightedParts, simState, transformMode, onPartTransformChange, partTransforms }) => {
   const { controls } = useThree();
   const groupRef = useRef<THREE.Group>(null!);
+
+  // Apply stored per-part transforms
+  useEffect(() => {
+    if (!model || !partTransforms) return;
+    model.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const key = child.name || child.uuid;
+        const t = partTransforms[key] || partTransforms[child.uuid];
+        if (t) {
+          child.position.set(...t.position);
+          child.rotation.set(
+            (t.rotation[0] * Math.PI) / 180,
+            (t.rotation[1] * Math.PI) / 180,
+            (t.rotation[2] * Math.PI) / 180,
+          );
+          child.scale.set(...t.scale);
+        }
+      }
+    });
+  }, [model, partTransforms]);
+
+  // Determine if we should apply TransformControls to individual part vs whole model
+  const hasPartSelected = selectedPart && transformMode;
 
   const content = (
     <group ref={groupRef}>
@@ -251,17 +338,19 @@ const ModelScene: React.FC<{
     </group>
   );
 
-  if (!transformMode) return content;
-
   return (
-    <TransformControls
-      object={groupRef}
-      mode={transformMode}
-      onMouseDown={() => { if (controls) (controls as any).enabled = false; }}
-      onMouseUp={() => { if (controls) (controls as any).enabled = true; }}
-    >
+    <>
       {content}
-    </TransformControls>
+      {/* Per-part TransformControls when a specific part is selected */}
+      {hasPartSelected && (
+        <PartTransformGizmo
+          model={model}
+          partId={selectedPart}
+          mode={transformMode}
+          onTransformChange={onPartTransformChange}
+        />
+      )}
+    </>
   );
 };
 
