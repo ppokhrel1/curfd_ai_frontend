@@ -230,8 +230,10 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
 
         if (autoOpenedMessageId.current !== latestMsg.id) {
           autoOpenedMessageId.current = latestMsg.id;
-          setActiveView("editor");
-          setMobilePanel("editor");
+          // Desktop: auto-switch to editor. Mobile: respect user's panel choice
+          if (window.innerWidth >= 1024) {
+            setActiveView("editor");
+          }
         }
       }
     }, [displayMessages, setCode, setOriginalCode, setActiveView, setMobilePanel]);

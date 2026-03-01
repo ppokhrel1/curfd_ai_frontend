@@ -2,6 +2,7 @@ import React from 'react';
 import { ChatInterface } from '@/modules/ai/components/ChatInterface';
 import { Viewer3D } from '@/modules/viewer/components/Viewer3D';
 import { EditorContainer } from '@/modules/editor/components'; // <-- Updated Import
+import { MobileChooser } from './MobileChooser';
 import type { ChatInterfaceRef } from '@/modules/ai/components/ChatInterface';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
 import type { MobilePanel, ModelStats } from '../types';
@@ -46,6 +47,10 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
   return (
     <div className={`lg:hidden h-full flex flex-col bg-neutral-950 transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
       <div className="flex-1 overflow-hidden relative">
+        {mobilePanel === 'chooser' && (
+          <MobileChooser onSelect={onMobilePanelSwitch} />
+        )}
+
         {mobilePanel === 'chat' && (
           <ChatInterface
             key="mobile-chat"
@@ -79,8 +84,8 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
         )}
       </div>
       
-      {/* Footer Navigation */}
-      <div className="flex-shrink-0 border-t border-neutral-800 bg-neutral-900 p-2 flex gap-1.5">
+      {/* Footer Navigation — hidden on chooser screen */}
+      <div className={`flex-shrink-0 border-t border-neutral-800 bg-neutral-900 p-2 flex gap-1.5 ${mobilePanel === 'chooser' ? 'hidden' : ''}`}>
         <TabButton 
           active={mobilePanel === 'chat'} 
           onClick={() => onMobilePanelSwitch('chat')}

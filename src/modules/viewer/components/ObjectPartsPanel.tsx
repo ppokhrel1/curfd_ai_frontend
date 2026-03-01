@@ -1,4 +1,5 @@
 import type { GeneratedShape } from "@/modules/ai/types/chat.type";
+import type { PartTransform } from "./ViewerCanvas";
 import {
   ChevronDown,
   ChevronRight,
@@ -8,7 +9,9 @@ import {
   EyeOff,
   FileCode,
   Minus,
+  Move,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -19,6 +22,8 @@ interface ObjectPartsPanelProps {
   highlightedParts: Set<string>;
   onToggleHighlight: (partId: string) => void;
   onSwapPart?: (partId: string) => void;
+  partTransforms?: Record<string, PartTransform>;
+  onResetPartTransform?: (partId: string) => void;
 }
 
 const defaultGenericParts: PartDefinition[] = [
@@ -40,6 +45,8 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
   highlightedParts,
   onToggleHighlight,
   onSwapPart,
+  partTransforms,
+  onResetPartTransform,
 }) => {
   // Determine parts: Use shape.geometry.parts if available, otherwise fallback
   const parts = useMemo(() => {
@@ -167,7 +174,7 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
                   <div
                     key={part.id}
                     id={`part-item-${part.id}`}
-                    className={`flex items-center justify-between px-4 py-2 cursor-pointer transition-all ${
+                    className={`group flex items-center justify-between px-4 py-2 cursor-pointer transition-all ${
                       selectedPart === part.id
                         ? "bg-blue-500/20 border-l-2 border-blue-400"
                         : "hover:bg-neutral-800/50 border-l-2 border-transparent"
@@ -177,13 +184,29 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
                     }
                   >
                     <span
-                      className={`text-sm ${
+                      className={`text-sm flex items-center gap-1.5 ${
                         selectedPart === part.id
                           ? "text-blue-400 font-medium"
                           : "text-neutral-300"
                       }`}
                     >
                       {part.name}
+                      {partTransforms?.[part.id] && (
+                        <Move className="w-2.5 h-2.5 text-amber-400/60" title="Transformed" />
+                      )}
+                      {onSwapPart && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectPart(part.id);
+                            onSwapPart(part.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 hover:!opacity-100 p-0.5 rounded text-purple-400/60 hover:text-purple-400 hover:bg-purple-500/10 transition-all"
+                          title="Find similar parts"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                        </button>
+                      )}
                     </span>
                     <button
                       onClick={(e) => {
@@ -232,6 +255,33 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
                 Clear
               </button>
             </div>
+
+            {/* Transform Info */}
+            {partTransforms?.[selectedPart] && (
+              <div className="mt-1 px-2 py-1.5 bg-amber-500/5 border border-amber-500/20 rounded-lg">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1 text-[10px] text-amber-400 font-medium">
+                    <Move className="w-3 h-3" />
+                    Transformed
+                  </div>
+                  {onResetPartTransform && (
+                    <button
+                      onClick={() => onResetPartTransform(selectedPart)}
+                      className="flex items-center gap-1 text-[10px] text-neutral-400 hover:text-amber-400 transition-colors"
+                      title="Reset to original position"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1 text-[9px] font-mono text-neutral-500">
+                  <div>X: {partTransforms[selectedPart].position[0]}</div>
+                  <div>Y: {partTransforms[selectedPart].position[1]}</div>
+                  <div>Z: {partTransforms[selectedPart].position[2]}</div>
+                </div>
+              </div>
+            )}
 
             {/* Asset Actions */}
             <div className="mt-2 pt-2 border-t border-blue-500/20 flex items-center justify-between gap-2">

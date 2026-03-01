@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import * as THREE from 'three';
 import { ModelImporter } from '@/modules/viewer/services/ModelImporter';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
-import type { Asset } from '@/modules/viewer/services/assetService';
+import { assetService, type Asset } from '@/modules/viewer/services/assetService';
 
 interface UsePartSwapProps {
   loadedModel: THREE.Group | null;
@@ -26,15 +26,22 @@ export const usePartSwap = ({
       let localUrl: string | null = null;
 
       try {
-        const assetUrl = asset.url || asset.uri;
-        if (!assetUrl) {
-          throw new Error('Asset URL not available');
+        let blob: Blob;
+
+        if (asset.asset_type === 'openscad_part') {
+          // Compile individual part from parent SCAD code via backend
+          blob = await assetService.compilePartToSTL(asset.id);
+        } else {
+          // Direct download for non-SCAD assets (GLB, STL, etc.)
+          const assetUrl = asset.url || asset.uri;
+          if (!assetUrl) {
+            throw new Error('Asset URL not available');
+          }
+          const response = await fetch(assetUrl);
+          if (!response.ok) throw new Error('Failed to download asset');
+          blob = await response.blob();
         }
 
-        // 1. Fetch asset blob
-        const response = await fetch(assetUrl);
-        if (!response.ok) throw new Error('Failed to download asset');
-        const blob = await response.blob();
         localUrl = URL.createObjectURL(blob);
 
         // 2. Parse geometry

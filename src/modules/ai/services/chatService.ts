@@ -359,13 +359,15 @@ class ChatService {
         
         shapeData = {
           id: msg.id || `shape-${Date.now()}`,
-          type: "generic", 
+          type: "generic",
           name: meta.model_type || "OpenSCAD Model",
-          description: "Click to load into editor.",
+          description: meta.message || "Generated model",
           scadCode: meta.openscad_code || meta.scad_code,
           parameters: meta.parameters || [],
           hasSimulation: false,
-          metadata_json: meta
+          geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+          createdAt: new Date(msg.created_at),
+          metadata_json: meta,
         };
       }
     }

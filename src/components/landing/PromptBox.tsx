@@ -80,7 +80,7 @@ const PromptBox = ({ onAuthClick }: PromptBoxProps) => {
               onKeyDown={handleKeyPress}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder="Describe what you want to create... (e.g., 'Design a robotic arm with servo motors')"
+              placeholder="e.g. Design a robotic arm with servo motors"
               className="flex-1 bg-transparent outline-none text-base md:text-lg text-white placeholder-neutral-500 resize-none min-h-[60px] max-h-[200px]"
               rows={2}
             />

@@ -26,8 +26,7 @@ export const Footer = () => {
               <span className="text-lg font-bold text-white">CURFD AI</span>
             </a>
             <p className="text-sm text-neutral-400 mb-4 leading-relaxed">
-              Next-generation CFD simulation platform powered by artificial
-              intelligence.
+              AI-powered CAD generation and CFD simulation.
             </p>
 
             {/* Social Links */}

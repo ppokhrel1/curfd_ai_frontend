@@ -54,7 +54,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLatest, onOpen
       }
     }
 
-    if (rawData.length > 150) {
+    if (rawData.length > 150 && window.innerWidth >= 1024) {
       hasAutoOpened.current = true;
       setTimeout(() => {
         onOpenInEditor(rawData, "code");

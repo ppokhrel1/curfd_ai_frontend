@@ -84,6 +84,28 @@ class AssetService {
     }
   }
 
+  async searchAssetsBackend(query: string, category?: string): Promise<Asset[]> {
+    try {
+      const params: Record<string, string> = {};
+      if (query) params.q = query;
+      if (category) params.category = category;
+
+      const response = await api.get<Asset[]>("/assets/search", { params });
+      return response.data.map(this.normalizeAsset);
+    } catch (error) {
+      console.error("Failed to search assets (backend):", error);
+      // Fallback to client-side search
+      return this.searchAssets(query);
+    }
+  }
+
+  async compilePartToSTL(assetId: string): Promise<Blob> {
+    const response = await api.post("/openscad/compile-part", { asset_id: assetId }, {
+      responseType: "blob",
+    });
+    return response.data;
+  }
+
   async fetchAssetMeta(assetId: string): Promise<AssetMeta[]> {
     try {
       const response = await api.get<AssetMeta[]>("/asset-meta", {

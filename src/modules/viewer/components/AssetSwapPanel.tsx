@@ -1,4 +1,4 @@
-import { Box, FileCode, Loader2, Search, X } from "lucide-react";
+import { Box, Cpu, FileCode, Loader2, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { assetService } from "../services/assetService";
 import type { Asset } from "../services/assetService";
@@ -30,15 +30,14 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
   onSelectAsset,
   onClose,
 }) => {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(currentPartName || "");
   const [debouncedQuery] = useDebounce(query, 500);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Auto-search based on part name initially, or just show recent
+  // Search with the part name on mount
   useEffect(() => {
-    // Initial search or empty
-    handleSearch("");
+    handleSearch(currentPartName || "");
   }, []);
 
   useEffect(() => {
@@ -48,7 +47,11 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
   const handleSearch = async (q: string) => {
     setIsLoading(true);
     try {
-      const results = await assetService.searchAssets(q);
+      let results = await assetService.searchAssetsBackend(q);
+      // If a specific query returned nothing, show all available parts instead
+      if (results.length === 0 && q) {
+        results = await assetService.searchAssetsBackend("");
+      }
       setAssets(results);
     } catch (e) {
       console.error(e);
@@ -99,37 +102,56 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
             <span className="text-xs">Searching library...</span>
           </div>
         ) : assets.length > 0 ? (
-          assets.map((asset) => (
-            <button
-              key={asset.id}
-              onClick={() => onSelectAsset(asset)}
-              className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800 border border-transparent hover:border-neutral-700 transition-all group text-left"
-            >
-              <div className="w-10 h-10 bg-neutral-800 rounded flex items-center justify-center flex-shrink-0 group-hover:bg-neutral-700 transition-colors">
-                {(asset.url || asset.uri)?.endsWith(".glb") || (asset.url || asset.uri)?.endsWith(".gltf") ? (
-                  <Box className="w-5 h-5 text-blue-400" />
-                ) : (
-                  <FileCode className="w-5 h-5 text-neutral-400 group-hover:text-neutral-300" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white truncate">
-                  {asset.name || (asset.url || asset.uri)?.split("/").pop()}
-                </p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-neutral-500 uppercase">
-                    {asset.type || (asset.url || asset.uri)?.split(".").pop()}
-                  </span>
-                  <span className="text-[10px] text-neutral-600">
-                    {new Date(asset.created_at).toLocaleDateString()}
-                  </span>
+          assets.map((asset) => {
+            const isScadPart = asset.asset_type === "openscad_part";
+            // For SCAD parts, part_name comes from search result; for others, derive from URI
+            const partName = (asset as any).part_name || asset.name || (asset.url || asset.uri)?.split("/").pop();
+            const modelType = (asset as any).metadata_json?.model_type;
+
+            return (
+              <button
+                key={asset.id}
+                onClick={() => onSelectAsset(asset)}
+                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800 border border-transparent hover:border-neutral-700 transition-all group text-left"
+              >
+                <div className={`w-10 h-10 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
+                  isScadPart
+                    ? "bg-purple-500/10 group-hover:bg-purple-500/20"
+                    : "bg-neutral-800 group-hover:bg-neutral-700"
+                }`}>
+                  {isScadPart ? (
+                    <Cpu className="w-5 h-5 text-purple-400" />
+                  ) : (asset.url || asset.uri)?.endsWith(".glb") || (asset.url || asset.uri)?.endsWith(".gltf") ? (
+                    <Box className="w-5 h-5 text-blue-400" />
+                  ) : (
+                    <FileCode className="w-5 h-5 text-neutral-400 group-hover:text-neutral-300" />
+                  )}
                 </div>
-              </div>
-            </button>
-          ))
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-white truncate">
+                    {partName}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {modelType && (
+                      <span className="text-[10px] text-purple-400/70">
+                        {modelType}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-neutral-500 uppercase">
+                      {isScadPart ? "part" : asset.type || (asset.url || asset.uri)?.split(".").pop()}
+                    </span>
+                    <span className="text-[10px] text-neutral-600">
+                      {new Date(asset.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            );
+          })
         ) : (
-          <div className="text-center py-8 text-neutral-500 text-xs">
-            {query ? "No assets found." : "Type to search..."}
+          <div className="text-center py-8 text-neutral-500 text-xs px-4">
+            <p>No parts in your library yet.</p>
+            <p className="mt-1 text-neutral-600">Generate a model first — its parts will appear here automatically.</p>
           </div>
         )}
       </div>

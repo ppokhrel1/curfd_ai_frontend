@@ -19,7 +19,7 @@ export const Navbar = ({ onAuthClick }: NavbarProps) => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 group">
-            <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-2 rounded-xl shadow-lg shadow-emerald-500/30 group-hover:shadow-emerald-500/50 group-hover:scale-110 transition-all duration-300">
+            <div className="bg-emerald-500 p-2 rounded-lg">
               <Zap className="w-5 h-5 text-black" />
             </div>
             <span className="text-xl font-bold text-white">CURFD AI</span>
@@ -49,7 +49,7 @@ export const Navbar = ({ onAuthClick }: NavbarProps) => {
             </button>
             <button
               onClick={() => onAuthClick("signup")}
-              className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-black font-semibold rounded-lg shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-105 transition-all duration-300"
+              className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-semibold rounded-lg transition-colors"
             >
               Get Started
             </button>
