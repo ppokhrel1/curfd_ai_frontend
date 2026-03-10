@@ -7,6 +7,9 @@ export type RunpodEventType =
   | "runpod.completed"
   | "runpod.failed"
   | "runpod.timeout"
+  | "openscad.token"
+  | "openscad.done"
+  | "openscad.error"
   | "error";
 
 export interface RunpodEvent {
@@ -16,6 +19,8 @@ export interface RunpodEvent {
   job_id?: string;
   status?: string;
   action?: string;
+  text?: string;
+  data?: any;
   message?: {
     id: string;
     role: string;
@@ -223,5 +228,13 @@ export const useChatSocket = ({ chatId, sessionId, onEvent }: UseChatSocketProps
     return () => disconnect();
   }, [chatId, connect, disconnect]);
 
-  return { isConnected, error, connect, disconnect };
+  const send = useCallback((data: any) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify(data));
+      return true;
+    }
+    return false;
+  }, []);
+
+  return { isConnected, error, connect, disconnect, send };
 };

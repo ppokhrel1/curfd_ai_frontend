@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import * as THREE from 'three';
 import { chatService } from '@/modules/ai/services/chatService';
+import { cadService } from '@/modules/ai/services/cadService';
 import { jobService } from '@/modules/ai/services/jobService';
 import { assetService } from '@/modules/viewer/services/assetService';
 import { ModelImporter } from '@/modules/viewer/services/ModelImporter';
@@ -39,10 +40,59 @@ export const useModelImport = ({ activeConversationId, onImportComplete }: UseMo
       setImportStage('reading');
 
       try {
-        // Only support .zip files for full import
-        if (!file.name.endsWith('.zip')) {
-          toast.error('Please import a .zip folder containing your model assets for full support.');
+        const isZip = file.name.toLowerCase().endsWith('.zip');
+        const isStep = file.name.toLowerCase().endsWith('.step') || file.name.toLowerCase().endsWith('.stp');
+
+        if (!isZip && !isStep) {
+          toast.error('Please import a .zip or .step/.stp file.');
           setIsImporting(false);
+          return;
+        }
+
+        // Handle STEP file import: upload to backend, convert to GLB, then load
+        if (isStep) {
+          setImportStage('extracting');
+          try {
+            const taskId = await cadService.importStepFile(file);
+
+            cadService.connectToTask(taskId, 'openscad-3d', async (filename) => {
+              try {
+                setImportStage('analyzing');
+                const { url, blob, filename: originalFilename } = await cadService.downloadAndCreateBlob(filename, 'openscad-3d');
+
+                setImportStage('finalizing');
+                const imported = await importer.importFromUrl(url, undefined, undefined, [], originalFilename);
+
+                const shapeData: GeneratedShape = {
+                  id: `step-${Date.now()}`,
+                  name: file.name.replace(/\.(step|stp)$/i, ''),
+                  type: 'generic',
+                  description: `Imported STEP file: ${file.name}`,
+                  hasSimulation: false,
+                  sdfUrl: url,
+                  geometry: {
+                    parts: [],
+                    metadata: { totalVertices: 0, fileSize: blob.size, originalFilename },
+                  },
+                  createdAt: new Date(),
+                };
+
+                onImportComplete(shapeData, imported.group);
+                setImportStage('complete');
+                setTimeout(() => setIsImporting(false), 1000);
+              } catch (err) {
+                toast.error('Failed to load converted STEP model.');
+                setIsImporting(false);
+              }
+            }, (error) => {
+              const msg = typeof error === 'object' ? error.message : error;
+              toast.error(`STEP import failed: ${msg}`);
+              setIsImporting(false);
+            });
+          } catch (e: any) {
+            toast.error(`STEP upload failed: ${e.message}`);
+            setIsImporting(false);
+          }
           return;
         }
 

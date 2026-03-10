@@ -100,5 +100,31 @@ export const cadService = {
     const response = await api.get(`/${input_format}/download/${filename}`, { responseType: 'blob' });
     const blob = new Blob([response.data]);
     return { url: URL.createObjectURL(blob), blob, filename };
-  }
+  },
+
+  /**
+   * Export current code as STEP file.
+   * Compiles OpenSCAD/CadQuery → STEP and returns the download blob URL.
+   */
+  async exportAsStep(script: string, inputFormat: string = 'openscad-3d'): Promise<string> {
+    const response = await api.post<GenerateResponse>(`/${inputFormat}/generate`, {
+      script,
+      format: 'STEP',
+    });
+    return response.data.task_id;
+  },
+
+  /**
+   * Upload a STEP file for conversion to GLB (for viewer display).
+   */
+  async importStepFile(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('output_format', 'GLB');
+
+    const response = await api.post<GenerateResponse>('/openscad-3d/import-step', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data.task_id;
+  },
 };

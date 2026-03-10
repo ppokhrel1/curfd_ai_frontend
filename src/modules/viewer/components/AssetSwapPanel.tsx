@@ -35,9 +35,11 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Search with the part name on mount
+  // Search with the part name on mount (only if we have a name)
   useEffect(() => {
-    handleSearch(currentPartName || "");
+    if (currentPartName) {
+      handleSearch(currentPartName);
+    }
   }, []);
 
   useEffect(() => {
@@ -45,13 +47,13 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
   }, [debouncedQuery]);
 
   const handleSearch = async (q: string) => {
+    if (!q.trim()) {
+      setAssets([]);
+      return;
+    }
     setIsLoading(true);
     try {
-      let results = await assetService.searchAssetsBackend(q);
-      // If a specific query returned nothing, show all available parts instead
-      if (results.length === 0 && q) {
-        results = await assetService.searchAssetsBackend("");
-      }
+      const results = await assetService.searchAssetsBackend(q);
       setAssets(results);
     } catch (e) {
       console.error(e);

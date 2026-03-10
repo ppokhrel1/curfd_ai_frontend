@@ -75,8 +75,10 @@ export const useModelFetch = ({
         const parts: any[] = [];
         imported.group.traverse((child: THREE.Object3D) => {
           if ((child as THREE.Mesh).isMesh) {
+            // Use mesh.name as the ID (matches ViewerCanvas click handler)
+            const partId = child.name || child.uuid;
             parts.push({
-              id: child.uuid,
+              id: partId,
               name: child.name || 'Solid Part',
               category: 'component',
               role: 'structural',

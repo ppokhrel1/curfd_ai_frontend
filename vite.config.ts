@@ -20,22 +20,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
-            'zustand-vendor': ['zustand'],
-            'ai-module': [
-              './src/modules/ai/stores/chatStore.ts',
-              './src/modules/ai/services/chatService.ts',
-              './src/modules/ai/services/modelService.ts',
-              './src/modules/ai/services/jobService.ts'
-            ]
-          }
-        }
-      },
-      chunkSizeWarningLimit: 1000
+      chunkSizeWarningLimit: 2000,
     },
     server: {
       proxy: {

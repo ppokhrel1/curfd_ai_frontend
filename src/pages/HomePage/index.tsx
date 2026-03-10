@@ -323,7 +323,7 @@ const HomePage = () => {
       <input
         ref={modelImport.fileInputRef}
         type="file"
-        accept=".zip,.gltf,.glb,.obj,.fbx,.stl"
+        accept=".zip,.gltf,.glb,.obj,.fbx,.stl,.step,.stp"
         onChange={modelImport.handleFileImport}
         className="hidden"
       />

@@ -15,6 +15,7 @@ export interface Message {
   error?: string;
   metadata?: MessageMetadata;
   shapeData?: GeneratedShape;
+  imageUrls?: string[];
 }
 
 export interface MessageMetadata {

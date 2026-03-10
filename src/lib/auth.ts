@@ -1,5 +1,7 @@
 import type { AuthState, User } from "@/types/global";
 import { create } from "zustand";
+import { chatService } from "@/modules/ai/services/chatService";
+import { useChatStore } from "@/modules/ai/stores/chatStore";
 import { STORAGE_KEYS } from "./constants";
 import { supabaseAuth } from "./supabaseAuth";
 
@@ -24,14 +26,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
       if (user && session) {
         localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
-        const { chatService } = await import(
-          "@/modules/ai/services/chatService"
-        );
-        const { useChatStore } = await import("@/modules/ai/stores/chatStore");
-
         chatService.setUserId(user.id.toString());
         useChatStore.getState().setCurrentUserId(user.id.toString());
-
         set({ user, isAuthenticated: true, isLoading: false });
       } else {
         localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
@@ -82,10 +78,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
       }
 
-      const { chatService } = await import("@/modules/ai/services/chatService");
-      const { useChatStore } = await import("@/modules/ai/stores/chatStore");
       useChatStore.getState().clearStore();
-
       chatService.setUserId(user.id.toString());
       useChatStore.getState().setCurrentUserId(user.id.toString());
 
@@ -112,10 +105,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, session.access_token);
       }
 
-      const { chatService } = await import("@/modules/ai/services/chatService");
-      const { useChatStore } = await import("@/modules/ai/stores/chatStore");
       useChatStore.getState().clearStore();
-
       chatService.setUserId(user.id.toString());
       useChatStore.getState().setCurrentUserId(user.id.toString());
 
@@ -144,13 +134,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       await supabaseAuth.signOut();
       localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-      const { chatService } = await import("@/modules/ai/services/chatService");
-      const { useChatStore } = await import("@/modules/ai/stores/chatStore");
-
       chatService.setUserId(null);
       chatService.setActiveSession(null);
       useChatStore.getState().clearStore();
-
       set({ user: null, isAuthenticated: false, error: null });
     } catch (err) {
       console.error("Sign out error:", err);

@@ -116,19 +116,103 @@ class ChatService {
     chatId: string,
     content: string,
     jobId?: string
-  ): Promise<MessageResponse> { 
-    try {      
+  ): Promise<MessageResponse> {
+    try {
       const response = await rawApi.post<MessageResponse>("/openscad/process_requirements", {
         chat_id: chatId,
         content: content,
         job_id: jobId,
         role: "user"
       });
-      
-      return response.data; 
+
+      return response.data;
     } catch (error) {
       console.error("[ChatService] Failed to request Gemini processing:", error);
       throw error;
+    }
+  }
+
+  async processRequirementsStream(
+    chatId: string,
+    content: string,
+    onToken: (text: string) => void,
+    onDone: (data: any) => void,
+    onError: (error: string) => void,
+    options?: {
+      llm_provider?: string;
+      llm_model?: string;
+      llm_thinking?: boolean;
+      images?: { data: string; media_type: string }[];
+    },
+  ): Promise<void> {
+    const baseUrl = rawApi.defaults.baseURL || '';
+    const token = localStorage.getItem('curfd_auth_token');
+
+    const response = await fetch(`${baseUrl}/openscad/process_requirements/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        content: content,
+        role: 'user',
+        ...(options?.llm_provider ? { llm_provider: options.llm_provider } : {}),
+        ...(options?.llm_model ? { llm_model: options.llm_model } : {}),
+        ...(options?.llm_thinking !== undefined ? { llm_thinking: options.llm_thinking } : {}),
+        ...(options?.images?.length ? { images: options.images } : {}),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Stream failed (${response.status}): ${errorText}`);
+    }
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse SSE events from buffer
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() || '';
+
+      for (const part of parts) {
+        if (!part.trim()) continue;
+
+        let eventType = '';
+        let eventData = '';
+
+        for (const line of part.split('\n')) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7);
+          } else if (line.startsWith('data: ')) {
+            eventData = line.slice(6);
+          }
+        }
+
+        if (!eventType || !eventData) continue;
+
+        try {
+          const parsed = JSON.parse(eventData);
+          if (eventType === 'token') {
+            onToken(parsed.text);
+          } else if (eventType === 'done') {
+            onDone(parsed);
+          } else if (eventType === 'error') {
+            onError(parsed.message);
+          }
+        } catch (e) {
+          console.warn('[ChatService] Failed to parse SSE event:', eventData);
+        }
+      }
     }
   }
 
@@ -372,12 +456,28 @@ class ChatService {
       }
     }
 
+    // Extract image URLs from metadata (for history display)
+    let imageUrls: string[] | undefined;
+    if (msg.metadata_json) {
+      let meta = msg.metadata_json;
+      if (typeof meta === 'string') {
+        try { meta = JSON.parse(meta); } catch(e) {}
+      }
+      if (meta?.images && Array.isArray(meta.images)) {
+        const baseUrl = rawApi.defaults.baseURL || '';
+        imageUrls = meta.images.map((path: string) =>
+          path.startsWith('http') ? path : `${baseUrl}${path}`
+        );
+      }
+    }
+
     return {
       id: msg.id,
       content: content,
       role: msg.role === "user" ? "user" : "assistant",
       timestamp: new Date(msg.created_at),
       shapeData: shapeData,
+      imageUrls,
     };
   }
 
