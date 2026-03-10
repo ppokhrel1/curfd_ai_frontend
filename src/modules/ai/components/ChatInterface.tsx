@@ -126,10 +126,10 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
     } = useChat(activeConversationId, handleInternalShapeGenerated, handleInternalMessageReceived);
 
     const handleSend = useCallback(
-      async (content: string) => {
-        if (!content.trim()) return;
-        await sendMessage(content);
-        
+      async (content: string, images?: File[]) => {
+        if (!content.trim() && (!images || images.length === 0)) return;
+        await sendMessage(content, images);
+
         if (isMinimized && onMinimize) {
           onMinimize(false);
         }

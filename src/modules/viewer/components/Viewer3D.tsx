@@ -15,6 +15,8 @@ import {
   Plus,
   RotateCcw,
   Upload,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -181,6 +183,17 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen();
   };
+
+  const handleZoom = useCallback((direction: "in" | "out") => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.dispatchEvent(
+      new WheelEvent("wheel", {
+        deltaY: direction === "in" ? -300 : 300,
+        bubbles: true,
+      })
+    );
+  }, []);
 
   const handleRecallAsset = useCallback((recalledShape: GeneratedShape) => {
     if (!activeConversationId) return;
@@ -421,6 +434,8 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
 
           <div className="w-px h-6 bg-neutral-700" />
 
+          <ActionBtn icon={<ZoomIn />} label="Zoom In" onClick={() => handleZoom("in")} />
+          <ActionBtn icon={<ZoomOut />} label="Zoom Out" onClick={() => handleZoom("out")} />
           <ActionBtn icon={<RotateCcw />} label="Reset" onClick={reset} />
           <ActionBtn icon={<Download />} label="Export" onClick={handleExport} />
           <ActionBtn icon={<Maximize2 />} label="Full" onClick={handleFullscreen} />

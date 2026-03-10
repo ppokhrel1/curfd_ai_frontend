@@ -17,6 +17,7 @@ import {
   Loader2,
   Save,
   History,
+  Download,
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../stores/editorStore";
@@ -59,7 +60,7 @@ const TRANSFORMS = [
 
 export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildComplete, onGenerateShape }) => {
   const { code, setCode, isCompiling, isDirty, reset, mode, compileRequested, clearCompileRequest, versions, currentVersionId, loadVersions, saveVersion, loadVersion } = useEditorStore();
-  const { compile } = useCADCompiler(onBuildComplete);
+  const { compile, exportStep } = useCADCompiler(onBuildComplete);
   const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || "";
   const chatId = useChatStore(state => state.activeConversationId) || "";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -284,6 +285,15 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
                   : <Play className="w-3 h-3" />
                 }
                 <span>{isCompiling ? "Building…" : "Run"}</span>
+              </button>
+              <button
+                onClick={() => exportStep()}
+                disabled={isCompiling || !code.trim()}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all"
+                title="Export as STEP file"
+              >
+                <Download className="w-3 h-3" />
+                <span>STEP</span>
               </button>
               <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-[10px] text-neutral-500">
                 {compilePending

@@ -12,10 +12,16 @@ interface ChatState {
     jobHistory: Record<string, any[]>; // chatId -> Job[]
     currentUserId: string | null; // Track current user for scoped storage
 
+    // Model selection
+    selectedProvider: string;
+    selectedModel: string;
+    selectedThinking: boolean;
+
     // Actions
     setConversations: (conversations: Conversation[]) => void;
     setActiveConversationId: (id: string | null) => void;
     addMessage: (chatId: string, message: Message) => void;
+    updateMessage: (chatId: string, messageId: string, updates: Partial<Message>) => void;
     updateConversation: (id: string, updates: Partial<Conversation>) => void;
     setGenerating: (chatId: string, isGenerating: boolean, status?: string, action?: string) => void;
     addJobToHistory: (chatId: string, job: any) => void;
@@ -23,6 +29,7 @@ interface ChatState {
     isGeneratingGlobally: () => boolean;
     clearStore: () => void;
     setCurrentUserId: (userId: string | null) => void;
+    setSelectedModel: (provider: string, model: string, thinking: boolean) => void;
 }
 
 // Helper to get user-scoped storage key
@@ -52,6 +59,9 @@ export const useChatStore = create<ChatState>()(
             generatingChatActions: {},
             jobHistory: {},
             currentUserId: null,
+            selectedProvider: "anthropic",
+            selectedModel: "claude-haiku-4-5-20251001",
+            selectedThinking: true,
 
             setConversations: (newConversations) => set((state) => ({
                 conversations: newConversations.map(nc => {
@@ -78,6 +88,19 @@ export const useChatStore = create<ChatState>()(
                                 ? c.messages
                                 : [...c.messages, message],
                             updatedAt: new Date()
+                        }
+                        : c
+                )
+            })),
+
+            updateMessage: (chatId, messageId, updates) => set((state) => ({
+                conversations: state.conversations.map((c) =>
+                    c.id === chatId
+                        ? {
+                            ...c,
+                            messages: c.messages.map((m) =>
+                                m.id === messageId ? { ...m, ...updates } : m
+                            ),
                         }
                         : c
                 )
@@ -139,6 +162,12 @@ export const useChatStore = create<ChatState>()(
             },
 
             setCurrentUserId: (userId) => set({ currentUserId: userId }),
+
+            setSelectedModel: (provider, model, thinking) => set({
+                selectedProvider: provider,
+                selectedModel: model,
+                selectedThinking: thinking,
+            }),
         }),
         {
             name: getUserStorageKey(),
@@ -151,7 +180,10 @@ export const useChatStore = create<ChatState>()(
                 generatingChatActions: state.generatingChatActions,
                 jobHistory: state.jobHistory,
                 generatingChatIds: Array.from(state.generatingChatIds) as any,
-                currentUserId: state.currentUserId
+                currentUserId: state.currentUserId,
+                selectedProvider: state.selectedProvider,
+                selectedModel: state.selectedModel,
+                selectedThinking: state.selectedThinking,
             }),
             onRehydrateStorage: (state) => {
                 return (rehydratedState) => {

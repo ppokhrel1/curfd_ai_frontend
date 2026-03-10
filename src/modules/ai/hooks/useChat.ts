@@ -44,11 +44,26 @@ const extractParametersFromCode = (code: string) => {
   return parameters;
 };
 
+/** Convert a File to {data: base64, media_type: string} */
+async function fileToBase64(file: File): Promise<{ data: string; media_type: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      // Strip "data:image/jpeg;base64," prefix
+      const base64 = dataUrl.split(",")[1];
+      resolve({ data: base64, media_type: file.type || "image/jpeg" });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 interface UseChatReturn {
   messages: Message[];
   isLoading: boolean;
   error: string | null;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, images?: File[]) => Promise<void>;
   sendSystemMessage: (
     content: string,
     shapeData?: GeneratedShape
@@ -78,6 +93,11 @@ export const useChat = (
   
   const [error, setError] = useState<string | null>(null);
   const [lastUserMessage, setLastUserMessage] = useState<string>("");
+
+  // Refs for WebSocket streaming state
+  const streamMsgIdRef = useRef<string | null>(null);
+  const streamedContentRef = useRef<string>("");
+  const streamChatIdRef = useRef<string | null>(null);
 
   const activeConversation = conversations.find((c) => c.id === chatId);
   const messages = activeConversation?.messages || [];
@@ -167,9 +187,75 @@ export const useChat = (
   // --- 2. SOCKET EVENT HANDLER ---
   const handleSocketEvent = useCallback(
     async (event: RunpodEvent) => {
-      if (!chatId) return;
+      // OpenSCAD events use refs for chat ID (works even for newly created chats)
+      const activeChatId = streamChatIdRef.current || chatId;
+
       switch (event.type) {
+        // ── OpenSCAD streaming events ──
+        case "openscad.token": {
+          const msgId = streamMsgIdRef.current;
+          const targetChatId = streamChatIdRef.current;
+          if (msgId && targetChatId && event.text) {
+            streamedContentRef.current += event.text;
+            useChatStore.getState().updateMessage(targetChatId, msgId, {
+              content: streamedContentRef.current,
+            });
+          }
+          break;
+        }
+        case "openscad.done": {
+          const msgId = streamMsgIdRef.current;
+          const targetChatId = streamChatIdRef.current;
+          if (msgId && targetChatId && event.data) {
+            const { openscad_code, parameters, model_type, message, id } = event.data;
+
+            useChatStore.getState().updateMessage(targetChatId, msgId, {
+              id: id || msgId,
+              content: openscad_code
+                ? "**Model Generated successfully!**\n\nClick the model card below to load it into your Editor."
+                : message || streamedContentRef.current,
+              shapeData: openscad_code ? {
+                id: id || `shape-${Date.now()}`,
+                name: model_type || 'Generated Model',
+                scadCode: openscad_code,
+                type: 'generic',
+                description: message || '',
+                hasSimulation: false,
+                geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+                createdAt: new Date(),
+              } as any : undefined,
+            });
+
+            if (openscad_code) {
+              useEditorStore.getState().setCode(openscad_code);
+              useEditorStore.getState().setOriginalCode(openscad_code);
+            }
+            if (parameters && Array.isArray(parameters) && parameters.length > 0) {
+              useEditorStore.getState().setParameters(parameters);
+            }
+          }
+          streamMsgIdRef.current = null;
+          streamChatIdRef.current = null;
+          streamedContentRef.current = "";
+          if (activeChatId) setGenerating(activeChatId, false);
+          sendingRef.current = false;
+          break;
+        }
+        case "openscad.error": {
+          // Backend sends "message" as string, not {content: string}
+          const errorMsg = event.error || (typeof event.message === 'string' ? event.message : event.message?.content) || "Generation failed";
+          setError(errorMsg as string);
+          streamMsgIdRef.current = null;
+          streamChatIdRef.current = null;
+          streamedContentRef.current = "";
+          if (activeChatId) setGenerating(activeChatId, false);
+          sendingRef.current = false;
+          break;
+        }
+
+        // ── RunPod events (require chatId) ──
         case "runpod.started":
+          if (!chatId) break;
           setGenerating(chatId, true, event.status || "Initializing");
           if (event.job_id) {
             updateJobInHistory(chatId, event.job_id, {
@@ -179,6 +265,7 @@ export const useChat = (
           }
           break;
         case "runpod.status":
+          if (!chatId) break;
           if (event.status === "COMPLETED") {
             await handleJobCompletion(event);
           } else {
@@ -195,6 +282,7 @@ export const useChat = (
           break;
         case "runpod.failed":
         case "runpod.timeout":
+          if (!chatId) break;
           setError(event.error || `Runpod execution ${event.type}`);
           if (event.job_id) {
             updateJobInHistory(chatId, event.job_id, {
@@ -206,6 +294,7 @@ export const useChat = (
           setGenerating(chatId, false);
           break;
         case "error":
+          if (!chatId) break;
           setError(event.error || "An error occurred");
           setGenerating(chatId, false);
           break;
@@ -218,10 +307,10 @@ export const useChat = (
   const sessionId = user?.id || "anonymous-session";
 
 
-  useChatSocket({
+  const { send: sendWs, isConnected: wsConnected } = useChatSocket({
     chatId,
     sessionId,
-    onEvent: handleSocketEvent 
+    onEvent: handleSocketEvent
   });
 
   const sendingRef = useRef(false);
@@ -250,10 +339,10 @@ export const useChat = (
     [chatId, setGenerating]
   );
 
-  // --- 4. SEND MESSAGE ---
+  // --- 4. SEND MESSAGE (WebSocket) ---
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim()) return;
+    async (content: string, images?: File[]) => {
+      if (!content.trim() && (!images || images.length === 0)) return;
       if (sendingRef.current) return;
 
       sendingRef.current = true;
@@ -284,145 +373,126 @@ export const useChat = (
 
         setGenerating(targetId, true, "Thinking...");
 
-        // Optimistic UI update
+        // Convert images to base64 for API + create local preview URLs
+        let imagePayload: { data: string; media_type: string }[] | undefined;
+        let localImageUrls: string[] | undefined;
+        if (images && images.length > 0) {
+          imagePayload = await Promise.all(images.map(fileToBase64));
+          localImageUrls = images.map(f => URL.createObjectURL(f));
+        }
+
+        // Optimistic UI: add user message with image previews
         const userMsg: Message = {
           id: `temp-${Date.now()}`,
           role: "user",
-          content: content.trim(),
+          content: content.trim() || (images?.length ? "Attached image(s)" : ""),
           timestamp: new Date(),
+          imageUrls: localImageUrls,
         };
         addMessage(targetId, userMsg);
 
-        // CALL BACKEND gemini openscad endpoint
-        const aiResponse = await chatService.processRequirementsGeminiOpenSCAD(
-          targetId,
-          content.trim()
-        );
+        // Create placeholder assistant message for streaming
+        const streamMsgId = `stream-${Date.now()}`;
+        addMessage(targetId, {
+          id: streamMsgId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+        });
 
-        if (aiResponse) {
+        // Set up refs for WebSocket event handler
+        streamMsgIdRef.current = streamMsgId;
+        streamChatIdRef.current = targetId;
+        streamedContentRef.current = "";
 
-          let parsedMetadata = aiResponse.metadata_json;
+        const { selectedProvider, selectedModel, selectedThinking } = useChatStore.getState();
+        const messageContent = content.trim() || (imagePayload?.length ? "Analyze the attached image(s) and generate OpenSCAD code." : "");
 
-          // 1. If metadata_json is a string (FastAPI sometimes double-stringifies JSON columns)
-          if (typeof parsedMetadata === 'string') {
-              try {
-                  parsedMetadata = JSON.parse(parsedMetadata);
-              } catch (e) {
-                  console.warn("⚠️ Failed to parse metadata_json string:", parsedMetadata);
-              }
-          }
+        // Try WebSocket first, fall back to SSE
+        const wsSent = wsConnected && sendWs({
+          type: "openscad.request",
+          content: messageContent,
+          images: imagePayload,
+          options: {
+            llm_provider: selectedProvider,
+            llm_model: selectedModel,
+            llm_thinking: selectedThinking,
+          },
+        });
 
-          // 2. Aggressive Fallback: Try parsing the raw content
-          if (!parsedMetadata || (!parsedMetadata.parameters && !parsedMetadata.openscad_code)) {
-            if (aiResponse.content) {
-              try {
-                // Strip markdown code blocks
-                const cleanJson = aiResponse.content.replace(/```(json)?/gi, '').replace(/```/g, '').trim();
-                const fallbackParsed = JSON.parse(cleanJson);
-                
-                // Merge fallback data if it contains the keys we need
-                if (fallbackParsed.parameters || fallbackParsed.openscad_code) {
-                     parsedMetadata = fallbackParsed;
-                }
-              } catch (e) {
-                console.warn("⚠️ Could not parse AI content as fallback JSON.");
-              }
-            }
-          }
-
-          // 🔥 AGGRESSIVE LOGGING: Check your console!
-          console.group("🚀 AI RESPONSE DEBUGGER");
-          console.log("1. Raw aiResponse:", aiResponse);
-          console.log("2. aiResponse.metadata_json (Type):", typeof aiResponse.metadata_json);
-          console.log("3. Final parsedMetadata:", parsedMetadata);
-          
-          let extractedParams: any[] = [];
-          
-          // --- THE NEW HYBRID EXTRACTION LOGIC ---
-          if (parsedMetadata?.parameters && Array.isArray(parsedMetadata.parameters) && parsedMetadata.parameters.length > 0) {
-             // 1. Try to use AI-generated JSON parameters
-             extractedParams = parsedMetadata.parameters;
-          } else if (parsedMetadata?.response?.parameters && Array.isArray(parsedMetadata.response.parameters) && parsedMetadata.response.parameters.length > 0) {
-             // Handle potential nested "response" wrapper
-             extractedParams = parsedMetadata.response.parameters;
-             parsedMetadata = parsedMetadata.response;
-          } else if (parsedMetadata?.openscad_code) {
-             // 2. Regex Fallback: AI generated code but failed JSON array
-             console.log("⚠️ AI missed parameters array. Auto-parsing from code...");
-             extractedParams = extractParametersFromCode(parsedMetadata.openscad_code);
-          } else if (aiResponse.content) {
-             // 3. Last Resort Fallback: Parse from raw raw content
-             console.log("⚠️ AI missed JSON entirely. Auto-parsing from raw content...");
-             extractedParams = extractParametersFromCode(aiResponse.content);
-          }
-          // ----------------------------------------
-          
-          console.log("4. Extracted Parameters Array:", extractedParams);
-          console.log("5. Extracted Code Length:", parsedMetadata?.openscad_code?.length || 0);
-          console.groupEnd();
-
-          const aiMsg: Message = {
-            id: aiResponse.id || `ai-${Date.now()}`,
-            role: "assistant",
-            content: parsedMetadata?.openscad_code
-               ? "✨ **Model Generated successfully!**\n\nI have created the OpenSCAD geometry and extracted the tunable parameters. Click the model card below to load it into your Editor."
-               : aiResponse.content,
-            timestamp: new Date(),
-            // Attach shapeData so FormattedContent renders a ModelCard immediately
-            shapeData: parsedMetadata?.openscad_code ? {
-              id: aiResponse.id || `shape-${Date.now()}`,
-              name: parsedMetadata.name || 'Generated Model',
-              scadCode: parsedMetadata.openscad_code,
-              type: 'generic',
-              description: '',
-              hasSimulation: false,
-              geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
-              createdAt: new Date(),
-            } as any : undefined,
-          };
-          addMessage(targetId, aiMsg);
-
-          // Handle the Structured JSON Output
-          if (parsedMetadata) {
-
-            // 1. Load OpenSCAD code into the Editor
-            if (parsedMetadata.openscad_code) {
-              useEditorStore.getState().setCode(parsedMetadata.openscad_code);
-              useEditorStore.getState().setOriginalCode(parsedMetadata.openscad_code);
-            }
-
-            // 2. Load extracted Tunable Parameters into the Editor state
-            if (extractedParams && Array.isArray(extractedParams) && extractedParams.length > 0) {
-              console.log("✅ SUCCESS! Saving parameters to store...", extractedParams);
-              useEditorStore.getState().setParameters(extractedParams);
-            } else {
-              console.warn("❌ FAIL: No parameters found to save!");
-            }
-
-            // Clear generating state on success
-            setGenerating(targetId, false);
-          } else {
-            setGenerating(targetId, false);
-          }
-        } else {
-          setGenerating(targetId, false);
+        if (wsSent) {
+          // WebSocket handles everything — events arrive via handleSocketEvent
+          // sendingRef and generating state are cleared in the openscad.done/error handlers
+          return;
         }
+
+        // Fallback: SSE streaming
+        console.warn('[useChat] WebSocket not available, falling back to SSE');
+        streamMsgIdRef.current = null;
+        streamChatIdRef.current = null;
+
+        const chatIdForStream = targetId;
+        let streamedContent = '';
+
+        await chatService.processRequirementsStream(
+          chatIdForStream,
+          messageContent,
+          (text: string) => {
+            streamedContent += text;
+            useChatStore.getState().updateMessage(chatIdForStream, streamMsgId, {
+              content: streamedContent,
+            });
+          },
+          (data: any) => {
+            const { openscad_code, parameters, model_type, message, id } = data;
+            useChatStore.getState().updateMessage(chatIdForStream, streamMsgId, {
+              id: id || streamMsgId,
+              content: openscad_code
+                ? "**Model Generated successfully!**\n\nClick the model card below to load it into your Editor."
+                : message || streamedContent,
+              shapeData: openscad_code ? {
+                id: id || `shape-${Date.now()}`,
+                name: model_type || 'Generated Model',
+                scadCode: openscad_code,
+                type: 'generic',
+                description: message || '',
+                hasSimulation: false,
+                geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+                createdAt: new Date(),
+              } as any : undefined,
+            });
+            if (openscad_code) {
+              useEditorStore.getState().setCode(openscad_code);
+              useEditorStore.getState().setOriginalCode(openscad_code);
+            }
+            if (parameters && Array.isArray(parameters) && parameters.length > 0) {
+              useEditorStore.getState().setParameters(parameters);
+            }
+          },
+          (error: string) => {
+            setError(error);
+          },
+          {
+            llm_provider: selectedProvider,
+            llm_model: selectedModel,
+            llm_thinking: selectedThinking,
+            images: imagePayload,
+          },
+        );
       } catch (err: any) {
-        console.error('[useChat] ❌ sendMessage failed:');
-        console.error('  status :', err?.response?.status);
-        console.error('  data   :', err?.response?.data);
-        console.error('  message:', err?.message);
-        console.error('  full   :', err);
+        console.error('[useChat] sendMessage failed:', err?.message);
         const errorMessage =
           err instanceof Error ? err.message : "Failed to send message";
         setError(errorMessage);
-        
-        if (targetId) setGenerating(targetId, false); // Fixes hanging loading on error
       } finally {
-        sendingRef.current = false;
+        // Only clean up if not using WebSocket (WS cleans up in event handlers)
+        if (!streamMsgIdRef.current) {
+          if (targetId) setGenerating(targetId, false);
+          sendingRef.current = false;
+        }
       }
     },
-    [chatId, setGenerating, addMessage]
+    [chatId, setGenerating, addMessage, wsConnected, sendWs]
   );
 
   const sendSystemMessage = useCallback(

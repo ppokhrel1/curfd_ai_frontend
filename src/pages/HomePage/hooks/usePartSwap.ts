@@ -46,9 +46,13 @@ export const usePartSwap = ({
 
         // 2. Parse geometry
         const importer = new ModelImporter();
+        // Ensure filename has .stl extension so the loader picks the right parser
+        const swapFilename = asset.asset_type === 'openscad_part'
+          ? `${asset.name || 'part'}.stl`
+          : (asset.name || 'New Part');
         const newObject = await importer.loadSingleAsset(
           localUrl,
-          asset.name || 'New Part'
+          swapFilename
         );
 
         // 3. Find target part
@@ -56,9 +60,12 @@ export const usePartSwap = ({
         let targetParent: THREE.Object3D | null = null;
 
         loadedModel.traverse((child) => {
-          if (child.uuid === partId && (child as THREE.Mesh).isMesh) {
-            targetMesh = child as THREE.Mesh;
-            targetParent = child.parent;
+          if ((child as THREE.Mesh).isMesh) {
+            // Match by uuid OR by name (part IDs use child.name when available)
+            if (child.uuid === partId || child.name === partId) {
+              targetMesh = child as THREE.Mesh;
+              targetParent = child.parent;
+            }
           }
         });
 

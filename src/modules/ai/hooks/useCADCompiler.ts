@@ -89,5 +89,48 @@ export const useCADCompiler = (onShapeGenerated?: (shape: GeneratedShape | null)
     }
   }, [code, setCompiling, onShapeGenerated]);
 
-  return { compile };
+  const exportStep = useCallback(async () => {
+    if (!code.trim()) return;
+
+    setCompiling(true);
+    const toastId = toast.loading('Exporting STEP...');
+
+    try {
+      let input_format = 'openscad-3d';
+      const lowerCaseCode = code.toLowerCase();
+      if (lowerCaseCode.includes('import cadquery') || lowerCaseCode.includes('from cadquery')) {
+        input_format = 'cadquery';
+      }
+
+      const taskId = await cadService.exportAsStep(code, input_format);
+
+      cadService.connectToTask(taskId, input_format, async (filename) => {
+        try {
+          const { blob } = await cadService.downloadAndCreateBlob(filename, input_format);
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'model.step';
+          link.click();
+          URL.revokeObjectURL(url);
+          toast.success('STEP file downloaded!', { id: toastId });
+        } catch {
+          toast.error('Failed to download STEP file.', { id: toastId });
+        } finally {
+          setCompiling(false);
+        }
+      }, (error) => {
+        const displayError = typeof error === 'object' ? error.message : error;
+        toast.error(`STEP export failed: ${displayError}`, { id: toastId });
+        setCompiling(false);
+      });
+    } catch (e: any) {
+      const detail = e.response?.data?.detail;
+      const msg = Array.isArray(detail) ? detail[0].msg : detail || e.message;
+      toast.error(`STEP export error: ${msg}`, { id: toastId });
+      setCompiling(false);
+    }
+  }, [code, setCompiling]);
+
+  return { compile, exportStep };
 };

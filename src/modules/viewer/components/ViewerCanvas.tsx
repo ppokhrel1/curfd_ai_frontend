@@ -91,7 +91,9 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
         autoRotate={state.autoRotate}
         autoRotateSpeed={0.8}
         minDistance={0.1}
-        maxDistance={500}
+        maxDistance={1000}
+        enableZoom
+        zoomSpeed={1.2}
         makeDefault
       />
 
@@ -494,7 +496,10 @@ const ModelWithSelection: React.FC<{
           meshKey === selectedPart ||
           mesh.uuid === selectedPart
         );
-        const isHighlighted = highlightedParts.has(meshKey) || highlightedParts.has(mesh.uuid);
+        const isHidden = highlightedParts.has(meshKey) || highlightedParts.has(mesh.uuid);
+
+        // Toggle visibility — parts in highlightedParts set are hidden
+        mesh.visible = !isHidden;
 
         if (isSelected) {
           material.color.setHex(0x3b82f6);
@@ -502,12 +507,6 @@ const ModelWithSelection: React.FC<{
           material.emissiveIntensity = 0.6;
           material.metalness = 0.7;
           material.roughness = 0.2;
-        } else if (isHighlighted) {
-          material.color.setHex(0x22c55e);
-          material.emissive.setHex(0x4ade80);
-          material.emissiveIntensity = 0.4;
-          material.metalness = 0.6;
-          material.roughness = 0.3;
         } else {
           if (mesh.userData.originalColor !== undefined) {
             material.color.setHex(mesh.userData.originalColor);

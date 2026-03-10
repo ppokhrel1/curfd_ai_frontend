@@ -84,7 +84,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLatest, onOpen
             : "bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-tl-sm"
         }`}>
           {isUser ? (
-            <span className="break-words whitespace-pre-wrap">{message.content}</span>
+            <div>
+              {message.imageUrls && message.imageUrls.length > 0 && (
+                <div className={`grid gap-1.5 mb-2 ${message.imageUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {message.imageUrls.map((url, i) => (
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`Attached ${i + 1}`}
+                      className="rounded-lg max-h-[150px] w-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => window.open(url, '_blank')}
+                    />
+                  ))}
+                </div>
+              )}
+              <span className="break-words whitespace-pre-wrap">{message.content}</span>
+            </div>
           ) : (
             <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} />
           )}

@@ -215,15 +215,15 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
                       }}
                       className={`p-1 rounded transition-colors ${
                         highlightedParts.has(part.id)
-                          ? "text-blue-400 bg-blue-500/20"
+                          ? "text-red-400 bg-red-500/20"
                           : "text-neutral-500 hover:text-neutral-300"
                       }`}
-                      title={highlightedParts.has(part.id) ? "Hide" : "Show"}
+                      title={highlightedParts.has(part.id) ? "Show" : "Hide"}
                     >
                       {highlightedParts.has(part.id) ? (
-                        <Eye className="w-3.5 h-3.5" />
-                      ) : (
                         <EyeOff className="w-3.5 h-3.5" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" />
                       )}
                     </button>
                   </div>

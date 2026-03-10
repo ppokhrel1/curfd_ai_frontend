@@ -241,6 +241,16 @@ export const useConversations = (): UseConversationsReturn => {
       return;
     }
 
+    // Skip sync if currently generating/streaming for this chat — the optimistic
+    // messages (user msg + stream placeholder) would be overwritten by the
+    // backend fetch which doesn't have the streaming content yet.
+    if (useChatStore.getState().generatingChatIds.has(activeConversationId)) {
+      console.log(
+        `[useConversations] Skipping message sync — generation in progress for ${activeConversationId}`
+      );
+      return;
+    }
+
     let isMounted = true;
     const syncMessages = async () => {
       fetchingMessagesRef.current.add(activeConversationId);
@@ -251,6 +261,14 @@ export const useConversations = (): UseConversationsReturn => {
         const history = await chatService.getHistory(activeConversationId);
 
         if (!isMounted) return;
+
+        // Double-check after await — generation might have started while fetching
+        if (useChatStore.getState().generatingChatIds.has(activeConversationId)) {
+          console.log(
+            `[useConversations] Skipping message update — generation started during fetch for ${activeConversationId}`
+          );
+          return;
+        }
 
         const validatedHistory = history.filter((msg) => {
           if (!msg || !msg.id || !msg.content) {
