@@ -112,6 +112,7 @@ describe('ChatInterface', () => {
     vi.mocked(useEditorStore).mockReturnValue({
       setCode: mockSetCode,
       setOriginalCode: mockSetOriginalCode,
+      requestCompile: vi.fn(),
     } as any);
     useEditorStore.getState = vi.fn().mockReturnValue({ setMode: mockSetMode });
   });
@@ -131,7 +132,7 @@ describe('ChatInterface', () => {
     test('renders empty state correctly', () => {
       renderComponent();
       expect(screen.getByText('Ready to Help')).toBeInTheDocument();
-      expect(screen.getByText('Generate 3D models')).toBeInTheDocument();
+      expect(screen.getByText('Describe a shape to generate')).toBeInTheDocument();
     });
 
     test('renders messages through MessageList', () => {
@@ -182,15 +183,15 @@ describe('ChatInterface', () => {
       expect(mockOnMinimize).toHaveBeenCalledWith(false);
     });
 
-    test('sending a message un-minimizes the chat', async () => {
-      renderComponent({ isMinimized: true, onMinimize: mockOnMinimize });
-      
-      const sendBtn = screen.getByText('Send');
+    test('sending a message via ref un-minimizes the chat', async () => {
+      const ref = React.createRef<any>();
+      renderComponent({ isMinimized: true, onMinimize: mockOnMinimize, ref });
+
       await act(async () => {
-        fireEvent.click(sendBtn);
+        ref.current.sendUserMessage('Test Message');
       });
 
-      expect(mockUseChat.sendMessage).toHaveBeenCalledWith('Test Message');
+      expect(mockUseChat.sendMessage).toHaveBeenCalledWith('Test Message', undefined);
       expect(mockOnMinimize).toHaveBeenCalledWith(false);
     });
   });
@@ -198,7 +199,7 @@ describe('ChatInterface', () => {
   describe('Conversation Management', () => {
     test('handles starting a new chat', () => {
       renderComponent();
-      const newChatBtn = screen.getByTitle('New Session');
+      const newChatBtn = screen.getByTitle('New Chat');
       fireEvent.click(newChatBtn);
       
       expect(mockUseConversations.setActiveConversation).toHaveBeenCalledWith(null);
@@ -325,7 +326,7 @@ describe('ChatInterface', () => {
         ref.current.sendUserMessage('Hello via ref');
       });
 
-      expect(mockUseChat.sendMessage).toHaveBeenCalledWith('Hello via ref');
+      expect(mockUseChat.sendMessage).toHaveBeenCalledWith('Hello via ref', undefined);
     });
 
   });

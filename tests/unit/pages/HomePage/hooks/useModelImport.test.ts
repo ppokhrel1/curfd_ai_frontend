@@ -170,7 +170,7 @@ describe("useModelImport", () => {
       await result.current.handleFileImport(event);
     });
 
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining(".zip folder"));
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining(".zip or .step/.stp file"));
     expect(mockImportZip).not.toHaveBeenCalled();
     expect(result.current.isImporting).toBe(false);
   });

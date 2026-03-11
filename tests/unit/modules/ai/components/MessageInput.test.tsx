@@ -3,11 +3,17 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock icons to avoid rendering issues
+// Mock icons
 vi.mock("lucide-react", () => ({
-  Paperclip: () => <div data-testid="icon-paperclip" />,
   Send: () => <div data-testid="icon-send" />,
   Sparkles: () => <div data-testid="icon-sparkles" />,
+  ImagePlus: () => <div data-testid="icon-imageplus" />,
+  X: () => <div data-testid="icon-x" />,
+}));
+
+// Mock ModelSelector
+vi.mock("@/modules/ai/components/ModelSelector", () => ({
+  ModelSelector: () => <div data-testid="model-selector" />,
 }));
 
 describe("MessageInput", () => {
@@ -22,15 +28,15 @@ describe("MessageInput", () => {
 
     // Check input presence
     expect(
-      screen.getByPlaceholderText(/Ask about CFD simulations/i)
+      screen.getByPlaceholderText(/Describe a shape/i)
     ).toBeInTheDocument();
 
     // Check buttons
-    expect(screen.getByTitle("Attach file")).toBeInTheDocument();
-    expect(screen.getByText("Send")).toBeInTheDocument();
+    expect(screen.getByTitle("Attach image")).toBeInTheDocument();
+    expect(screen.getByTitle("Send (Enter)")).toBeInTheDocument();
 
     // Send button should be disabled initially (empty input)
-    expect(screen.getByText("Send").closest("button")).toBeDisabled();
+    expect(screen.getByTitle("Send (Enter)")).toBeDisabled();
   });
 
 
@@ -38,15 +44,15 @@ describe("MessageInput", () => {
     const user = userEvent.setup();
     render(<MessageInput onSendMessage={mockOnSendMessage} />);
 
-    const textarea = screen.getByPlaceholderText(/Ask about CFD simulations/i);
+    const textarea = screen.getByPlaceholderText(/Describe a shape/i);
     await user.type(textarea, "Test message");
 
-    const sendBtn = screen.getByText("Send").closest("button");
+    const sendBtn = screen.getByTitle("Send (Enter)");
     expect(sendBtn).toBeEnabled();
 
-    await user.click(sendBtn!);
+    await user.click(sendBtn);
 
-    expect(mockOnSendMessage).toHaveBeenCalledWith("Test message");
+    expect(mockOnSendMessage).toHaveBeenCalledWith("Test message", undefined);
     expect(mockOnSendMessage).toHaveBeenCalledTimes(1);
     expect(textarea).toHaveValue(""); // Should reset
   });
@@ -55,12 +61,11 @@ describe("MessageInput", () => {
     const user = userEvent.setup();
     render(<MessageInput onSendMessage={mockOnSendMessage} />);
 
-    const textarea = screen.getByPlaceholderText(/Ask about CFD simulations/i);
-    
-    // user.type handles key events automatically
+    const textarea = screen.getByPlaceholderText(/Describe a shape/i);
+
     await user.type(textarea, "Enter submission{enter}");
 
-    expect(mockOnSendMessage).toHaveBeenCalledWith("Enter submission");
+    expect(mockOnSendMessage).toHaveBeenCalledWith("Enter submission", undefined);
     expect(textarea).toHaveValue("");
   });
 
@@ -68,9 +73,8 @@ describe("MessageInput", () => {
     const user = userEvent.setup();
     render(<MessageInput onSendMessage={mockOnSendMessage} />);
 
-    const textarea = screen.getByPlaceholderText(/Ask about CFD simulations/i);
-    
-    // Simulate typing "Line 1", Shift+Enter, "Line 2"
+    const textarea = screen.getByPlaceholderText(/Describe a shape/i);
+
     await user.type(textarea, "Line 1{Shift>}{Enter}{/Shift}Line 2");
 
     expect(mockOnSendMessage).not.toHaveBeenCalled();
@@ -81,11 +85,11 @@ describe("MessageInput", () => {
     const user = userEvent.setup();
     render(<MessageInput onSendMessage={mockOnSendMessage} />);
 
-    const textarea = screen.getByPlaceholderText(/Ask about CFD simulations/i);
-    
+    const textarea = screen.getByPlaceholderText(/Describe a shape/i);
+
     await user.type(textarea, "   ");
 
-    const sendBtn = screen.getByText("Send").closest("button");
+    const sendBtn = screen.getByTitle("Send (Enter)");
     expect(sendBtn).toBeDisabled();
 
     // Try pressing enter
@@ -96,9 +100,9 @@ describe("MessageInput", () => {
   it("handles disabled state correctly", () => {
     render(<MessageInput onSendMessage={mockOnSendMessage} disabled={true} />);
 
-    const textarea = screen.getByPlaceholderText(/Ask about CFD simulations/i);
-    const attachBtn = screen.getByTitle("Attach file");
-    const sendBtn = screen.getByText("Send").closest("button");
+    const textarea = screen.getByPlaceholderText(/Describe a shape/i);
+    const attachBtn = screen.getByTitle("Attach image");
+    const sendBtn = screen.getByTitle("Send (Enter)");
 
     expect(textarea).toBeDisabled();
     expect(attachBtn).toBeDisabled();
@@ -109,13 +113,13 @@ describe("MessageInput", () => {
     const { rerender } = render(
       <MessageInput onSendMessage={mockOnSendMessage} disabled={true} />
     );
-    const textarea = screen.getByPlaceholderText(/Ask about CFD simulations/i);
+    const textarea = screen.getByPlaceholderText(/Describe a shape/i);
 
     expect(textarea).not.toHaveFocus();
 
     // Rerender enabled
     rerender(<MessageInput onSendMessage={mockOnSendMessage} disabled={false} />);
-    
+
     expect(textarea).toHaveFocus();
   });
 

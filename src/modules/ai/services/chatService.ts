@@ -313,6 +313,22 @@ class ChatService {
     }
   }
 
+  async getInit(): Promise<{
+    sessions: SessionResponse[];
+    chats: ChatResponse[];
+  }> {
+    try {
+      const response = await api.get<{
+        sessions: SessionResponse[];
+        chats: ChatResponse[];
+      }>("/init");
+      return response.data;
+    } catch (error) {
+      console.error("[ChatService] Failed to get init data:", error);
+      return { sessions: [], chats: [] };
+    }
+  }
+
   async getSessions(): Promise<SessionResponse[]> {
     try {
       const response = await api.get<SessionResponse[]>("/sessions");
