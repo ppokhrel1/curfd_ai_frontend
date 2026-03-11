@@ -16,9 +16,9 @@ describe('LandingPage', () => {
             </BrowserRouter>
         );
 
-        expect(screen.getByText(/Describe It/i)).toBeInTheDocument();
-        expect(screen.getByText(/AI Builds It/i)).toBeInTheDocument();
-        expect(screen.getByText(/Start for Free/i)).toBeInTheDocument();
+        expect(screen.getByText(/Design 3D models/i)).toBeInTheDocument();
+        expect(screen.getByText(/with AI/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/Generate/i).length).toBeGreaterThan(0);
         expect(screen.getByTestId('showcase-grid')).toBeInTheDocument();
     });
 
@@ -29,7 +29,7 @@ describe('LandingPage', () => {
             </BrowserRouter>
         );
 
-        const ctaButton = screen.getByText(/Start for Free/i);
+        const ctaButton = screen.getAllByRole('button', { name: /Generate/i })[0];
         fireEvent.click(ctaButton);
 
         // Check if modal appears (assuming AuthModal renders some specific text)

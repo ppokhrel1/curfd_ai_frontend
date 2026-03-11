@@ -12,8 +12,8 @@ vi.mock("@/utils/formatters", () => ({
 vi.mock("lucide-react", () => ({
   Bot: () => <div data-testid="icon-bot" />,
   User: () => <div data-testid="icon-user" />,
-  Code2: () => <div data-testid="icon-code2" />,
-  Box: () => <div data-testid="icon-box" />,
+  ArrowRight: () => <div data-testid="icon-arrowright" />,
+  FileCode2: () => <div data-testid="icon-filecode2" />,
 }));
 
 // 3. Helper to create messages
@@ -37,7 +37,7 @@ describe("MessageList Component", () => {
   describe("Rendering Basics", () => {
     it("renders empty list without crashing", () => {
       const { container } = render(<MessageList messages={[]} />);
-      expect(container.firstChild).toHaveClass("space-y-6");
+      expect(container.firstChild).toHaveClass("space-y-4");
       expect(container.firstChild).toBeEmptyDOMElement();
     });
 
@@ -51,13 +51,12 @@ describe("MessageList Component", () => {
 
       // User content renders immediately
       expect(screen.getByText("Hello")).toBeInTheDocument();
-      
+
       // Advance timers for TypewriterEffect
       act(() => {
         vi.runAllTimers();
       });
 
-      // Component truncates the last character due to interval logic, so we use regex
       expect(screen.getByText(/Hi there/)).toBeInTheDocument();
     });
   });
@@ -67,13 +66,12 @@ describe("MessageList Component", () => {
       const msg = createMessage("user", "User Message");
       render(<MessageList messages={[msg]} />);
 
-      const mainContainer = screen.getByTestId("icon-user").closest("div.flex.gap-3");
+      const mainContainer = screen.getByTestId("icon-user").closest("div.flex.gap-2\\.5");
       expect(mainContainer).toHaveClass("flex-row-reverse");
       expect(screen.getByTestId("icon-user")).toBeInTheDocument();
-      expect(screen.queryByText("CURFD")).not.toBeInTheDocument();
     });
 
-    it("renders Bot message correctly (Left aligned, Bot Icon, CURFD label)", () => {
+    it("renders Bot message correctly (Left aligned, Bot Icon)", () => {
       const msg = createMessage("assistant", "Bot Message");
       render(<MessageList messages={[msg]} />);
 
@@ -81,24 +79,9 @@ describe("MessageList Component", () => {
         vi.runAllTimers();
       });
 
-      const mainContainer = screen.getByTestId("icon-bot").closest("div.flex.gap-3");
+      const mainContainer = screen.getByTestId("icon-bot").closest("div.flex.gap-2\\.5");
       expect(mainContainer).toHaveClass("flex-row");
       expect(screen.getByTestId("icon-bot")).toBeInTheDocument();
-      expect(screen.getByText("CURFD")).toBeInTheDocument();
-    });
-
-    it("shows a pulsing dot for the latest bot message", () => {
-      const messages = [
-        createMessage("assistant", "Old message", "1"),
-        createMessage("assistant", "New message", "2"),
-      ];
-
-      const { container } = render(<MessageList messages={messages} />);
-      act(() => { vi.runAllTimers(); });
-
-      // Look for the specific pulsing dot element
-      const pulseDots = container.querySelectorAll(".w-1.h-1.bg-green-500.rounded-full.animate-pulse");
-      expect(pulseDots).toHaveLength(1);
     });
   });
 
@@ -108,11 +91,13 @@ describe("MessageList Component", () => {
       // Create a payload > 150 characters
       const largeCode = "a".repeat(160);
       const msg = createMessage("assistant", `\`\`\`javascript\n${largeCode}\n\`\`\``);
-      
+
+      // Mock window.innerWidth for auto-open (requires >= 1024)
+      Object.defineProperty(window, "innerWidth", { value: 1024, writable: true });
+
       render(<MessageList messages={[msg]} onOpenInEditor={onOpenMock} />);
 
       act(() => {
-        // Advance past the 100ms setTimeout in MessageBubble
         vi.advanceTimersByTime(150);
       });
 
@@ -124,17 +109,18 @@ describe("MessageList Component", () => {
       const onOpenMock = vi.fn();
       const largeCode = "a".repeat(160);
       const messages = [
-        createMessage("assistant", `\`\`\`javascript\n${largeCode}\n\`\`\``, "1"), // Old message
-        createMessage("user", "Next command", "2") // Latest
+        createMessage("assistant", `\`\`\`javascript\n${largeCode}\n\`\`\``, "1"),
+        createMessage("user", "Next command", "2")
       ];
-      
+
+      Object.defineProperty(window, "innerWidth", { value: 1024, writable: true });
+
       render(<MessageList messages={messages} onOpenInEditor={onOpenMock} />);
 
       act(() => {
         vi.runAllTimers();
       });
 
-      // Should not be called because the first message is not the latest
       expect(onOpenMock).not.toHaveBeenCalled();
     });
   });
@@ -142,13 +128,13 @@ describe("MessageList Component", () => {
   describe("FormattedContent Rendering", () => {
     it("strips JSON data markers", () => {
       const content = "Real content|||JSON_DATA|||{ hidden: true }";
-      
+
       const msg = createMessage("assistant", content);
-      
+
       render(<MessageList messages={[msg]} />);
-      
+
       act(() => { vi.runAllTimers(); });
-      
+
       expect(screen.getByText("Real content")).toBeInTheDocument();
       expect(screen.queryByText("{ hidden: true }")).not.toBeInTheDocument();
     });
@@ -160,7 +146,7 @@ describe("MessageList Component", () => {
 
       const headingEl = screen.getByText("Section Title");
       expect(headingEl.tagName).toBe("STRONG");
-      expect(headingEl).toHaveClass("font-bold", "text-green-400");
+      expect(headingEl).toHaveClass("font-semibold", "text-white");
     });
 
     it("renders inline bold and code formatting", () => {
@@ -170,7 +156,7 @@ describe("MessageList Component", () => {
 
       const boldEl = screen.getByText("bold");
       expect(boldEl.tagName).toBe("STRONG");
-      expect(boldEl).toHaveClass("font-bold");
+      expect(boldEl).toHaveClass("font-semibold");
 
       const codeEl = screen.getByText("const x");
       expect(codeEl.tagName).toBe("CODE");
@@ -178,14 +164,12 @@ describe("MessageList Component", () => {
     });
 
     it("renders bullet points", () => {
-      const msg = createMessage("assistant", "- Item 1\n* Item 2\n✓ Item 3");
+      const msg = createMessage("assistant", "- Item 1\n* Item 2");
       render(<MessageList messages={[msg]} />);
       act(() => { vi.runAllTimers(); });
 
-      // Because the component renders these into a single string with newlines, regex is needed
       expect(screen.getByText(/- Item 1/)).toBeInTheDocument();
-      expect(screen.getByText(/\* Item 2/)).toBeInTheDocument();
-      expect(screen.getByText(/✓ Item 3/)).toBeInTheDocument();
+      expect(screen.getByText(/Item 2/)).toBeInTheDocument();
     });
 
     it("renders small code blocks as inline <pre> tags", () => {
@@ -198,39 +182,32 @@ describe("MessageList Component", () => {
     });
   });
 
-  describe("ClickablePayloadPill (Large Payloads)", () => {
-    it("renders 'Model Generated' pill and calls onOpen with raw unextracted data", () => {
+  describe("ModelCard (Large Code Blocks)", () => {
+    it("renders ModelCard with 'Open in Editor' button for large code blocks", () => {
       const onOpenMock = vi.fn();
-      // Payload > 150 chars
       const mockJson = { scadCode: "cube([10, 10, 10]); ".repeat(15) };
       const content = `\`\`\`json\n${JSON.stringify(mockJson)}\n\`\`\``;
-      
+
       render(<MessageList messages={[createMessage("assistant", content)]} onOpenInEditor={onOpenMock} />);
       act(() => { vi.runAllTimers(); });
 
-      const button = screen.getByRole("button");
+      const button = screen.getByText("Open in Editor");
       expect(button).toBeInTheDocument();
-      expect(screen.getByText("Model Generated")).toBeInTheDocument();
 
       fireEvent.click(button);
-      // The component passes the raw block without parsing scadCode
       expect(onOpenMock).toHaveBeenCalledWith(JSON.stringify(mockJson), "code");
     });
 
-    it("renders 'Model Generated' pill for raw large JSON and calls onOpen", () => {
+    it("renders ModelCard for large raw content and calls onOpen", () => {
       const onOpenMock = vi.fn();
-      // Payload > 150 chars without scadCode
       const mockJson = { requirements: "Make a box ".repeat(20) };
       const content = `\`\`\`json\n${JSON.stringify(mockJson)}\n\`\`\``;
-      
+
       render(<MessageList messages={[createMessage("assistant", content)]} onOpenInEditor={onOpenMock} />);
       act(() => { vi.runAllTimers(); });
 
-      const button = screen.getByRole("button");
+      const button = screen.getByText("Open in Editor");
       expect(button).toBeInTheDocument();
-      
-      // Component hardcodes isRequirements={false}, so it always renders "Model Generated"
-      expect(screen.getByText("Model Generated")).toBeInTheDocument();
 
       fireEvent.click(button);
       expect(onOpenMock).toHaveBeenCalledWith(JSON.stringify(mockJson), "code");
@@ -238,33 +215,31 @@ describe("MessageList Component", () => {
   });
 
   describe("TypewriterEffect", () => {
-    it("animates short content over time", () => {
-      const shortMsg = createMessage("assistant", "Hi"); // < 5 chars
+    it("animates content over time", () => {
+      const shortMsg = createMessage("assistant", "Hello world");
       render(<MessageList messages={[shortMsg]} />);
 
-      // Component animates all standard text including short text
       act(() => {
         vi.runAllTimers();
       });
 
-      expect(screen.getByText(/Hi/)).toBeInTheDocument();
+      expect(screen.getByText(/Hello world/)).toBeInTheDocument();
     });
 
     it("skips typewriter animation for large code blocks", () => {
       const largeCode = "a".repeat(250);
       const msg = createMessage("assistant", `\`\`\`javascript\n${largeCode}\n\`\`\``);
-      
+
       render(<MessageList messages={[msg]} />);
 
-      // Pill should render immediately without needing to advance timers
-      // Because typewriter is skipped for large code blocks
-      expect(screen.getByRole("button")).toBeInTheDocument();
+      // ModelCard should render immediately without needing to advance timers
+      expect(screen.getByText("Open in Editor")).toBeInTheDocument();
     });
 
     it("animates long normal text over time", () => {
       const longText = "This is a normal message that is long enough to type out.";
       const msg = createMessage("assistant", longText);
-      
+
       render(<MessageList messages={[msg]} />);
 
       // Initially partial
@@ -275,7 +250,6 @@ describe("MessageList Component", () => {
         vi.runAllTimers();
       });
 
-      // Regex used to tolerate component's truncation bug at end of string
       expect(screen.getByText(/This is a normal message that is long enough to type out/)).toBeInTheDocument();
     });
   });

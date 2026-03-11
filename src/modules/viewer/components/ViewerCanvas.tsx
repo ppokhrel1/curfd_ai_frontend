@@ -90,8 +90,8 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
         dampingFactor={0.05}
         autoRotate={state.autoRotate}
         autoRotateSpeed={0.8}
-        minDistance={0.1}
-        maxDistance={1000}
+        minDistance={0.01}
+        maxDistance={100000}
         enableZoom
         zoomSpeed={1.2}
         makeDefault
@@ -371,10 +371,16 @@ const AutoFit: React.FC<{ camera: boolean; object: THREE.Object3D | null }> = ({
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
 
-    // Fit camera logic
+    // Fit camera distance based on model size
     const fov = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180);
     let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-    cameraZ *= 5.0;
+    cameraZ *= 3.0;
+
+    // Update camera clipping planes to accommodate model size
+    const perspCamera = camera as THREE.PerspectiveCamera;
+    perspCamera.near = Math.max(0.01, maxDim * 0.001);
+    perspCamera.far = Math.max(10000, maxDim * 100);
+    perspCamera.updateProjectionMatrix();
 
     camera.position.set(
       center.x + cameraZ * 0.8,
@@ -384,8 +390,10 @@ const AutoFit: React.FC<{ camera: boolean; object: THREE.Object3D | null }> = ({
     camera.lookAt(center);
 
     if (controls) {
-      (controls as any).target.copy(center);
-      (controls as any).update();
+      const orbitControls = controls as any;
+      orbitControls.target.copy(center);
+      orbitControls.maxDistance = Math.max(10000, maxDim * 50);
+      orbitControls.update();
     }
   }, [object, camera, controls]);
 

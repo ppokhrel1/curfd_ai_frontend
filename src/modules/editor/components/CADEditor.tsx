@@ -64,6 +64,7 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
   const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || "";
   const chatId = useChatStore(state => state.activeConversationId) || "";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lineNumbersRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
   const [lineCount, setLineCount] = useState(1);
   const [compilePending, setCompilePending] = useState(false);
@@ -324,8 +325,11 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
 
       {/* ── Editor Body ── */}
       <div className="flex-1 relative flex overflow-hidden font-mono group">
-        {/* Line numbers */}
-        <div className="flex-shrink-0 w-9 bg-neutral-900/20 border-r border-neutral-800/40 py-4 text-right pr-2 select-none text-neutral-700 text-[11px] leading-6">
+        {/* Line numbers — scroll synced with textarea */}
+        <div
+          ref={lineNumbersRef}
+          className="flex-shrink-0 w-9 bg-neutral-900/20 border-r border-neutral-800/40 py-4 text-right pr-2 select-none text-neutral-700 text-[11px] leading-6 overflow-hidden"
+        >
           {Array.from({ length: lineCount }).map((_, i) => (
             <div key={i}>{i + 1}</div>
           ))}
@@ -336,6 +340,11 @@ export const CADEditor: React.FC<CADEditorProps> = ({ className = "", onBuildCom
           value={code}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={handleKeyDown}
+          onScroll={() => {
+            if (textareaRef.current && lineNumbersRef.current) {
+              lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+            }
+          }}
           spellCheck={false}
           readOnly={!useAuthStore.getState().user}
           className="flex-1 bg-transparent py-4 px-3 outline-none resize-none text-neutral-300 text-[13px] leading-6 caret-blue-400 scrollbar-thin scrollbar-thumb-neutral-800 selection:bg-blue-500/20"

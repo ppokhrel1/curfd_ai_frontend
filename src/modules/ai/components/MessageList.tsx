@@ -132,9 +132,9 @@ const TypewriterContent: React.FC<{
     }
     let i = 0;
     const iv = setInterval(() => {
-      setDisplayed(clean.slice(0, i));
       i += 3;
-      if (i > clean.length) { clearInterval(iv); setDone(true); }
+      setDisplayed(clean.slice(0, i));
+      if (i >= clean.length) { clearInterval(iv); setDone(true); }
     }, 8);
     return () => clearInterval(iv);
   }, [message.content, message.shapeData]);

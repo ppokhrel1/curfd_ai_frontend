@@ -121,10 +121,11 @@ export const useConversations = (): UseConversationsReturn => {
         setLoadError(null);
 
         try {
-          const sessions = await chatService.getSessions();
+          const { sessions, chats: allBackendChats } =
+            await chatService.getInit();
 
           console.log(
-            `[useConversations] Fetching chats for ${sessions.length} sessions...`
+            `[useConversations] Init: ${sessions.length} sessions, ${allBackendChats.length} chats`
           );
 
           // If the backend returned no sessions (e.g. fresh local DB), keep the
@@ -135,29 +136,6 @@ export const useConversations = (): UseConversationsReturn => {
             );
             return;
           }
-
-          const chatPromises = sessions.map(async (session) => {
-            if (!session || !session.id) {
-              console.warn(
-                "[useConversations] Invalid session returned from backend:",
-                session
-              );
-              return [];
-            }
-
-            try {
-              return await chatService.getChats(session.id);
-            } catch (err) {
-              console.warn(
-                `[useConversations] Failed to load chats for session ${session.id}`,
-                err
-              );
-              return [];
-            }
-          });
-
-          const chatsArrays = await Promise.all(chatPromises);
-          const allBackendChats = chatsArrays.flat();
 
           const allConversations: Conversation[] = allBackendChats
             .filter((chat) => {
