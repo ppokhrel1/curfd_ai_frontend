@@ -219,13 +219,18 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       if (rawData.length > 50) {
         // Mark as processed so it doesn't run again on reload
         lastProcessedMessageId.current = latestMsg.id;
-        
+
         setCode(rawData);
         setOriginalCode(rawData);
 
         const editorStore = useEditorStore.getState() as any;
         if (editorStore.setMode) {
           editorStore.setMode(isJson ? "requirements" : "code");
+        }
+
+        // Trigger STL compilation when code is auto-loaded (not for JSON requirements)
+        if (!isJson) {
+          requestCompile();
         }
 
         if (autoOpenedMessageId.current !== latestMsg.id) {
@@ -236,7 +241,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
           }
         }
       }
-    }, [displayMessages, setCode, setOriginalCode, setActiveView, setMobilePanel]);
+    }, [displayMessages, setCode, setOriginalCode, setActiveView, setMobilePanel, requestCompile]);
 
     useEffect(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -66,6 +66,7 @@ describe('ChatInterface', () => {
   const mockSetCode = vi.fn();
   const mockSetOriginalCode = vi.fn();
   const mockSetMode = vi.fn();
+  let mockRequestCompile = vi.fn();
   
   const mockUseChat = {
     isLoading: false,
@@ -109,10 +110,11 @@ describe('ChatInterface', () => {
     vi.mocked(useChatStore).mockReturnValue(mockUseChatStore as any);
     
     // Mock standard return + getState for the editorStore
+    mockRequestCompile = vi.fn();
     vi.mocked(useEditorStore).mockReturnValue({
       setCode: mockSetCode,
       setOriginalCode: mockSetOriginalCode,
-      requestCompile: vi.fn(),
+      requestCompile: mockRequestCompile,
     } as any);
     useEditorStore.getState = vi.fn().mockReturnValue({ setMode: mockSetMode });
   });
@@ -271,9 +273,9 @@ describe('ChatInterface', () => {
       expect(mockSetMobilePanel).toHaveBeenCalledWith('editor');
     });
 
-    test('auto-loads valid code block from the latest assistant message', () => {
+    test('auto-loads valid code block from the latest assistant message and triggers compile', () => {
       // Must be > 50 characters to trigger the auto-load logic
-      const longCode = "a".repeat(60); 
+      const longCode = "a".repeat(60);
       const assistantMessage = `Here is your code:\n\`\`\`javascript\n${longCode}\n\`\`\``;
 
       vi.mocked(useConversations).mockReturnValue({
@@ -292,6 +294,8 @@ describe('ChatInterface', () => {
       expect(mockSetCode).toHaveBeenCalledWith(longCode);
       expect(mockSetMode).toHaveBeenCalledWith('code');
       expect(mockSetActiveView).toHaveBeenCalledWith('editor');
+      // Should trigger STL compilation
+      expect(mockRequestCompile).toHaveBeenCalled();
     });
 
     test('auto-loads pure JSON without markdown from latest assistant message', () => {
