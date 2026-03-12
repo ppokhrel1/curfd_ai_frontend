@@ -22,15 +22,16 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'code' | 'parameters'>('code');
 
-  const { parameters } = useEditorStore();
+  const { parameters, compileRequested } = useEditorStore();
   const hasParameters = parameters && parameters.length > 0;
 
   // Auto-switch TO parameters as soon as they arrive (e.g. after AI generation)
+  // BUT skip when a compile is pending — keep Code tab so CADEditor can handle it
   useEffect(() => {
-    if (hasParameters) {
+    if (hasParameters && !compileRequested) {
       setActiveTab('parameters');
     }
-  }, [hasParameters]);
+  }, [hasParameters, compileRequested]);
 
   // Auto-switch back to code if parameters are cleared
   useEffect(() => {
