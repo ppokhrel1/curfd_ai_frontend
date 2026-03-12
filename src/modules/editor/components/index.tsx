@@ -79,25 +79,21 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
 
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content Area — both panels stay mounted to prevent unmount mid-compile */}
       <div className="flex-1 overflow-hidden relative">
-        {activeTab === 'code' ? (
+        <div className={`h-full ${activeTab === 'code' ? '' : 'hidden'}`}>
           <CADEditor
             onBuildComplete={onBuildComplete}
             onGenerateShape={onGenerateShape}
             className="border-r-0"
           />
-        ) : (
-          <div className="h-full bg-neutral-950 flex flex-col">
-            {/* Pass the chatId and token to the panel so it can manage its own API calls 
-              via Server-Sent Events without muddying up the EditorContainer.
-            */}
-            <OptimizationPanel 
-              onBuildComplete={onBuildComplete} 
-              onSwitchToCode={() => setActiveTab('code')} 
-            />
-          </div>
-        )}
+        </div>
+        <div className={`h-full bg-neutral-950 flex flex-col ${activeTab === 'parameters' ? '' : 'hidden'}`}>
+          <OptimizationPanel
+            onBuildComplete={onBuildComplete}
+            onSwitchToCode={() => setActiveTab('code')}
+          />
+        </div>
       </div>
     </div>
   );
