@@ -3,8 +3,8 @@ import { Card, CardContent } from "@/components/common/Card";
 import { useAuthStore } from "@/lib/auth";
 import { ROUTES } from "@/lib/constants";
 import { validateEmail } from "@/utils/validators";
-import { Github, Globe, Lock, Mail, Zap } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { Globe, Lock, Mail, Zap } from "lucide-react";
+import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const SignInPage = () => {
@@ -138,7 +138,7 @@ const SignInPage = () => {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6">
               <button
                 type="button"
                 onClick={() => handleSocialLogin("google")}
@@ -146,14 +146,6 @@ const SignInPage = () => {
               >
                 <Globe className="w-5 h-5" />
                 Google
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSocialLogin("github")}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
-              >
-                <Github className="w-5 h-5" />
-                GitHub
               </button>
             </div>
           </div>

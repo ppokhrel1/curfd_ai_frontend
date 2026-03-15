@@ -6,6 +6,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { FullPageLoader } from "@/components/common/Loader";
 import LandingPage from "@/pages/LandingPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import HomePage from "./pages/HomePage";
 
 const AutoRoute = () => {
@@ -70,6 +71,7 @@ function App() {
           <Route path="/" element={<AutoRoute />} />
 
           <Route path="/landing" element={<LandingPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
           <Route
             path="/home"

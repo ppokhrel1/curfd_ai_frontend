@@ -1,5 +1,5 @@
 import { useAuthStore } from "@/lib/auth";
-import { Github, Lock, Mail, User, X } from "lucide-react";
+import { Lock, Mail, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -143,14 +143,6 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
           >
             <GoogleIcon className="w-4 h-4" />
             Continue with Google
-          </button>
-          <button
-            onClick={() => handleProviderAuth("github")}
-            disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2.5 py-2.5 bg-[#24292e] text-white hover:bg-[#2f363d] rounded-xl font-semibold text-xs transition-all duration-200 border border-neutral-700/50 disabled:opacity-50 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 active:translate-y-0"
-          >
-            <Github className="w-4 h-4" />
-            Continue with GitHub
           </button>
         </div>
 
