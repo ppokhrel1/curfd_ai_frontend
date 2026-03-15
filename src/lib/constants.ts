@@ -10,6 +10,7 @@ export const ROUTES = {
   SIGNIN: '/signin',
   SIGNUP: '/signup',
   HOME: '/home',
+  AUTH_CALLBACK: '/auth/callback',
   CHAT: '/chat',
   VIEWER: '/viewer',
   SIMULATION: '/simulation',
