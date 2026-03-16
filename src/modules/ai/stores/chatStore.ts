@@ -59,8 +59,8 @@ export const useChatStore = create<ChatState>()(
             generatingChatActions: {},
             jobHistory: {},
             currentUserId: null,
-            selectedProvider: "anthropic",
-            selectedModel: "claude-sonnet-4-20250514",
+            selectedProvider: "groq",
+            selectedModel: "llama-3.3-70b-versatile",
             selectedThinking: false,
 
             setConversations: (newConversations) => set((state) => ({

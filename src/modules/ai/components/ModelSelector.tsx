@@ -10,10 +10,10 @@ export interface ModelOption {
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [
+  { provider: "groq", model: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Groq)", thinking: false },
   { provider: "anthropic", model: "claude-sonnet-4-20250514", label: "Sonnet 4", thinking: false },
   { provider: "anthropic", model: "claude-haiku-4-5-20251001", label: "Haiku 4.5", thinking: false },
   { provider: "gemini", model: "gemini-2.5-flash", label: "Gemini 2.5 Flash", thinking: false },
-  { provider: "groq", model: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Groq)", thinking: false },
   // Premium (Thinking) models
   { provider: "anthropic", model: "claude-opus-4-6", label: "Opus 4.6 (Thinking)", thinking: true },
   { provider: "anthropic", model: "claude-sonnet-4-20250514", label: "Sonnet 4 (Thinking)", thinking: true },
