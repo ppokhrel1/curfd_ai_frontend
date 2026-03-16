@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useEditorStore } from '../stores/editorStore';
-import { Zap, Settings2 } from 'lucide-react';
+import { Zap } from 'lucide-react';
 
 interface Bound {
   min: number;
@@ -13,13 +13,11 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
   const [bounds, setBounds] = useState<Record<string, Bound>>({});
   const [selectedParams, setSelectedParams] = useState<Set<string>>(new Set());
 
-  // Derive running state: any job that is still in-flight
   const isOptimizationRunning = useMemo(
     () => optimizationJobs.some(j => j.status === 'Pending' || j.status === 'Processing'),
     [optimizationJobs]
   );
 
-  // Initialize bounds and selections when parameters change
   useEffect(() => {
     if (parameters) {
       const initialBounds: Record<string, Bound> = {};
@@ -31,7 +29,6 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
         newNames.add(p.name);
       });
       setBounds(prev => ({ ...prev, ...initialBounds }));
-      // Select all new params by default; keep existing selections stable
       setSelectedParams(prev => {
         const next = new Set(prev);
         newNames.forEach(n => { if (!prev.has(n)) next.add(n); });
@@ -43,7 +40,7 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
 
   if (!parameters || parameters.length === 0) {
     return (
-      <div className="p-4 text-xs text-neutral-500 italic text-center border-b border-neutral-800">
+      <div className="p-3 text-xs text-neutral-500 italic text-center">
         No tunable parameters found in code.
       </div>
     );
@@ -51,10 +48,13 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
 
   const handleSliderChange = (paramName: string, newValue: number) => {
     setLocalValues(prev => ({ ...prev, [paramName]: newValue }));
-    
-    // Live update the code in the editor
     const updatedCode = code.replace(new RegExp(`(${paramName}\\s*=\\s*)[-0-9.]+;`), `$1${newValue};`);
     setCode(updatedCode);
+  };
+
+  const handleValueInput = (paramName: string, rawValue: string) => {
+    const val = parseFloat(rawValue);
+    if (!isNaN(val)) handleSliderChange(paramName, val);
   };
 
   const handleBoundChange = (paramName: string, type: 'min' | 'max', value: number) => {
@@ -87,53 +87,47 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
   const canOptimize = !isOptimizationRunning && parameters.some(p => selectedParams.has(p.name));
 
   return (
-    <div className="bg-neutral-900 border-b border-neutral-800 p-4 shrink-0">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Settings2 className="w-4 h-4 text-neutral-400" />
-          Parameters
-        </h3>
-        <button
-          onClick={handleOptimizeSubmit}
-          disabled={!canOptimize}
-          title={isOptimizationRunning ? "Wait for current optimization to finish" : ""}
-          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs px-3 py-1.5 rounded-md shadow-lg transition-colors"
-        >
-          <Zap className="w-3.5 h-3.5" />
-          {isOptimizationRunning ? "Running…" : "AI Optimize"}
-        </button>
-      </div>
-
-      <div className="space-y-4 max-h-64 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-neutral-700">
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Parameter list */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-700">
         {parameters.map((param) => {
           const currentMin = bounds[param.name]?.min ?? param.min_val;
           const currentMax = bounds[param.name]?.max ?? param.max_val;
           const currentVal = localValues[param.name] ?? param.default_val;
+          const isSelected = selectedParams.has(param.name);
 
           return (
-            <div key={param.name} className={`flex flex-col gap-2 p-3 rounded-lg border transition-colors ${selectedParams.has(param.name) ? 'bg-neutral-800/40 border-neutral-700' : 'bg-neutral-900/30 border-neutral-800/50 opacity-60'}`}>
-              <div className="flex justify-between items-center text-xs text-neutral-300">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={selectedParams.has(param.name)}
-                    onChange={() => toggleParam(param.name)}
-                    className="accent-purple-500 w-3.5 h-3.5 cursor-pointer"
-                  />
-                  <span className="font-mono font-bold text-blue-400">{param.name}</span>
-                </label>
-                <span className="font-mono bg-neutral-950 px-2 py-0.5 rounded border border-neutral-800">
-                  {currentVal.toFixed(2)}
+            <div
+              key={param.name}
+              className={`px-3 py-1.5 border-b border-neutral-800/40 transition-colors ${
+                !isSelected ? 'opacity-35' : 'hover:bg-neutral-800/20'
+              }`}
+            >
+              {/* Top: checkbox + name + editable value */}
+              <div className="flex items-center gap-1.5 mb-1">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleParam(param.name)}
+                  className="accent-purple-500 w-3 h-3 cursor-pointer flex-shrink-0"
+                />
+                <span className="font-mono text-[11px] text-blue-400 truncate flex-1 min-w-0">
+                  {param.name}
                 </span>
+                <input
+                  type="number"
+                  value={currentVal}
+                  onChange={(e) => handleValueInput(param.name, e.target.value)}
+                  className="w-14 font-mono text-[11px] text-right text-neutral-200 bg-neutral-800 border border-neutral-700 rounded px-1 py-0.5 focus:outline-none focus:border-purple-500 hide-arrows flex-shrink-0"
+                />
               </div>
-              
-              <div className="flex items-center gap-2">
-                <input 
-                  type="number" 
+              {/* Bottom: min — slider — max */}
+              <div className="flex items-center gap-1 pl-[18px]">
+                <input
+                  type="number"
                   value={currentMin}
                   onChange={(e) => handleBoundChange(param.name, 'min', parseFloat(e.target.value) || 0)}
-                  className="w-12 bg-neutral-950 text-xs text-center border border-neutral-700 rounded p-1 text-neutral-300 focus:outline-none focus:border-purple-500 hide-arrows"
-                  title="Search Space Minimum"
+                  className="w-9 bg-transparent text-[9px] text-neutral-500 text-center focus:outline-none focus:text-neutral-300 hide-arrows flex-shrink-0"
                 />
                 <input
                   type="range"
@@ -142,19 +136,31 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
                   step={(currentMax - currentMin) / 100 || 0.1}
                   value={currentVal}
                   onChange={(e) => handleSliderChange(param.name, parseFloat(e.target.value))}
-                  className="flex-1 accent-purple-500 h-1.5 bg-neutral-700 rounded-lg appearance-none cursor-pointer"
+                  className="flex-1 accent-purple-500 h-1 bg-neutral-700 rounded-full appearance-none cursor-pointer"
                 />
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={currentMax}
                   onChange={(e) => handleBoundChange(param.name, 'max', parseFloat(e.target.value) || 0)}
-                  className="w-12 bg-neutral-950 text-xs text-center border border-neutral-700 rounded p-1 text-neutral-300 focus:outline-none focus:border-purple-500 hide-arrows"
-                  title="Search Space Maximum"
+                  className="w-9 bg-transparent text-[9px] text-neutral-500 text-center focus:outline-none focus:text-neutral-300 hide-arrows flex-shrink-0"
                 />
               </div>
             </div>
           );
         })}
+      </div>
+
+      {/* Footer with optimize button */}
+      <div className="flex-shrink-0 px-3 py-2 border-t border-neutral-800 bg-neutral-950/60">
+        <button
+          onClick={handleOptimizeSubmit}
+          disabled={!canOptimize}
+          title={isOptimizationRunning ? "Wait for current optimization to finish" : ""}
+          className="w-full flex items-center justify-center gap-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-medium py-1.5 rounded transition-colors"
+        >
+          <Zap className="w-3 h-3" />
+          {isOptimizationRunning ? "Running…" : "AI Optimize"}
+        </button>
       </div>
     </div>
   );

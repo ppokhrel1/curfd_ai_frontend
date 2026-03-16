@@ -122,12 +122,11 @@ export const useActiveConversationSync = ({
       return;
     }
 
-    // C. LOOP BREAKER
+    // C. LOOP BREAKER — once we've synced a shape ID, don't re-process it
+    //    (prevents double compile when shape re-derives with new code availability)
     const currentCode = getCode(shape);
-    const isSameId = lastSyncedId.current === shape.id;
-    const isSameCode = lastSyncedCode.current === currentCode;
 
-    if (isSameId && (isSameCode || (!lastSyncedCode.current && !currentCode))) {
+    if (lastSyncedId.current === shape.id) {
       return;
     }
 
@@ -201,5 +200,5 @@ export const useActiveConversationSync = ({
     lastSyncedId.current = shape.id;
     lastSyncedCode.current = currentCode || null;
 
-  }, [activeConversationId, shape?.id, shape?.scadCode, messages.length, modelCache]);
+  }, [activeConversationId, shape?.id, shape?.scadCode, modelCache]);
 };

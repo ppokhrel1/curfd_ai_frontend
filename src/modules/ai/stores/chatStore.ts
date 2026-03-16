@@ -60,8 +60,8 @@ export const useChatStore = create<ChatState>()(
             jobHistory: {},
             currentUserId: null,
             selectedProvider: "anthropic",
-            selectedModel: "claude-opus-4-6",
-            selectedThinking: true,
+            selectedModel: "claude-sonnet-4-20250514",
+            selectedThinking: false,
 
             setConversations: (newConversations) => set((state) => ({
                 conversations: newConversations.map(nc => {
