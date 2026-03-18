@@ -1,5 +1,6 @@
 import { Send, Sparkles, ImagePlus, X } from "lucide-react";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { LanguageSelector } from "./LanguageSelector";
 import { ModelSelector } from "./ModelSelector";
 
 const MAX_IMAGES = 4;
@@ -90,6 +91,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     <div className="border-t border-neutral-800 bg-neutral-950/80 backdrop-blur-xl px-2.5 py-2.5">
       <div className="flex items-center mb-1.5 px-1">
         <ModelSelector />
+        <LanguageSelector />
       </div>
 
       {/* Image Previews */}

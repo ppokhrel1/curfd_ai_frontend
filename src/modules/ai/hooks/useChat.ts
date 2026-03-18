@@ -427,6 +427,7 @@ export const useChat = (
             llm_provider: provider,
             llm_model: model,
             llm_thinking: thinking,
+            code_language: useChatStore.getState().selectedLanguage,
           },
         });
 
@@ -484,6 +485,7 @@ export const useChat = (
             llm_provider: provider,
             llm_model: model,
             llm_thinking: thinking,
+            code_language: useChatStore.getState().selectedLanguage,
             images: imagePayload,
           },
         );
@@ -591,6 +593,7 @@ export const useChat = (
             llm_provider: provider,
             llm_model: model,
             llm_thinking: thinking,
+            code_language: useChatStore.getState().selectedLanguage,
           },
         });
 
@@ -640,6 +643,7 @@ export const useChat = (
             llm_provider: provider,
             llm_model: model,
             llm_thinking: thinking,
+            code_language: useChatStore.getState().selectedLanguage,
           },
         );
       } catch (err: any) {

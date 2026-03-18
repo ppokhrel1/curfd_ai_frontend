@@ -16,6 +16,7 @@ interface ChatState {
     selectedProvider: string;
     selectedModel: string;
     selectedThinking: boolean;
+    selectedLanguage: "openscad" | "cadquery";
 
     // Actions
     setConversations: (conversations: Conversation[]) => void;
@@ -30,6 +31,7 @@ interface ChatState {
     clearStore: () => void;
     setCurrentUserId: (userId: string | null) => void;
     setSelectedModel: (provider: string, model: string, thinking: boolean) => void;
+    setSelectedLanguage: (language: "openscad" | "cadquery") => void;
 }
 
 // Helper to get user-scoped storage key
@@ -62,6 +64,7 @@ export const useChatStore = create<ChatState>()(
             selectedProvider: "groq",
             selectedModel: "llama-3.3-70b-versatile",
             selectedThinking: false,
+            selectedLanguage: "openscad",
 
             setConversations: (newConversations) => set((state) => ({
                 conversations: newConversations.map(nc => {
@@ -168,6 +171,8 @@ export const useChatStore = create<ChatState>()(
                 selectedModel: model,
                 selectedThinking: thinking,
             }),
+
+            setSelectedLanguage: (language) => set({ selectedLanguage: language }),
         }),
         {
             name: getUserStorageKey(),
@@ -184,6 +189,7 @@ export const useChatStore = create<ChatState>()(
                 selectedProvider: state.selectedProvider,
                 selectedModel: state.selectedModel,
                 selectedThinking: state.selectedThinking,
+                selectedLanguage: state.selectedLanguage,
             }),
             onRehydrateStorage: (state) => {
                 return (rehydratedState) => {

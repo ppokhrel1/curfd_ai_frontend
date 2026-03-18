@@ -142,6 +142,7 @@ class ChatService {
       llm_provider?: string;
       llm_model?: string;
       llm_thinking?: boolean;
+      code_language?: string;
       images?: { data: string; media_type: string }[];
     },
   ): Promise<void> {
