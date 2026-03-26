@@ -2,11 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { CADEditor } from './CADEditor';
 import { Code2, SlidersHorizontal } from 'lucide-react';
 import { useEditorStore } from '../stores/editorStore';
-import { useChatStore } from '@/modules/ai/stores/chatStore';
-import { STORAGE_KEYS } from '@/lib/constants';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
-import { ParameterPanel } from './ParameterPanel';
-import { useOptimization } from './OptimizationPanel/hooks/useOptimization';
+import { OptimizationPanel } from './OptimizationPanel';
 
 export interface EditorContainerProps {
   className?: string;
@@ -25,17 +22,8 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'code' | 'parameters'>('code');
 
-  const { parameters, compileRequested, code } = useEditorStore();
+  const { parameters, compileRequested } = useEditorStore();
   const hasParameters = parameters && parameters.length > 0;
-
-  // Optimization hook — loads persisted jobs + provides startOptimization
-  const resolvedChatId = chatId || useChatStore.getState().activeConversationId || "";
-  const resolvedToken = token || localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) || "";
-  const { startOptimization } = useOptimization(resolvedChatId, resolvedToken);
-
-  const handleOptimizeRequest = (optimizedParamsPayload: any[]) => {
-    startOptimization(code, optimizedParamsPayload);
-  };
 
   // Auto-switch TO parameters as soon as they arrive (e.g. after AI generation)
   // BUT skip when a compile is pending — keep Code tab so CADEditor can handle it
@@ -100,8 +88,11 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
             className="border-r-0"
           />
         </div>
-        <div className={`h-full bg-neutral-950 flex flex-col overflow-y-auto ${activeTab === 'parameters' ? '' : 'hidden'}`}>
-          <ParameterPanel onOptimizeClick={handleOptimizeRequest} />
+        <div className={`h-full bg-neutral-950 flex flex-col ${activeTab === 'parameters' ? '' : 'hidden'}`}>
+          <OptimizationPanel
+            onBuildComplete={onBuildComplete}
+            onSwitchToCode={() => setActiveTab('code')}
+          />
         </div>
       </div>
     </div>
