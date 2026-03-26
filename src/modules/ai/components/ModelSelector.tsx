@@ -14,6 +14,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { provider: "anthropic", model: "claude-sonnet-4-20250514", label: "Sonnet 4", thinking: false },
   { provider: "anthropic", model: "claude-haiku-4-5-20251001", label: "Haiku 4.5", thinking: false },
   { provider: "gemini", model: "gemini-2.5-flash", label: "Gemini 2.5 Flash", thinking: false },
+  { provider: "openai", model: "gpt-4o", label: "GPT-4o", thinking: false },
+  { provider: "openai", model: "gpt-4o-mini", label: "GPT-4o Mini", thinking: false },
   // Premium (Thinking) models
   { provider: "anthropic", model: "claude-opus-4-6", label: "Opus 4.6 (Thinking)", thinking: true },
   { provider: "anthropic", model: "claude-sonnet-4-20250514", label: "Sonnet 4 (Thinking)", thinking: true },
