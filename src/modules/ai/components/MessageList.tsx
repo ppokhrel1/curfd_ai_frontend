@@ -1,24 +1,27 @@
 import { formatTime } from "@/utils/formatters";
-import { Bot, User, ArrowRight, FileCode2 } from "lucide-react";
+import { Bot, User, ArrowRight, FileCode2, RefreshCw } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import type { Message } from "../types/chat.type";
+import { MODEL_OPTIONS, type ModelOption } from "./ModelSelector";
+import type { ModelOverride } from "../hooks/useChat";
 
 export type EditorPayloadType = "requirements" | "code";
 
 interface MessageListProps {
   messages: Message[];
   onOpenInEditor?: (content: string, type: EditorPayloadType) => void;
+  onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor, onRegenerate }) => {
   return (
     <div className="space-y-4 w-full pb-2">
       {messages.map((message, index) => (
         <MessageBubble
           key={message.id || index}
           message={message}
-          isLatest={index === messages.length - 1}
           onOpenInEditor={onOpenInEditor}
+          onRegenerate={onRegenerate}
         />
       ))}
     </div>
@@ -27,40 +30,14 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEdit
 
 interface MessageBubbleProps {
   message: Message;
-  isLatest?: boolean;
   onOpenInEditor?: (content: string, type: EditorPayloadType) => void;
+  onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLatest, onOpenInEditor }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, onRegenerate }) => {
   const isUser = message.role === "user";
-  const hasAutoOpened = useRef(false);
-
-  useEffect(() => {
-    if (!isLatest || !onOpenInEditor || hasAutoOpened.current) return;
-
-    let rawData = message.shapeData?.scadCode || "";
-
-    if (!rawData) {
-      const cleanContent = (message.content || "").split("|||JSON_DATA|||")[0].trim();
-      const parts = cleanContent.split(/(```[\s\S]*?```)/g).filter(Boolean);
-      const codeBlocks = parts.filter(p => p.startsWith("```") && p.endsWith("```"));
-
-      if (codeBlocks.length > 0) {
-        const lastBlock = codeBlocks[codeBlocks.length - 1];
-        const lines = lastBlock.split('\n');
-        lines.shift();
-        if (lines[lines.length - 1]?.trim() === "```") lines.pop();
-        rawData = lines.join('\n').trim();
-      }
-    }
-
-    if (rawData.length > 150 && window.innerWidth >= 1024) {
-      hasAutoOpened.current = true;
-      setTimeout(() => {
-        onOpenInEditor(rawData, "code");
-      }, 100);
-    }
-  }, [message, isLatest, onOpenInEditor]);
+  // Auto-open is handled by ChatInterface's AUTO-LOAD EFFECT +
+  // useActiveConversationSync handles compilation — no duplicate here.
 
   return (
     <div className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"} animate-in fade-in slide-in-from-bottom-1 duration-200 w-full`}>
@@ -101,7 +78,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLatest, onOpen
               <span className="break-words whitespace-pre-wrap">{message.content}</span>
             </div>
           ) : (
-            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} />
+            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} />
           )}
         </div>
 
@@ -118,7 +95,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isLatest, onOpen
 const TypewriterContent: React.FC<{
   message: Message;
   onOpenInEditor?: (c: string, t: EditorPayloadType) => void;
-}> = ({ message, onOpenInEditor }) => {
+  onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
+}> = ({ message, onOpenInEditor, onRegenerate }) => {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
 
@@ -139,7 +117,7 @@ const TypewriterContent: React.FC<{
     return () => clearInterval(iv);
   }, [message.content, message.shapeData]);
 
-  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} />;
+  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} />;
 };
 
 // ── Content renderer ──────────────────────────────────────────────────────────
@@ -148,13 +126,19 @@ const FormattedContent: React.FC<{
   message: Message;
   content: string;
   onOpenInEditor?: (c: string, t: EditorPayloadType) => void;
-}> = ({ message, content, onOpenInEditor }) => {
+  onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
+}> = ({ message, content, onOpenInEditor, onRegenerate }) => {
   // Shape data path: show model card directly
   if (message.shapeData?.scadCode) {
     return (
       <div className="space-y-2">
         <p className="break-words whitespace-pre-wrap">{content}</p>
-        <ModelCard code={message.shapeData.scadCode} onOpenInEditor={onOpenInEditor} />
+        <ModelCard
+          code={message.shapeData.scadCode}
+          onOpenInEditor={onOpenInEditor}
+          messageId={message.id}
+          onRegenerate={onRegenerate}
+        />
       </div>
     );
   }
@@ -195,16 +179,43 @@ const FormattedContent: React.FC<{
 const ModelCard: React.FC<{
   code: string;
   onOpenInEditor?: (c: string, t: EditorPayloadType) => void;
-}> = ({ code, onOpenInEditor }) => {
+  messageId?: string;
+  onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
+}> = ({ code, onOpenInEditor, messageId, onRegenerate }) => {
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [pickerPos, setPickerPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const lines = code.split('\n');
   const lineCount = lines.length;
-  // Count tunable variables (skip $fn, $fa, $fs, eps)
   const paramCount = (code.match(/^\s*(?!\$|eps)([a-zA-Z_]\w*)\s*=\s*[-\d.]+\s*;/gm) || []).length;
   const preview = lines.slice(0, 7).join('\n');
 
+  const togglePicker = () => {
+    if (!showModelPicker && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPickerPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setShowModelPicker(!showModelPicker);
+  };
+
+  useEffect(() => {
+    if (!showModelPicker) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) {
+        setShowModelPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showModelPicker]);
+
   return (
     <div className="rounded-xl overflow-hidden border border-neutral-700/50 bg-neutral-950 mt-1 w-full max-w-[280px]">
-      {/* Title bar — macOS-style dots */}
+      {/* Title bar */}
       <div className="flex items-center gap-2 px-3 py-2 bg-neutral-900/80 border-b border-neutral-800">
         <div className="flex gap-1.5">
           <span className="w-2 h-2 rounded-full bg-neutral-600" />
@@ -215,7 +226,7 @@ const ModelCard: React.FC<{
         <span className="text-[11px] font-mono text-neutral-400 flex-1 truncate">model.scad</span>
         <div className="flex items-center gap-1.5 text-[10px] text-neutral-600 font-mono flex-shrink-0">
           <span>{lineCount}L</span>
-          {paramCount > 0 && <><span className="text-neutral-700">·</span><span>{paramCount}⚙</span></>}
+          {paramCount > 0 && <><span className="text-neutral-700">·</span><span>{paramCount}P</span></>}
         </div>
       </div>
 
@@ -223,13 +234,56 @@ const ModelCard: React.FC<{
       <pre className="px-3 py-2.5 text-[10.5px] font-mono text-neutral-500 leading-[1.55] overflow-hidden select-none">
         <code>{preview}</code>
         {lineCount > 7 && (
-          <span className="block text-neutral-700 mt-0.5">··· {lineCount - 7} more lines</span>
+          <span className="block text-neutral-700 mt-0.5">... {lineCount - 7} more lines</span>
         )}
       </pre>
 
       {/* Action bar */}
       <div className="flex items-center justify-between px-3 py-2 border-t border-neutral-800/60 bg-neutral-900/40">
-        <span className="text-[10px] text-neutral-700 font-mono">OpenSCAD</span>
+        <div>
+          {messageId && onRegenerate ? (
+            <>
+              <button
+                ref={btnRef}
+                onClick={togglePicker}
+                className="flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all"
+                title="Regenerate with different model"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Regen</span>
+              </button>
+              {showModelPicker && (
+                <div
+                  ref={dropdownRef}
+                  className="fixed w-52 bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl overflow-hidden z-[100]"
+                  style={{ top: pickerPos.top, left: pickerPos.left }}
+                >
+                  <div className="px-3 py-1.5 text-[10px] text-neutral-500 border-b border-neutral-800">
+                    Regenerate with...
+                  </div>
+                  {MODEL_OPTIONS.map((opt) => (
+                    <button
+                      key={`${opt.provider}-${opt.model}-${opt.thinking}`}
+                      onClick={() => {
+                        setShowModelPicker(false);
+                        onRegenerate(messageId, {
+                          provider: opt.provider,
+                          model: opt.model,
+                          thinking: opt.thinking ?? false,
+                        });
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-[11px] text-neutral-300 hover:bg-neutral-800 transition-colors"
+                    >
+                      <div className="font-medium">{opt.label}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <span className="text-[10px] text-neutral-700 font-mono">OpenSCAD</span>
+          )}
+        </div>
         <button
           onClick={() => onOpenInEditor?.(code, "code")}
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-green-400 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 hover:border-green-400/40 transition-all group"

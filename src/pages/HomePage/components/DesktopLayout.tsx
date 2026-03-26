@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ChatInterface } from '@/modules/ai/components/ChatInterface';
 import { Viewer3D } from '@/modules/viewer/components/Viewer3D';
 import { EditorContainer } from '@/modules/editor/components';
+import { FloatingJobsPanel } from '@/modules/editor/components/FloatingJobsPanel';
+import { useEditorStore, type OptimizationJob } from '@/modules/editor/stores/editorStore';
 import { Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ChatInterfaceRef } from '@/modules/ai/components/ChatInterface';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
@@ -56,6 +58,32 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
       setActiveView('chat-viewer');
     }
   };
+
+  const handleApplyOptimizedJob = useCallback((job: OptimizationJob) => {
+    if (!job.optimized_parameters) return;
+    const store = useEditorStore.getState();
+    let updatedCode = store.code;
+    for (const [key, val] of Object.entries(job.optimized_parameters)) {
+      updatedCode = updatedCode.replace(
+        new RegExp(`(${key}\\s*=\\s*)[-0-9.]+;`),
+        `$1${val.toFixed(2)};`
+      );
+    }
+    store.setOriginalCode(updatedCode);
+    store.setCode(updatedCode);
+    store.requestCompile();
+
+    onShapeGenerated({
+      id: `opt-${job.id}`,
+      type: 'generic',
+      name: 'Optimized Shape',
+      scadCode: updatedCode,
+      parameters: Object.entries(job.optimized_parameters).map(([k, v]) => ({
+        name: k,
+        default_val: v,
+      })),
+    } as any);
+  }, [onShapeGenerated]);
 
   return (
     <div className="hidden lg:flex h-full w-full relative overflow-hidden bg-neutral-950">
@@ -147,6 +175,8 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
           )}
         </div>
       </ChatInterface>
+
+      <FloatingJobsPanel onApply={handleApplyOptimizedJob} />
     </div>
   );
 };

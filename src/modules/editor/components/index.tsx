@@ -7,8 +7,8 @@ import { OptimizationPanel } from './OptimizationPanel';
 
 export interface EditorContainerProps {
   className?: string;
-  chatId: string; 
-  token: string;  
+  chatId: string;
+  token: string;
   onBuildComplete?: (shape: GeneratedShape | null) => void;
   onGenerateShape?: (requirements: any) => void;
 }
@@ -42,33 +42,33 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
 
   return (
     <div className={`flex flex-col h-full bg-neutral-950 border-r border-neutral-800 ${className}`}>
-      
+
       {/* Selection Bar Header */}
       <div className="flex-shrink-0 px-3 py-2 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-center">
-        
+
         {/* Segmented Toggle Control */}
         <div className="flex bg-neutral-950 border border-neutral-800 rounded-lg p-1 w-full max-w-[300px]">
           <button
             onClick={() => setActiveTab('code')}
             className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
-              activeTab === 'code' 
-                ? 'bg-neutral-800 text-blue-400 shadow-sm' 
+              activeTab === 'code'
+                ? 'bg-neutral-800 text-blue-400 shadow-sm'
                 : 'text-neutral-500 hover:text-neutral-300'
             }`}
           >
             <Code2 className="w-3.5 h-3.5" />
             Code
           </button>
-          
+
           <button
             onClick={() => setActiveTab('parameters')}
             disabled={!hasParameters}
             title={!hasParameters ? "Generate a parameterized model first" : ""}
             className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
-              !hasParameters 
-                ? 'opacity-40 cursor-not-allowed text-neutral-600' 
-                : activeTab === 'parameters' 
-                  ? 'bg-neutral-800 text-purple-400 shadow-sm' 
+              !hasParameters
+                ? 'opacity-40 cursor-not-allowed text-neutral-600'
+                : activeTab === 'parameters'
+                  ? 'bg-neutral-800 text-purple-400 shadow-sm'
                   : 'text-neutral-500 hover:text-neutral-300'
             }`}
           >

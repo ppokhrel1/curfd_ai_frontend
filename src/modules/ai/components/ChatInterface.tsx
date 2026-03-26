@@ -122,6 +122,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       sendSystemMessage: persistSystemMessage,
       clearMessages,
       retryLastMessage,
+      regenerateWithModel,
       generateModel, // Keep this here in case you need it for manual triggers later
     } = useChat(activeConversationId, handleInternalShapeGenerated, handleInternalMessageReceived);
 
@@ -228,10 +229,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
           editorStore.setMode(isJson ? "requirements" : "code");
         }
 
-        // Trigger STL compilation when code is auto-loaded (not for JSON requirements)
-        if (!isJson) {
-          requestCompile();
-        }
+        // Compilation is handled by useActiveConversationSync — don't duplicate here
 
         if (autoOpenedMessageId.current !== latestMsg.id) {
           autoOpenedMessageId.current = latestMsg.id;
@@ -241,7 +239,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
           }
         }
       }
-    }, [displayMessages, setCode, setOriginalCode, setActiveView, setMobilePanel, requestCompile]);
+    }, [displayMessages, setCode, setOriginalCode, setActiveView]);
 
     useEffect(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -388,6 +386,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                         <MessageList
                           messages={[msg]}
                           onOpenInEditor={handleViewEditor}
+                          onRegenerate={regenerateWithModel}
                         />
                       </div>
                     ))}

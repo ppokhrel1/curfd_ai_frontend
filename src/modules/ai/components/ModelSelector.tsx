@@ -2,20 +2,21 @@ import { ChevronDown, Bot } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useChatStore } from "../stores/chatStore";
 
-interface ModelOption {
+export interface ModelOption {
   provider: string;
   model: string;
   label: string;
   thinking?: boolean;
 }
 
-const MODEL_OPTIONS: ModelOption[] = [
+export const MODEL_OPTIONS: ModelOption[] = [
   { provider: "anthropic", model: "claude-opus-4-6", label: "Opus 4.6 (Thinking)", thinking: true },
   { provider: "anthropic", model: "claude-sonnet-4-20250514", label: "Sonnet 4 (Thinking)", thinking: true },
   { provider: "anthropic", model: "claude-haiku-4-5-20251001", label: "Haiku 4.5 (Thinking)", thinking: true },
   { provider: "gemini", model: "gemini-2.5-flash", label: "Gemini 2.5 Flash", thinking: false },
   { provider: "groq", model: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", thinking: false },
   { provider: "openai", model: "gpt-4o", label: "GPT-4o", thinking: false },
+  { provider: "openai", model: "gpt-4o-mini", label: "GPT-4o Mini", thinking: false },
 ];
 
 export const ModelSelector: React.FC = () => {

@@ -59,11 +59,17 @@ async function fileToBase64(file: File): Promise<{ data: string; media_type: str
   });
 }
 
+export interface ModelOverride {
+  provider: string;
+  model: string;
+  thinking: boolean;
+}
+
 interface UseChatReturn {
   messages: Message[];
   isLoading: boolean;
   error: string | null;
-  sendMessage: (content: string, images?: File[]) => Promise<void>;
+  sendMessage: (content: string, images?: File[], modelOverride?: ModelOverride) => Promise<void>;
   sendSystemMessage: (
     content: string,
     shapeData?: GeneratedShape
@@ -71,6 +77,7 @@ interface UseChatReturn {
   generateModel: (requirements: any) => Promise<void>;
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
+  regenerateWithModel: (assistantMessageId: string, modelOverride: ModelOverride) => Promise<void>;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   activeChatId: string | null;
   isGeneratingGlobally: boolean;
@@ -341,7 +348,7 @@ export const useChat = (
 
   // --- 4. SEND MESSAGE (WebSocket) ---
   const sendMessage = useCallback(
-    async (content: string, images?: File[]) => {
+    async (content: string, images?: File[], modelOverride?: ModelOverride) => {
       if (!content.trim() && (!images || images.length === 0)) return;
       if (sendingRef.current) return;
 
@@ -405,7 +412,10 @@ export const useChat = (
         streamChatIdRef.current = targetId;
         streamedContentRef.current = "";
 
-        const { selectedProvider, selectedModel, selectedThinking } = useChatStore.getState();
+        // Use model override if provided, otherwise use store selection
+        const provider = modelOverride?.provider ?? useChatStore.getState().selectedProvider;
+        const model = modelOverride?.model ?? useChatStore.getState().selectedModel;
+        const thinking = modelOverride?.thinking ?? useChatStore.getState().selectedThinking;
         const messageContent = content.trim() || (imagePayload?.length ? "Analyze the attached image(s) and generate OpenSCAD code." : "");
 
         // Try WebSocket first, fall back to SSE
@@ -414,15 +424,14 @@ export const useChat = (
           content: messageContent,
           images: imagePayload,
           options: {
-            llm_provider: selectedProvider,
-            llm_model: selectedModel,
-            llm_thinking: selectedThinking,
+            llm_provider: provider,
+            llm_model: model,
+            llm_thinking: thinking,
+            code_language: useChatStore.getState().selectedLanguage,
           },
         });
 
         if (wsSent) {
-          // WebSocket handles everything — events arrive via handleSocketEvent
-          // sendingRef and generating state are cleared in the openscad.done/error handlers
           return;
         }
 
@@ -473,9 +482,10 @@ export const useChat = (
             setError(error);
           },
           {
-            llm_provider: selectedProvider,
-            llm_model: selectedModel,
-            llm_thinking: selectedThinking,
+            llm_provider: provider,
+            llm_model: model,
+            llm_thinking: thinking,
+            code_language: useChatStore.getState().selectedLanguage,
             images: imagePayload,
           },
         );
@@ -532,6 +542,123 @@ export const useChat = (
     }
   }, [lastUserMessage, sendMessage]);
 
+  // --- 6. REGENERATE WITH DIFFERENT MODEL (in-place replacement) ---
+  const regenerateWithModel = useCallback(
+    async (assistantMessageId: string, modelOverride: ModelOverride) => {
+      if (!chatId) return;
+      if (sendingRef.current) return;
+
+      const store = useChatStore.getState();
+      const currentMessages = store.conversations.find(c => c.id === chatId)?.messages || [];
+
+      // Find the user message that preceded this assistant message
+      const assistantIdx = currentMessages.findIndex(m => m.id === assistantMessageId);
+      if (assistantIdx <= 0) return;
+
+      let userContent = "";
+      for (let i = assistantIdx - 1; i >= 0; i--) {
+        if (currentMessages[i].role === "user") {
+          userContent = currentMessages[i].content || "";
+          break;
+        }
+      }
+      if (!userContent) return;
+
+      sendingRef.current = true;
+      setError(null);
+
+      try {
+        setGenerating(chatId, true, "Regenerating...");
+
+        // Clear the existing assistant message in-place (reuse its ID)
+        store.updateMessage(chatId, assistantMessageId, {
+          content: "",
+          shapeData: undefined,
+          metadata: undefined,
+        });
+
+        // Set up refs so WebSocket handler streams into the existing message
+        streamMsgIdRef.current = assistantMessageId;
+        streamChatIdRef.current = chatId;
+        streamedContentRef.current = "";
+
+        const provider = modelOverride.provider;
+        const model = modelOverride.model;
+        const thinking = modelOverride.thinking ?? false;
+
+        const wsSent = wsConnected && sendWs({
+          type: "openscad.request",
+          content: userContent,
+          options: {
+            llm_provider: provider,
+            llm_model: model,
+            llm_thinking: thinking,
+            code_language: useChatStore.getState().selectedLanguage,
+          },
+        });
+
+        if (wsSent) return;
+
+        // Fallback: SSE streaming
+        console.warn('[useChat] WebSocket not available for regen, falling back to SSE');
+        streamMsgIdRef.current = null;
+        streamChatIdRef.current = null;
+
+        let streamedContent = '';
+        await chatService.processRequirementsStream(
+          chatId,
+          userContent,
+          (text: string) => {
+            streamedContent += text;
+            store.updateMessage(chatId, assistantMessageId, { content: streamedContent });
+          },
+          (data: any) => {
+            const { openscad_code, parameters, model_type, message, id } = data;
+            store.updateMessage(chatId, assistantMessageId, {
+              id: id || assistantMessageId,
+              content: openscad_code
+                ? "**Model Generated successfully!**\n\nClick the model card below to load it into your Editor."
+                : message || streamedContent,
+              shapeData: openscad_code ? {
+                id: id || `shape-${Date.now()}`,
+                name: model_type || 'Generated Model',
+                scadCode: openscad_code,
+                type: 'generic',
+                description: message || '',
+                hasSimulation: false,
+                geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+                createdAt: new Date(),
+              } as any : undefined,
+            });
+            if (openscad_code) {
+              useEditorStore.getState().setCode(openscad_code);
+              useEditorStore.getState().setOriginalCode(openscad_code);
+            }
+            if (parameters && Array.isArray(parameters) && parameters.length > 0) {
+              useEditorStore.getState().setParameters(parameters);
+            }
+          },
+          (error: string) => { setError(error); },
+          {
+            llm_provider: provider,
+            llm_model: model,
+            llm_thinking: thinking,
+            code_language: useChatStore.getState().selectedLanguage,
+          },
+        );
+      } catch (err: any) {
+        console.error('[useChat] regenerateWithModel failed:', err?.message);
+        setError(err instanceof Error ? err.message : "Failed to regenerate");
+      } finally {
+        if (!streamMsgIdRef.current) {
+          setGenerating(chatId, false);
+          sendingRef.current = false;
+        }
+      }
+    },
+    [chatId, setGenerating, wsConnected, sendWs]
+  );
+
   const clearMessages = useCallback(() => {
     setError(null);
     setLastUserMessage("");
@@ -548,6 +675,7 @@ export const useChat = (
     generateModel,
     clearMessages,
     retryLastMessage,
+    regenerateWithModel,
     setMessages: (newMessages: any) => {
       const msgs =
         typeof newMessages === "function" ? newMessages(messages) : newMessages;
