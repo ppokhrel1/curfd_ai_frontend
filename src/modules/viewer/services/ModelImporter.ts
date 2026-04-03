@@ -81,27 +81,14 @@ export class ModelImporter {
         return await this.importZip(file);
       } else if (isMeshFile) {
 
-        // If we have individual part assets, load each as a separate named mesh
-        if (assets && assets.length > 0) {
-          for (const asset of assets) {
-            try {
-              const partObj = await this.loadSingleAsset(asset.url, asset.filename);
-              if (partObj) contentsGroup.add(partObj);
-            } catch (e) {
-              console.warn(`Failed to load part asset ${asset.filename}:`, e);
-            }
-          }
-        } else {
-          // Single mesh — load as-is
-          const fileName = originalFilename
-            ? originalFilename
-            : (sdfUrl.startsWith("blob:")
-                ? "model.glb"
-                : urlPathname.split("/").pop() || "model");
+        const fileName = originalFilename
+          ? originalFilename
+          : (sdfUrl.startsWith("blob:")
+              ? "model.glb"
+              : urlPathname.split("/").pop() || "model");
 
-          const visualObj = await this.loadSingleAsset(sdfUrl, fileName);
-          if (visualObj) contentsGroup.add(visualObj);
-        }
+        const visualObj = await this.loadSingleAsset(sdfUrl, fileName);
+        if (visualObj) contentsGroup.add(visualObj);
       } else {
         // ... (rest of the SDF parsing logic unchanged) ...
         const resp = await fetch(sdfUrl);
@@ -252,7 +239,9 @@ export class ModelImporter {
           mesh.geometry.computeBoundingSphere();
         }
 
-        const materialProps = this.getMaterialProperties(cleanPartName);
+        // Use mesh's own name (from GLB scene nodes) for material, fallback to filename
+        const partName = (mesh.name && mesh.name !== "") ? mesh.name : cleanPartName;
+        const materialProps = this.getMaterialProperties(partName);
         const material = new THREE.MeshStandardMaterial(materialProps);
         mesh.material = material;
         mesh.userData.originalColor = material.color.getHex();
