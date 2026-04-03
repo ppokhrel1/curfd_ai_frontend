@@ -66,6 +66,46 @@ export const useActiveConversationSync = ({
         const msg = messages[i];
         const candidate = msg.generatedShape || msg.metadata?.generatedShape || msg.attachment?.shape;
         if (candidate) return candidate as GeneratedShape;
+
+        // Recover image_to_3d shapes from assistant message metadata or content
+        if (msg.role === "assistant") {
+          const findModelUrl = (): string | undefined => {
+            // 1. Check metadata_json.output (persisted by _runpod_poll_and_emit)
+            const meta = msg.metadata_json || msg.metadata;
+            if (meta) {
+              const output = meta.output;
+              const url = output?.uri || output?.model_url || output?.download_url
+                || output?.metadata_json?.model_url
+                || meta.model_url || meta.download_url;
+              if (url && /\.(glb|stl|obj)/i.test(url)) return url;
+            }
+            // 2. Parse content as JSON (backend stores asset JSON as message content)
+            if (typeof msg.content === 'string' && msg.content.startsWith('{')) {
+              try {
+                const parsed = JSON.parse(msg.content);
+                const url = parsed.uri || parsed.model_url || parsed.download_url
+                  || parsed.metadata_json?.model_url;
+                if (url && /\.(glb|stl|obj)/i.test(url)) return url;
+              } catch {}
+            }
+            return undefined;
+          };
+
+          const modelUrl = findModelUrl();
+          if (modelUrl) {
+            console.log("[Sync] Recovered image_to_3d model URL from history:", modelUrl);
+            return {
+              id: `recovered-${msg.id}`,
+              type: 'generic',
+              name: 'AI Generated 3D Model',
+              description: 'Recovered from history',
+              hasSimulation: false,
+              sdfUrl: modelUrl,
+              geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+              createdAt: new Date(msg.timestamp || msg.created_at),
+            } as GeneratedShape;
+          }
+        }
       }
     }
     return undefined;

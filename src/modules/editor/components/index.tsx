@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CADEditor } from './CADEditor';
-import { Code2, SlidersHorizontal } from 'lucide-react';
+import { ImageTo3DPanel } from './ImageTo3DPanel';
+import { Code2, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { useEditorStore } from '../stores/editorStore';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
 import { OptimizationPanel } from './OptimizationPanel';
@@ -20,7 +21,7 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
   onBuildComplete,
   onGenerateShape
 }) => {
-  const [activeTab, setActiveTab] = useState<'code' | 'parameters'>('code');
+  const [activeTab, setActiveTab] = useState<'code' | 'parameters' | 'ai-generate'>('code');
 
   const { parameters, compileRequested } = useEditorStore();
   const hasParameters = parameters && parameters.length > 0;
@@ -47,7 +48,7 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
       <div className="flex-shrink-0 px-3 py-2 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-center">
 
         {/* Segmented Toggle Control */}
-        <div className="flex bg-neutral-950 border border-neutral-800 rounded-lg p-1 w-full max-w-[300px]">
+        <div className="flex bg-neutral-950 border border-neutral-800 rounded-lg p-1 w-full max-w-[400px]">
           <button
             onClick={() => setActiveTab('code')}
             className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
@@ -75,6 +76,18 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
             <SlidersHorizontal className="w-3.5 h-3.5" />
             Parameters
           </button>
+
+          <button
+            onClick={() => setActiveTab('ai-generate')}
+            className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
+              activeTab === 'ai-generate'
+                ? 'bg-neutral-800 text-violet-400 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-300'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            AI 3D
+          </button>
         </div>
 
       </div>
@@ -93,6 +106,9 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
             onBuildComplete={onBuildComplete}
             onSwitchToCode={() => setActiveTab('code')}
           />
+        </div>
+        <div className={`h-full bg-neutral-950 ${activeTab === 'ai-generate' ? '' : 'hidden'}`}>
+          <ImageTo3DPanel />
         </div>
       </div>
     </div>

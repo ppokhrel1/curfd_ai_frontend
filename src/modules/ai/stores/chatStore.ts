@@ -16,7 +16,7 @@ interface ChatState {
     selectedProvider: string;
     selectedModel: string;
     selectedThinking: boolean;
-    selectedLanguage: "openscad" | "cadquery";
+    selectedLanguage: "openscad" | "cadquery" | "image_to_3d";
 
     // Actions
     setConversations: (conversations: Conversation[]) => void;
@@ -31,7 +31,7 @@ interface ChatState {
     clearStore: () => void;
     setCurrentUserId: (userId: string | null) => void;
     setSelectedModel: (provider: string, model: string, thinking: boolean) => void;
-    setSelectedLanguage: (language: "openscad" | "cadquery") => void;
+    setSelectedLanguage: (language: "openscad" | "cadquery" | "image_to_3d") => void;
 }
 
 // Helper to get user-scoped storage key

@@ -35,10 +35,10 @@ export class ModelImporter {
     originalFilename?: string                
   ): Promise<ImportedModel> {
     try {
-      if (!sdfUrl.startsWith("blob:")) {
+      if (!sdfUrl.startsWith("blob:") && !sdfUrl.startsWith("/")) {
         new URL(sdfUrl);
       }
-      if (yamlUrl && !yamlUrl.startsWith("blob:")) {
+      if (yamlUrl && !yamlUrl.startsWith("blob:") && !yamlUrl.startsWith("/")) {
         new URL(yamlUrl);
       }
     } catch (e) {
@@ -81,15 +81,27 @@ export class ModelImporter {
         return await this.importZip(file);
       } else if (isMeshFile) {
 
-        // 👇 Use the provided originalFilename if available
-        const fileName = originalFilename
-          ? originalFilename
-          : (sdfUrl.startsWith("blob:")
-              ? "model.glb"
-              : urlPathname.split("/").pop() || "model");
+        // If we have individual part assets, load each as a separate named mesh
+        if (assets && assets.length > 0) {
+          for (const asset of assets) {
+            try {
+              const partObj = await this.loadSingleAsset(asset.url, asset.filename);
+              if (partObj) contentsGroup.add(partObj);
+            } catch (e) {
+              console.warn(`Failed to load part asset ${asset.filename}:`, e);
+            }
+          }
+        } else {
+          // Single mesh — load as-is
+          const fileName = originalFilename
+            ? originalFilename
+            : (sdfUrl.startsWith("blob:")
+                ? "model.glb"
+                : urlPathname.split("/").pop() || "model");
 
-        const visualObj = await this.loadSingleAsset(sdfUrl, fileName);
-        if (visualObj) contentsGroup.add(visualObj);
+          const visualObj = await this.loadSingleAsset(sdfUrl, fileName);
+          if (visualObj) contentsGroup.add(visualObj);
+        }
       } else {
         // ... (rest of the SDF parsing logic unchanged) ...
         const resp = await fetch(sdfUrl);
@@ -228,18 +240,28 @@ export class ModelImporter {
   ): Promise<THREE.Object3D> {
     const loadedObject = await this.loadMeshAsObject(url, filename);
     const cleanPartName = this.extractPartName(filename);
-    const materialProps = this.getMaterialProperties(cleanPartName);
-    const material = new THREE.MeshStandardMaterial(materialProps);
 
     loadedObject.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
-        (child as THREE.Mesh).material = material;
-        child.castShadow = true;
-        child.receiveShadow = true;
-        child.userData.originalColor = material.color.getHex();
-        child.userData.sourceFile = filename.split("/").pop() || filename;
-        if (!child.name || child.name === "") {
-          child.name = cleanPartName;
+        const mesh = child as THREE.Mesh;
+
+        // Recompute normals — AI-generated meshes often have inverted or missing normals
+        if (mesh.geometry) {
+          mesh.geometry.computeVertexNormals();
+          mesh.geometry.computeBoundingBox();
+          mesh.geometry.computeBoundingSphere();
+        }
+
+        const materialProps = this.getMaterialProperties(cleanPartName);
+        const material = new THREE.MeshStandardMaterial(materialProps);
+        mesh.material = material;
+        mesh.userData.originalColor = material.color.getHex();
+
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData.sourceFile = filename.split("/").pop() || filename;
+        if (!mesh.name || mesh.name === "") {
+          mesh.name = cleanPartName;
         }
       }
     });
