@@ -95,6 +95,7 @@ export const useChat = (
     isGeneratingGlobally,
     updateConversation,
     addMessage,
+    addJobToHistory,
     updateJobInHistory,
   } = useChatStore();
   
@@ -499,6 +500,15 @@ export const useChat = (
             });
             useChatStore.getState().updateMessage(targetId, streamMsgId, {
               content: `3D generation in progress (${response.runpod_id || "processing"})...`,
+            });
+            // Track in job history so MissionControl can recall it
+            addJobToHistory(targetId, {
+              id: response.runpod_id || `img3d-${Date.now()}`,
+              prompt: promptText,
+              output_format: "glb",
+              status: "running",
+              createdAt: new Date(),
+              startedAt: new Date(),
             });
             // Keep generating=true — WebSocket runpod.status COMPLETED will finalize
             setGenerating(targetId, true, "Generating 3D model...");
