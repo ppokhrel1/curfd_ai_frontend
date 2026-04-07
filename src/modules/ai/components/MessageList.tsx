@@ -140,7 +140,6 @@ const FormattedContent: React.FC<{
     const url = output?.uri || output?.model_url || output?.download_url
       || meta?.model_url || meta?.download_url;
     if (url && /\.(glb|stl|obj)/i.test(url)) return url;
-    // Try parsing content as JSON
     if (typeof content === "string" && content.startsWith("{")) {
       try {
         const parsed = JSON.parse(content);
@@ -151,13 +150,10 @@ const FormattedContent: React.FC<{
     return null;
   })();
 
-  // 3D model card for image_to_3d results
   if (modelUrl && message.role === "assistant") {
     return (
       <div className="space-y-2">
-        <p className="break-words whitespace-pre-wrap text-sm text-neutral-300">
-          3D model generated successfully
-        </p>
+        <p className="break-words whitespace-pre-wrap text-sm text-neutral-300">3D model generated successfully</p>
         <Model3DCard modelUrl={modelUrl} onViewIn3D={onViewIn3D} />
       </div>
     );
@@ -331,7 +327,9 @@ const ModelCard: React.FC<{
   );
 };
 
-// ── 3D Model Card (for image_to_3d results) ──────────────────────────────────
+// ── Inline markdown ───────────────────────────────────────────────────────────
+
+// ── 3D Model Card ────────────────────────────────────────────────────────────
 
 const Model3DCard: React.FC<{
   modelUrl: string;
@@ -342,7 +340,6 @@ const Model3DCard: React.FC<{
 
   return (
     <div className="rounded-xl overflow-hidden border border-neutral-700/50 bg-neutral-950 mt-1 w-full max-w-[280px]">
-      {/* Title bar */}
       <div className="flex items-center gap-2 px-3 py-2 bg-neutral-900/80 border-b border-neutral-800">
         <div className="flex gap-1.5">
           <span className="w-2 h-2 rounded-full bg-neutral-600" />
@@ -353,8 +350,6 @@ const Model3DCard: React.FC<{
         <span className="text-[11px] font-mono text-neutral-400 flex-1 truncate">{filename}</span>
         <span className="text-[10px] text-neutral-600 font-mono">{format}</span>
       </div>
-
-      {/* Preview area */}
       <div className="px-3 py-4 flex items-center justify-center">
         <div className="flex items-center gap-2 text-neutral-500">
           <Box className="w-8 h-8 text-violet-400/60" />
@@ -364,8 +359,6 @@ const Model3DCard: React.FC<{
           </div>
         </div>
       </div>
-
-      {/* Action bar */}
       <div className="flex items-center justify-end px-3 py-2 border-t border-neutral-800/60 bg-neutral-900/40">
         <button
           onClick={() => onViewIn3D?.(modelUrl)}
@@ -379,7 +372,7 @@ const Model3DCard: React.FC<{
   );
 };
 
-// ── Inline markdown ───────────────────────────────────────────────────────────
+// ── Inline markdown ──────────────────────────────────────────────────────────
 
 const renderInline = (text: string) => {
   const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g);

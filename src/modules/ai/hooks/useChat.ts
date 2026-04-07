@@ -475,7 +475,6 @@ export const useChat = (
         // Image-to-3D mode: route through RunPod instead of the agent
         if (codeLang === "image_to_3d") {
           const { imageTo3dService } = await import("@/modules/ai/services/imageTo3dService");
-          // If user attached an image, use it; otherwise backend will search from prompt
           let imageUrlForRunpod = "";
           if (imagePayload?.length) {
             imageUrlForRunpod = `data:${imagePayload[0].media_type};base64,${imagePayload[0].data}`;
@@ -501,7 +500,6 @@ export const useChat = (
             useChatStore.getState().updateMessage(targetId, streamMsgId, {
               content: `3D generation in progress (${response.runpod_id || "processing"})...`,
             });
-            // Track in job history so MissionControl can recall it
             addJobToHistory(targetId, {
               id: response.runpod_id || `img3d-${Date.now()}`,
               prompt: promptText,
@@ -510,7 +508,6 @@ export const useChat = (
               createdAt: new Date(),
               startedAt: new Date(),
             });
-            // Keep generating=true — WebSocket runpod.status COMPLETED will finalize
             setGenerating(targetId, true, "Generating 3D model...");
             sendingRef.current = false;
           } catch (err: any) {
