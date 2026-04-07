@@ -1,5 +1,5 @@
 import { formatTime } from "@/utils/formatters";
-import { Bot, User, ArrowRight, FileCode2, RefreshCw } from "lucide-react";
+import { Bot, User, ArrowRight, FileCode2, RefreshCw, Box } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import type { Message } from "../types/chat.type";
 import { MODEL_OPTIONS, type ModelOption } from "./ModelSelector";
@@ -11,9 +11,10 @@ interface MessageListProps {
   messages: Message[];
   onOpenInEditor?: (content: string, type: EditorPayloadType) => void;
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
+  onViewIn3D?: (modelUrl: string) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor, onRegenerate }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor, onRegenerate, onViewIn3D }) => {
   return (
     <div className="space-y-4 w-full pb-2">
       {messages.map((message, index) => (
@@ -22,6 +23,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEdit
           message={message}
           onOpenInEditor={onOpenInEditor}
           onRegenerate={onRegenerate}
+          onViewIn3D={onViewIn3D}
         />
       ))}
     </div>
@@ -32,9 +34,10 @@ interface MessageBubbleProps {
   message: Message;
   onOpenInEditor?: (content: string, type: EditorPayloadType) => void;
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
+  onViewIn3D?: (modelUrl: string) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, onRegenerate }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D }) => {
   const isUser = message.role === "user";
   // Auto-open is handled by ChatInterface's AUTO-LOAD EFFECT +
   // useActiveConversationSync handles compilation — no duplicate here.
@@ -78,7 +81,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, 
               <span className="break-words whitespace-pre-wrap">{message.content}</span>
             </div>
           ) : (
-            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} />
+            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} />
           )}
         </div>
 
@@ -96,7 +99,8 @@ const TypewriterContent: React.FC<{
   message: Message;
   onOpenInEditor?: (c: string, t: EditorPayloadType) => void;
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
-}> = ({ message, onOpenInEditor, onRegenerate }) => {
+  onViewIn3D?: (modelUrl: string) => void;
+}> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D }) => {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
 
@@ -117,7 +121,7 @@ const TypewriterContent: React.FC<{
     return () => clearInterval(iv);
   }, [message.content, message.shapeData]);
 
-  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} />;
+  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} />;
 };
 
 // ── Content renderer ──────────────────────────────────────────────────────────
@@ -127,7 +131,34 @@ const FormattedContent: React.FC<{
   content: string;
   onOpenInEditor?: (c: string, t: EditorPayloadType) => void;
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
-}> = ({ message, content, onOpenInEditor, onRegenerate }) => {
+  onViewIn3D?: (modelUrl: string) => void;
+}> = ({ message, content, onOpenInEditor, onRegenerate, onViewIn3D }) => {
+  // Check for 3D model URL in message metadata or content
+  const modelUrl = (() => {
+    const meta = (message as any).metadata_json || (message as any).metadata;
+    const output = meta?.output;
+    const url = output?.uri || output?.model_url || output?.download_url
+      || meta?.model_url || meta?.download_url;
+    if (url && /\.(glb|stl|obj)/i.test(url)) return url;
+    if (typeof content === "string" && content.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(content);
+        const pUrl = parsed.uri || parsed.model_url || parsed.download_url;
+        if (pUrl && /\.(glb|stl|obj)/i.test(pUrl)) return pUrl;
+      } catch {}
+    }
+    return null;
+  })();
+
+  if (modelUrl && message.role === "assistant") {
+    return (
+      <div className="space-y-2">
+        <p className="break-words whitespace-pre-wrap text-sm text-neutral-300">3D model generated successfully</p>
+        <Model3DCard modelUrl={modelUrl} onViewIn3D={onViewIn3D} />
+      </div>
+    );
+  }
+
   // Shape data path: show model card directly
   if (message.shapeData?.scadCode) {
     return (
@@ -297,6 +328,51 @@ const ModelCard: React.FC<{
 };
 
 // ── Inline markdown ───────────────────────────────────────────────────────────
+
+// ── 3D Model Card ────────────────────────────────────────────────────────────
+
+const Model3DCard: React.FC<{
+  modelUrl: string;
+  onViewIn3D?: (url: string) => void;
+}> = ({ modelUrl, onViewIn3D }) => {
+  const filename = modelUrl.split("/").pop() || "model.glb";
+  const format = filename.split(".").pop()?.toUpperCase() || "GLB";
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-neutral-700/50 bg-neutral-950 mt-1 w-full max-w-[280px]">
+      <div className="flex items-center gap-2 px-3 py-2 bg-neutral-900/80 border-b border-neutral-800">
+        <div className="flex gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-neutral-600" />
+          <span className="w-2 h-2 rounded-full bg-neutral-600" />
+          <span className="w-2 h-2 rounded-full bg-violet-500/80" />
+        </div>
+        <Box className="w-3 h-3 text-neutral-500 ml-1" />
+        <span className="text-[11px] font-mono text-neutral-400 flex-1 truncate">{filename}</span>
+        <span className="text-[10px] text-neutral-600 font-mono">{format}</span>
+      </div>
+      <div className="px-3 py-4 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-neutral-500">
+          <Box className="w-8 h-8 text-violet-400/60" />
+          <div className="text-[11px]">
+            <p className="text-neutral-400 font-medium">3D Model Ready</p>
+            <p className="text-neutral-600">Click to load in viewer</p>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-end px-3 py-2 border-t border-neutral-800/60 bg-neutral-900/40">
+        <button
+          onClick={() => onViewIn3D?.(modelUrl)}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group"
+        >
+          View in 3D
+          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Inline markdown ──────────────────────────────────────────────────────────
 
 const renderInline = (text: string) => {
   const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g);

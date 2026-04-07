@@ -5,6 +5,7 @@ import { useChatStore } from "../stores/chatStore";
 const LANGUAGE_OPTIONS = [
   { value: "openscad" as const, label: "OpenSCAD", description: "CSG-based 3D modeling" },
   { value: "cadquery" as const, label: "CadQuery (Python)", description: "Python + OpenCascade" },
+  { value: "image_to_3d" as const, label: "Image to 3D", description: "AI mesh from prompt/image" },
 ];
 
 export const LanguageSelector: React.FC = () => {

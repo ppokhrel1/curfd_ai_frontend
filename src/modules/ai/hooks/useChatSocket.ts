@@ -10,6 +10,9 @@ export type RunpodEventType =
   | "openscad.token"
   | "openscad.done"
   | "openscad.error"
+  | "image_to_3d.started"
+  | "image_to_3d.queued"
+  | "image_to_3d.error"
   | "error";
 
 export interface RunpodEvent {

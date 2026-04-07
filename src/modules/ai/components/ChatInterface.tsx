@@ -68,6 +68,23 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       setMobilePanel('editor');
     }, [setActiveView, setMobilePanel, setCode, setOriginalCode, requestCompile]);
 
+    const handleViewIn3D = useCallback((modelUrl: string) => {
+      if (onShapeGenerated) {
+        onShapeGenerated({
+          id: `view3d-${Date.now()}`,
+          type: "generic" as any,
+          name: "3D Model",
+          description: "Loaded from chat",
+          hasSimulation: false,
+          sdfUrl: modelUrl,
+          geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+          createdAt: new Date(),
+        });
+      }
+      setActiveView('viewer');
+      setMobilePanel('viewer');
+    }, [onShapeGenerated, setActiveView, setMobilePanel]);
+
     const {
       conversations,
       activeConversationId,
@@ -387,6 +404,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                           messages={[msg]}
                           onOpenInEditor={handleViewEditor}
                           onRegenerate={regenerateWithModel}
+                          onViewIn3D={handleViewIn3D}
                         />
                       </div>
                     ))}

@@ -20,43 +20,43 @@ export const proxifyUrl = (url: string): string => {
     if (!url) return url;
     if (url.startsWith("blob:") || url.startsWith("data:")) return url;
 
-    let normalizedUrl = url;
-    const hasToken = url.includes("token=");
-
-    // Handle Supabase URLs
-    if (url.includes("supabase.co")) {
-        if (hasToken) {
-            normalizedUrl = url.replace("/object/public/", "/object/sign/");
-        } else {
-            normalizedUrl = url.replace("/object/sign/", "/object/public/");
-        }
+    // Route Supabase Storage URLs through backend proxy (private bucket)
+    // e.g. https://xxx.supabase.co/storage/v1/object/public/bucket/file.glb
+    //   → /api/v1/storage/bucket/file.glb
+    if (url.includes("supabase.co") && url.includes("/storage/v1/object/")) {
+        try {
+            const parsed = new URL(url);
+            // Extract path after /storage/v1/object/public/ or /storage/v1/object/
+            const match = parsed.pathname.match(/\/storage\/v1\/object\/(?:public\/)?(.+)/);
+            if (match) {
+                const apiBase = getApiBaseUrl();
+                return `${apiBase}/storage/${match[1]}`;
+            }
+        } catch {}
     }
 
-    // Return direct signed URLs
-    if (normalizedUrl.includes("supabase.co") && hasToken) {
-        return normalizedUrl;
+    // Return direct signed Supabase URLs
+    if (url.includes("supabase.co") && url.includes("token=")) {
+        return url;
     }
 
-    // B2 pre-signed URLs contain the auth token in the query string and can be
-    // fetched directly by the browser — no backend proxy needed.
-    if (normalizedUrl.includes("backblazeb2.com")) {
-        return normalizedUrl;
+    // B2 pre-signed URLs — fetch directly
+    if (url.includes("backblazeb2.com")) {
+        return url;
     }
 
     try {
-        // Use pathname only for extension detection so B2/S3 signed URLs
-        // with query params (e.g., ?Authorization=...) are correctly classified.
-        let pathForExtCheck = normalizedUrl;
-        try { pathForExtCheck = new URL(normalizedUrl).pathname; } catch { /* use full url */ }
+        let pathForExtCheck = url;
+        try { pathForExtCheck = new URL(url).pathname; } catch {}
         const isMesh = pathForExtCheck
             .toLowerCase()
             .match(/\.(stl|obj|glb|gltf|bin)$/);
 
-        if (!isMesh && !normalizedUrl.includes("/object/sign/")) {
-            return normalizedUrl;
+        if (!isMesh) {
+            return url;
         }
 
-        const parsed = new URL(normalizedUrl);
+        const parsed = new URL(url);
         const protocol = parsed.protocol.replace(":", "");
         const host = parsed.host;
 
@@ -70,7 +70,7 @@ export const proxifyUrl = (url: string): string => {
         const apiBase = getApiBaseUrl();
         return `${apiBase}/proxy/${protocol}/${host}/${path}`;
     } catch (e) {
-        console.warn("Failed to proxify URL:", normalizedUrl, e);
-        return normalizedUrl;
+        console.warn("Failed to proxify URL:", url, e);
+        return url;
     }
 };

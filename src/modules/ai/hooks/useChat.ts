@@ -95,6 +95,7 @@ export const useChat = (
     isGeneratingGlobally,
     updateConversation,
     addMessage,
+    addJobToHistory,
     updateJobInHistory,
   } = useChatStore();
   
@@ -138,8 +139,8 @@ export const useChat = (
         }
       }
 
-      // Poll for assets if action is 'generate_scad'
-      if (event.action === "generate_scad" && event.status === "COMPLETED") {
+      // Poll for assets if action is 'generate_scad' or 'image_to_3d'
+      if ((event.action === "generate_scad" || event.action === "image_to_3d") && event.status === "COMPLETED") {
         if (jobId) {
           updateJobInHistory(chatId, jobId, {
             status: "succeeded",
@@ -147,29 +148,70 @@ export const useChat = (
           });
 
           try {
-            let assets: any[] = [];
-            let retryCount = 0;
-            const maxRetries = 20;
+            // For image_to_3d, extract model URL + parts directly from output
+            if (event.action === "image_to_3d" && event.output) {
+              const rawOutput = event.output?.output || event.output;
+              const modelUrl = rawOutput.model_url || rawOutput.download_url;
 
-            while (retryCount < maxRetries && assets.length === 0) {
-              const delay = Math.min(retryCount * 1000 + 1000, 5000);
-              await new Promise((r) => setTimeout(r, delay));
-              assets = await assetService.fetchAssets(jobId);
-              if (assets.length > 0) break;
-              retryCount++;
-            }
+              if (modelUrl && onShapeGenerated) {
+                // Extract segmented parts if the worker returned them
+                const rawParts: any[] = rawOutput.parts || [];
+                const parts = rawParts.map((p: any, i: number) => ({
+                  id: p.name || `part-${i}`,
+                  name: p.name || `Part ${i + 1}`,
+                  category: "mesh",
+                  role: p.name || "part",
+                  mesh_file: p.mesh_url || p.url,
+                }));
+                const partAssets = rawParts
+                  .filter((p: any) => p.mesh_url || p.url)
+                  .map((p: any) => ({
+                    filename: `${p.name || "part"}.glb`,
+                    url: p.mesh_url || p.url,
+                  }));
 
-            if (assets.length === 0) throw new Error("No assets found.");
+                const shape: GeneratedShape = {
+                  id: `img3d-${Date.now()}`,
+                  type: "generic" as any,
+                  name: "AI Generated 3D Model",
+                  description: `Generated from image (${parts.length} part${parts.length !== 1 ? "s" : ""})`,
+                  hasSimulation: false,
+                  sdfUrl: modelUrl,
+                  assets: partAssets.length > 0 ? partAssets : undefined,
+                  geometry: {
+                    parts,
+                    metadata: { totalVertices: 0, fileSize: 0 },
+                  },
+                  createdAt: new Date(),
+                };
+                onShapeGenerated(shape, chatId);
+              }
+            } else {
+              // Standard generate_scad asset polling
+              let assets: any[] = [];
+              let retryCount = 0;
+              const maxRetries = 20;
 
-            const shape = await assetService.mapToGeneratedShape(jobId, assets);
+              while (retryCount < maxRetries && assets.length === 0) {
+                const delay = Math.min(retryCount * 1000 + 1000, 5000);
+                await new Promise((r) => setTimeout(r, delay));
+                assets = await assetService.fetchAssets(jobId);
+                if (assets.length > 0) break;
+                retryCount++;
+              }
 
-            if (shape && onShapeGenerated) {
-              onShapeGenerated(shape, chatId);
-            } else if (assets.length > 0 && !shape) {
-              setError("Model generated but could not be displayed.");
+              if (assets.length === 0) throw new Error("No assets found.");
+
+              const shape = await assetService.mapToGeneratedShape(jobId, assets);
+
+              if (shape && onShapeGenerated) {
+                onShapeGenerated(shape, chatId);
+              } else if (assets.length > 0 && !shape) {
+                setError("Model generated but could not be displayed.");
+              }
             }
           } catch (err) {
-            console.error("[useChat] ❌ Failed to load assets:", err);
+            console.error("[useChat] Failed to load assets:", err);
             setError("Model generated but failed to load assets.");
           } finally {
             setGenerating(chatId, false);
@@ -300,6 +342,18 @@ export const useChat = (
           }
           setGenerating(chatId, false);
           break;
+        // ── Image-to-3D events ──
+        case "image_to_3d.started":
+        case "image_to_3d.queued":
+          if (!chatId) break;
+          setGenerating(chatId, true, "Generating 3D model from image...");
+          break;
+        case "image_to_3d.error":
+          if (!chatId) break;
+          setError(event.error || (typeof event.message === 'string' ? event.message : "Image-to-3D generation failed"));
+          setGenerating(chatId, false);
+          break;
+
         case "error":
           if (!chatId) break;
           setError(event.error || "An error occurred");
@@ -416,6 +470,56 @@ export const useChat = (
         const provider = modelOverride?.provider ?? useChatStore.getState().selectedProvider;
         const model = modelOverride?.model ?? useChatStore.getState().selectedModel;
         const thinking = modelOverride?.thinking ?? useChatStore.getState().selectedThinking;
+        const codeLang = useChatStore.getState().selectedLanguage;
+
+        // Image-to-3D mode: route through RunPod instead of the agent
+        if (codeLang === "image_to_3d") {
+          const { imageTo3dService } = await import("@/modules/ai/services/imageTo3dService");
+          let imageUrlForRunpod = "";
+          if (imagePayload?.length) {
+            imageUrlForRunpod = `data:${imagePayload[0].media_type};base64,${imagePayload[0].data}`;
+          }
+          const promptText = content.trim();
+          if (!imageUrlForRunpod && !promptText) {
+            setError("Provide a prompt or attach an image for 3D generation");
+            setGenerating(targetId, false);
+            sendingRef.current = false;
+            return;
+          }
+          try {
+            useChatStore.getState().updateMessage(targetId, streamMsgId, {
+              content: imageUrlForRunpod
+                ? "Submitting image to 3D generation..."
+                : "Searching for reference image and generating 3D model...",
+            });
+            const response = await imageTo3dService.generate(targetId, {
+              image_url: imageUrlForRunpod,
+              prompt: promptText,
+              output_format: "glb",
+            });
+            useChatStore.getState().updateMessage(targetId, streamMsgId, {
+              content: `3D generation in progress (${response.runpod_id || "processing"})...`,
+            });
+            addJobToHistory(targetId, {
+              id: response.runpod_id || `img3d-${Date.now()}`,
+              prompt: promptText,
+              output_format: "glb",
+              status: "running",
+              createdAt: new Date(),
+              startedAt: new Date(),
+            });
+            setGenerating(targetId, true, "Generating 3D model...");
+            sendingRef.current = false;
+          } catch (err: any) {
+            useChatStore.getState().updateMessage(targetId, streamMsgId, {
+              content: `3D generation failed: ${err?.message || "Unknown error"}`,
+            });
+            setGenerating(targetId, false);
+            sendingRef.current = false;
+          }
+          return;
+        }
+
         const messageContent = content.trim() || (imagePayload?.length ? "Analyze the attached image(s) and generate OpenSCAD code." : "");
 
         // Try WebSocket first, fall back to SSE
@@ -427,7 +531,7 @@ export const useChat = (
             llm_provider: provider,
             llm_model: model,
             llm_thinking: thinking,
-            code_language: useChatStore.getState().selectedLanguage,
+            code_language: codeLang,
           },
         });
 
