@@ -361,7 +361,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
 
       {/* Parts Panel */}
       {shape && activePanel === "parts" && (
-        <div className="absolute top-16 left-3 z-20 w-56 animate-in fade-in slide-in-from-left-2 duration-150">
+        <div className="absolute top-16 left-3 right-3 sm:right-auto z-20 w-auto sm:w-56 max-h-[60vh] overflow-y-auto animate-in fade-in slide-in-from-left-2 duration-150">
           <ObjectPartsPanel
             shape={shape}
             selectedPart={selectedPart}
@@ -377,7 +377,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
 
       {/* Asset Swap Panel */}
       {activePanel === "swap" && swappingPartId && (
-        <div className="absolute top-16 left-3 z-20 w-80 h-[400px] animate-in fade-in slide-in-from-left-2 duration-150">
+        <div className="absolute top-16 left-3 right-3 sm:right-auto z-20 w-auto sm:w-80 h-[400px] animate-in fade-in slide-in-from-left-2 duration-150">
           <AssetSwapPanel
             currentPartName={shape?.geometry.parts.find((p: any) => p.id === swappingPartId)?.name || "Part"}
             onSelectAsset={handleCompleteSwap}
