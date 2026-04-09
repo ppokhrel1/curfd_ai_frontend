@@ -12,6 +12,7 @@ export type RunpodEventType =
   | "openscad.error"
   | "image_to_3d.started"
   | "image_to_3d.queued"
+  | "image_to_3d.image_options"
   | "image_to_3d.error"
   | "error";
 
@@ -31,6 +32,11 @@ export interface RunpodEvent {
   };
   output?: any;
   error?: string;
+  // For image_to_3d.image_options event:
+  image_urls?: string[];
+  search_query?: string;
+  request_id?: string;
+  prompt?: string;
 }
 
 interface UseChatSocketProps {

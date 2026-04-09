@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import type { Message } from "../types/chat.type";
 import { MODEL_OPTIONS, type ModelOption } from "./ModelSelector";
 import type { ModelOverride } from "../hooks/useChat";
+import { ImageSearchPicker } from "./ImageSearchPicker";
 
 export type EditorPayloadType = "requirements" | "code";
 
@@ -12,9 +13,10 @@ interface MessageListProps {
   onOpenInEditor?: (content: string, type: EditorPayloadType) => void;
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
+  onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor, onRegenerate, onViewIn3D }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect }) => {
   return (
     <div className="space-y-4 w-full pb-2">
       {messages.map((message, index) => (
@@ -24,6 +26,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEdit
           onOpenInEditor={onOpenInEditor}
           onRegenerate={onRegenerate}
           onViewIn3D={onViewIn3D}
+          onImageSelect={onImageSelect}
         />
       ))}
     </div>
@@ -35,9 +38,10 @@ interface MessageBubbleProps {
   onOpenInEditor?: (content: string, type: EditorPayloadType) => void;
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
+  onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect }) => {
   const isUser = message.role === "user";
   // Auto-open is handled by ChatInterface's AUTO-LOAD EFFECT +
   // useActiveConversationSync handles compilation — no duplicate here.
@@ -81,7 +85,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, 
               <span className="break-words whitespace-pre-wrap">{message.content}</span>
             </div>
           ) : (
-            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} />
+            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} />
           )}
         </div>
 
@@ -100,7 +104,8 @@ const TypewriterContent: React.FC<{
   onOpenInEditor?: (c: string, t: EditorPayloadType) => void;
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
-}> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D }) => {
+  onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
+}> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect }) => {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
 
@@ -121,7 +126,7 @@ const TypewriterContent: React.FC<{
     return () => clearInterval(iv);
   }, [message.content, message.shapeData]);
 
-  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} />;
+  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} />;
 };
 
 // ── Content renderer ──────────────────────────────────────────────────────────
@@ -132,7 +137,29 @@ const FormattedContent: React.FC<{
   onOpenInEditor?: (c: string, t: EditorPayloadType) => void;
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
-}> = ({ message, content, onOpenInEditor, onRegenerate, onViewIn3D }) => {
+  onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
+}> = ({ message, content, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect }) => {
+  // Handle image search results picker
+  if (message.imageSearchPayload && message.role === "assistant") {
+    return (
+      <div className="space-y-2">
+        <p className="break-words whitespace-pre-wrap text-sm">{content}</p>
+        <ImageSearchPicker
+          payload={message.imageSearchPayload}
+          onSelect={(imageUrl) => {
+            if (onImageSelect) {
+              onImageSelect(
+                message.imageSearchPayload!.request_id,
+                imageUrl,
+                message.imageSearchPayload!.prompt
+              );
+            }
+          }}
+        />
+      </div>
+    );
+  }
+
   // Check for 3D model URL in message metadata or content
   const modelUrl = (() => {
     const meta = (message as any).metadata_json || (message as any).metadata;

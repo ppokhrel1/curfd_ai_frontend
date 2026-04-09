@@ -5,6 +5,13 @@ export type MessageRole = 'user' | 'assistant' | 'system';
 
 export type MessageStatus = 'sending' | 'sent' | 'error' | 'streaming';
 
+export interface ImageSearchPayload {
+  image_urls: string[];
+  search_query: string;
+  request_id: string;
+  prompt: string;
+}
+
 export interface Message {
   id: string;
   content: string | null;
@@ -16,6 +23,7 @@ export interface Message {
   metadata?: MessageMetadata;
   shapeData?: GeneratedShape;
   imageUrls?: string[];
+  imageSearchPayload?: ImageSearchPayload;
 }
 
 export interface MessageMetadata {

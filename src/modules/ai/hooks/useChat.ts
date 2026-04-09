@@ -74,6 +74,7 @@ interface UseChatReturn {
     content: string,
     shapeData?: GeneratedShape
   ) => Promise<void>;
+  sendImageSelection: (requestId: string, imageUrl: string, prompt: string) => void;
   generateModel: (requirements: any) => Promise<void>;
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
@@ -347,6 +348,25 @@ export const useChat = (
         case "image_to_3d.queued":
           if (!chatId) break;
           setGenerating(chatId, true, "Generating 3D model from image...");
+          break;
+        case "image_to_3d.image_options":
+          if (!chatId || !event.image_urls || !event.request_id) break;
+          {
+            const { image_urls, search_query, request_id, prompt } = event;
+            const msg: Message = {
+              id: `img-search-${request_id}`,
+              role: "assistant",
+              content: `I found ${image_urls.length} images for "${search_query}". Pick one to generate your 3D model:`,
+              timestamp: new Date(),
+              imageSearchPayload: {
+                image_urls,
+                search_query: search_query || "",
+                request_id,
+                prompt: prompt || "",
+              },
+            };
+            useChatStore.getState().addMessage(chatId, msg);
+          }
           break;
         case "image_to_3d.error":
           if (!chatId) break;
@@ -639,7 +659,23 @@ export const useChat = (
     [chatId, addMessage, updateConversation]
   );
 
-  
+  // --- Send Image Selection for Image-to-3D ---
+  const sendImageSelection = useCallback(
+    (requestId: string, imageUrl: string, prompt: string) => {
+      if (!wsConnected) {
+        console.warn("[useChat] WebSocket not connected, cannot send image selection");
+        return;
+      }
+      sendWs({
+        type: "image_to_3d.image_selected",
+        request_id: requestId,
+        image_url: imageUrl,
+        prompt,
+      });
+    },
+    [sendWs, wsConnected]
+  );
+
   const retryLastMessage = useCallback(async () => {
     if (lastUserMessage) {
       await sendMessage(lastUserMessage);
@@ -776,6 +812,7 @@ export const useChat = (
     error,
     sendMessage,
     sendSystemMessage,
+    sendImageSelection,
     generateModel,
     clearMessages,
     retryLastMessage,

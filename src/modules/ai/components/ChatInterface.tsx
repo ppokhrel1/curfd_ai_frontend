@@ -137,6 +137,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       error,
       sendMessage,
       sendSystemMessage: persistSystemMessage,
+      sendImageSelection,
       clearMessages,
       retryLastMessage,
       regenerateWithModel,
@@ -405,6 +406,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                           onOpenInEditor={handleViewEditor}
                           onRegenerate={regenerateWithModel}
                           onViewIn3D={handleViewIn3D}
+                          onImageSelect={sendImageSelection}
                         />
                       </div>
                     ))}
