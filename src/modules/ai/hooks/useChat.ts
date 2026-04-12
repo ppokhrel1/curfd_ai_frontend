@@ -681,18 +681,40 @@ export const useChat = (
   // --- Send Image Selection for Image-to-3D ---
   const sendImageSelection = useCallback(
     (requestId: string, imageUrl: string, prompt: string) => {
-      if (!wsConnected) {
-        console.warn("[useChat] WebSocket not connected, cannot send image selection");
-        return;
+      if (!chatId) return;
+
+      // Set generating state so user sees progress
+      setGenerating(chatId, true, "Downloading selected image and starting 3D generation...");
+
+      // Try WebSocket first
+      if (wsConnected) {
+        const sent = sendWs({
+          type: "image_to_3d.image_selected",
+          request_id: requestId,
+          image_url: imageUrl,
+          prompt,
+        });
+        if (sent) return;
       }
-      sendWs({
-        type: "image_to_3d.image_selected",
-        request_id: requestId,
-        image_url: imageUrl,
-        prompt,
-      });
+
+      // Fallback: call HTTP endpoint directly with the selected image URL
+      console.warn("[useChat] WS unavailable, falling back to HTTP for image selection");
+      (async () => {
+        try {
+          const { imageTo3dService } = await import("@/modules/ai/services/imageTo3dService");
+          await imageTo3dService.generate(chatId, {
+            image_url: imageUrl,
+            prompt,
+            output_format: "glb",
+          });
+        } catch (err: any) {
+          console.error("[useChat] HTTP fallback for image selection failed:", err);
+          setError(err?.response?.data?.detail || "Failed to start 3D generation");
+          setGenerating(chatId, false);
+        }
+      })();
     },
-    [sendWs, wsConnected]
+    [chatId, sendWs, wsConnected, setGenerating, setError]
   );
 
   const retryLastMessage = useCallback(async () => {
