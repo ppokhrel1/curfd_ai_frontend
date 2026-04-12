@@ -510,18 +510,37 @@ export const useChat = (
             useChatStore.getState().updateMessage(targetId, streamMsgId, {
               content: imageUrlForRunpod
                 ? "Submitting image to 3D generation..."
-                : "Searching for reference image and generating 3D model...",
+                : "Searching for reference images...",
             });
             const response = await imageTo3dService.generate(targetId, {
-              image_url: imageUrlForRunpod,
+              image_url: imageUrlForRunpod || undefined,
               prompt: promptText,
               output_format: "glb",
             });
+
+            // Backend returned image search results for user to pick from
+            if (response.status === "image_selection_required" && "image_urls" in response) {
+              const searchResp = response as import("@/modules/ai/services/imageTo3dService").ImageSearchResponse;
+              useChatStore.getState().updateMessage(targetId, streamMsgId, {
+                content: `I found ${searchResp.image_urls.length} images for "${searchResp.search_query}". Pick one to generate your 3D model:`,
+                imageSearchPayload: {
+                  image_urls: searchResp.image_urls,
+                  search_query: searchResp.search_query,
+                  request_id: searchResp.request_id,
+                  prompt: searchResp.prompt,
+                },
+              });
+              setGenerating(targetId, false);
+              sendingRef.current = false;
+              return;
+            }
+
+            const genResp = response as import("@/modules/ai/services/imageTo3dService").ImageTo3DResponse;
             useChatStore.getState().updateMessage(targetId, streamMsgId, {
-              content: `3D generation in progress (${response.runpod_id || "processing"})...`,
+              content: `3D generation in progress (${genResp.runpod_id || "processing"})...`,
             });
             addJobToHistory(targetId, {
-              id: response.runpod_id || `img3d-${Date.now()}`,
+              id: genResp.runpod_id || `img3d-${Date.now()}`,
               prompt: promptText,
               output_format: "glb",
               status: "running",
