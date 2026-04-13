@@ -416,7 +416,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                           <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-red-400 mb-1">Error</p>
-                            <p className="text-xs text-neutral-400 mb-2 truncate">{error}</p>
+                            <p className="text-xs text-neutral-400 mb-2 truncate">{typeof error === "string" ? error : JSON.stringify(error)}</p>
                             <button onClick={() => retryLastMessage()} className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 rounded-lg text-red-400 text-[10px] font-bold uppercase">
                               <RefreshCcw className="w-3 h-3" /> Retry
                             </button>

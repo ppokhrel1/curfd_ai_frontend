@@ -333,15 +333,22 @@ export const useChat = (
         case "runpod.failed":
         case "runpod.timeout":
           if (!chatId) break;
-          setError(event.error || `Runpod execution ${event.type}`);
-          if (event.job_id) {
-            updateJobInHistory(chatId, event.job_id, {
-              status: "failed",
-              error: event.error,
-              finishedAt: new Date(),
-            });
+          {
+            const errStr = typeof event.error === "string"
+              ? event.error
+              : event.error
+              ? JSON.stringify(event.error)
+              : `Runpod execution ${event.type}`;
+            setError(errStr);
+            if (event.job_id) {
+              updateJobInHistory(chatId, event.job_id, {
+                status: "failed",
+                error: errStr,
+                finishedAt: new Date(),
+              });
+            }
+            setGenerating(chatId, false);
           }
-          setGenerating(chatId, false);
           break;
         // ── Image-to-3D events ──
         case "image_to_3d.started":
@@ -370,13 +377,22 @@ export const useChat = (
           break;
         case "image_to_3d.error":
           if (!chatId) break;
-          setError(event.error || (typeof event.message === 'string' ? event.message : "Image-to-3D generation failed"));
+          {
+            const errStr = typeof event.error === "string"
+              ? event.error
+              : typeof event.message === "string"
+              ? event.message
+              : event.error || event.message
+              ? JSON.stringify(event.error || event.message)
+              : "Image-to-3D generation failed";
+            setError(errStr);
+          }
           setGenerating(chatId, false);
           break;
 
         case "error":
           if (!chatId) break;
-          setError(event.error || "An error occurred");
+          setError(typeof event.error === "string" ? event.error : event.error ? JSON.stringify(event.error) : "An error occurred");
           setGenerating(chatId, false);
           break;
       }
