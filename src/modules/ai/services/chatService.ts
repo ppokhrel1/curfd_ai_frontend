@@ -488,6 +488,13 @@ class ChatService {
       }
     }
 
+    // Always preserve raw metadata_json so reload-from-history can recover
+    // image_to_3d model URLs and other persisted data
+    let preservedMeta = msg.metadata_json;
+    if (typeof preservedMeta === 'string') {
+      try { preservedMeta = JSON.parse(preservedMeta); } catch(e) {}
+    }
+
     return {
       id: msg.id,
       content: content,
@@ -495,7 +502,8 @@ class ChatService {
       timestamp: new Date(msg.created_at),
       shapeData: shapeData,
       imageUrls,
-    };
+      metadata_json: preservedMeta,
+    } as any;
   }
 
   private mapToGeneratedShape(model: any): any {
