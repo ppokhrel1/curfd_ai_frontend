@@ -93,15 +93,34 @@ export const useActiveConversationSync = ({
 
           const modelUrl = findModelUrl();
           if (modelUrl) {
-            console.log("[Sync] Recovered image_to_3d model URL from history:", modelUrl);
+            // Recover parts data from metadata if available
+            const meta = (msg as any).metadata_json || (msg as any).metadata;
+            const output = meta?.output;
+            const recoveredParts = output?.parts || meta?.parts || [];
+            if (recoveredParts.length > 0) {
+              console.log("[Sync] Recovered image_to_3d with", recoveredParts.length, "parts from history");
+            } else {
+              console.log("[Sync] Recovered image_to_3d model URL from history:", modelUrl);
+            }
             return {
               id: `recovered-${msg.id}`,
               type: 'generic',
               name: 'AI Generated 3D Model',
-              description: 'Recovered from history',
+              description: recoveredParts.length > 0
+                ? `${recoveredParts.length} parts: ${recoveredParts.map((p: any) => p.name).join(', ')}`
+                : 'Recovered from history',
               hasSimulation: false,
               sdfUrl: modelUrl,
-              geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+              geometry: {
+                parts: recoveredParts.map((p: any) => ({
+                  name: p.name,
+                  meshUrl: p.mesh_url,
+                  primitive: p.primitive,
+                  faceCount: p.face_count,
+                  isWatertight: p.is_watertight,
+                })),
+                metadata: { totalVertices: 0, fileSize: 0 },
+              },
               createdAt: new Date(msg.timestamp || msg.created_at),
             } as GeneratedShape;
           }
