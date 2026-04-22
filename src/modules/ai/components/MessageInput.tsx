@@ -88,30 +88,33 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const canSend = (input.trim() || selectedImages.length > 0) && !disabled;
 
   return (
-    <div className="border-t border-neutral-800 bg-neutral-950/80 backdrop-blur-xl px-2.5 py-2.5">
+    <div className="border-t border-neutral-200 bg-white/80 backdrop-blur-xl px-2.5 py-2.5">
       <div className="flex items-center mb-1.5 px-1">
         <ModelSelector />
         <LanguageSelector />
       </div>
 
-      {/* Image Previews */}
+      {/* Image Previews + Modification Mode Pill */}
       {previews.length > 0 && (
-        <div className="flex gap-2 px-1 mb-2 overflow-x-auto">
+        <div className="flex items-center gap-2 px-1 mb-2 overflow-x-auto">
           {previews.map((src, i) => (
             <div key={i} className="relative flex-shrink-0 group">
               <img
                 src={src}
                 alt={`Upload ${i + 1}`}
-                className="w-16 h-16 object-cover rounded-lg border border-neutral-700"
+                className="w-16 h-16 object-cover rounded-lg border border-neutral-200"
               />
               <button
                 onClick={() => removeImage(i)}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-neutral-800 border border-neutral-600 rounded-full text-neutral-400 hover:text-white hover:bg-red-600 hover:border-red-500 transition-all opacity-0 group-hover:opacity-100"
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-white border border-neutral-300 rounded-full text-neutral-500 hover:text-white hover:bg-red-600 hover:border-red-500 transition-all opacity-0 group-hover:opacity-100"
               >
                 <X className="w-3 h-3" />
               </button>
             </div>
           ))}
+          <span className="flex-shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary-50 text-primary-600 border border-primary-200">
+            Modification mode
+          </span>
         </div>
       )}
 
@@ -120,7 +123,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled || selectedImages.length >= MAX_IMAGES}
-          className="flex-shrink-0 w-9 h-9 flex items-center justify-center text-neutral-500 hover:text-green-400 disabled:text-neutral-700 disabled:cursor-not-allowed rounded-xl transition-all hover:bg-neutral-800/50"
+          className="flex-shrink-0 w-9 h-9 flex items-center justify-center text-neutral-500 hover:text-primary-600 disabled:text-neutral-300 disabled:cursor-not-allowed rounded-xl transition-all hover:bg-neutral-100"
           title="Attach image"
         >
           <ImagePlus className="w-4 h-4" />
@@ -139,9 +142,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           <div
             className={`relative flex flex-col rounded-xl transition-all duration-200 ${
               isFocused
-                ? "ring-2 ring-green-500/40 border-green-500/50"
-                : "border-neutral-800"
-            } border bg-neutral-900/50 backdrop-blur-sm overflow-hidden`}
+                ? "ring-2 ring-primary-500/40 border-primary-400"
+                : "border-neutral-300"
+            } border bg-white backdrop-blur-sm overflow-hidden`}
           >
             <textarea
               ref={textareaRef}
@@ -150,17 +153,17 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder={selectedImages.length > 0 ? "Describe what you want from this image…" : "Describe a shape or ask a question…"}
+              placeholder={selectedImages.length > 0 ? "Describe the modification (e.g. add mounting holes, extend arm 20mm)…" : "Describe a shape or ask a question…"}
               disabled={disabled}
               rows={1}
-              className="w-full px-3 py-2.5 pr-10 bg-transparent resize-none focus:outline-none transition-all disabled:cursor-not-allowed text-white placeholder-neutral-600 text-[13px]"
+              className="w-full px-3 py-2.5 pr-10 bg-transparent resize-none focus:outline-none transition-all disabled:cursor-not-allowed text-neutral-800 placeholder-neutral-400 text-[13px]"
               style={{ minHeight: "40px", maxHeight: "120px" }}
             />
 
             {/* AI sparkle badge */}
             {input.length > 0 && (
               <div className="absolute right-2.5 bottom-2.5 pointer-events-none">
-                <Sparkles className="w-3.5 h-3.5 text-green-500/50" />
+                <Sparkles className="w-3.5 h-3.5 text-primary-500/50" />
               </div>
             )}
           </div>
@@ -170,7 +173,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         <button
           onClick={handleSend}
           disabled={!canSend}
-          className="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-green-600 hover:bg-green-500 disabled:bg-neutral-800 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-sm shadow-green-500/20 disabled:shadow-none group"
+          className="flex-shrink-0 w-9 h-9 flex items-center justify-center bg-primary-500 hover:bg-primary-600 disabled:bg-neutral-200 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-sm shadow-primary-500/20 disabled:shadow-none group"
           title="Send (Enter)"
         >
           <Send className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
