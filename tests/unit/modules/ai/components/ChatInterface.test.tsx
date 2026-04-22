@@ -294,8 +294,7 @@ describe('ChatInterface', () => {
       expect(mockSetCode).toHaveBeenCalledWith(longCode);
       expect(mockSetMode).toHaveBeenCalledWith('code');
       expect(mockSetActiveView).toHaveBeenCalledWith('editor');
-      // Should trigger STL compilation
-      expect(mockRequestCompile).toHaveBeenCalled();
+      // Compilation is now handled by useActiveConversationSync, not the auto-load effect
     });
 
     test('auto-loads pure JSON without markdown from latest assistant message', () => {

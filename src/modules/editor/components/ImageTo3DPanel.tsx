@@ -100,15 +100,15 @@ export const ImageTo3DPanel: React.FC = () => {
       </p>
 
       {/* Mode Tabs */}
-      <div className="flex bg-neutral-950 border border-neutral-800 rounded-lg p-1">
+      <div className="flex bg-white border border-neutral-200 rounded-lg p-1">
         {modes.map((m) => (
           <button
             key={m.key}
             onClick={() => { setMode(m.key); setError(null); }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
               mode === m.key
-                ? "bg-neutral-800 text-violet-400 shadow-sm"
-                : "text-neutral-500 hover:text-neutral-300"
+                ? "bg-neutral-100 text-violet-400 shadow-sm"
+                : "text-neutral-500 hover:text-neutral-600"
             }`}
           >
             {m.icon}
@@ -125,14 +125,14 @@ export const ImageTo3DPanel: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="e.g., dragon sculpture, anime character..."
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-violet-500/50"
+            className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 placeholder:text-neutral-600 focus:outline-none focus:border-violet-500/50"
           />
         )}
 
         {mode === "upload" && (
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-neutral-700 rounded-lg p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-violet-500/50 transition-colors"
+            className="border-2 border-dashed border-neutral-300 rounded-lg p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-violet-500/50 transition-colors"
           >
             {uploadedImage ? (
               <img
@@ -162,7 +162,7 @@ export const ImageTo3DPanel: React.FC = () => {
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}
             placeholder="https://example.com/image.jpg"
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-violet-500/50"
+            className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 placeholder:text-neutral-600 focus:outline-none focus:border-violet-500/50"
           />
         )}
 
@@ -172,22 +172,22 @@ export const ImageTo3DPanel: React.FC = () => {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder={mode === "search" ? "Optional: refine the style (e.g., low-poly, realistic)" : "Optional: describe what you want (e.g., low-poly style)"}
-          className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-600 focus:outline-none focus:border-violet-500/50"
+          className="w-full bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 placeholder:text-neutral-600 focus:outline-none focus:border-violet-500/50"
         />
       </div>
 
       {/* Output Format */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-neutral-500">Format:</span>
-        <div className="flex bg-neutral-950 border border-neutral-800 rounded-lg p-0.5">
+        <div className="flex bg-white border border-neutral-200 rounded-lg p-0.5">
           {(["glb", "stl"] as const).map((fmt) => (
             <button
               key={fmt}
               onClick={() => setOutputFormat(fmt)}
               className={`px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
                 outputFormat === fmt
-                  ? "bg-neutral-800 text-violet-400 shadow-sm"
-                  : "text-neutral-500 hover:text-neutral-300"
+                  ? "bg-neutral-100 text-violet-400 shadow-sm"
+                  : "text-neutral-500 hover:text-neutral-600"
               }`}
             >
               {fmt}
@@ -200,7 +200,7 @@ export const ImageTo3DPanel: React.FC = () => {
       <button
         onClick={handleGenerate}
         disabled={isGenerating}
-        className="w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-neutral-800 disabled:text-neutral-500 text-white text-sm font-semibold rounded-lg transition-colors"
+        className="w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-neutral-100 disabled:text-neutral-500 text-white text-sm font-semibold rounded-lg transition-colors"
       >
         {isGenerating ? (
           <>

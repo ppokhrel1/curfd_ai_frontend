@@ -24,9 +24,9 @@ export const OptimizationPanel = ({
 
   if (!chatId) {
     return (
-      <div className="flex flex-col h-full bg-neutral-900 w-full flex-shrink-0 items-center justify-center p-6 text-center border-l border-neutral-800">
+      <div className="flex flex-col h-full bg-white w-full flex-shrink-0 items-center justify-center p-6 text-center border-l border-neutral-200">
         <AlertCircle className="w-8 h-8 text-rose-500/80 mb-3" />
-        <h3 className="text-sm font-bold text-white mb-1">Optimization Locked</h3>
+        <h3 className="text-sm font-bold text-neutral-800 mb-1">Optimization Locked</h3>
         <p className="text-xs text-neutral-400">
           You must send a message to start a chat session before you can run AI optimizations.
         </p>
@@ -69,12 +69,12 @@ export const OptimizationPanel = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-900 w-full flex-shrink-0 border-l border-neutral-800">
+    <div className="flex flex-col h-full bg-white w-full flex-shrink-0 border-l border-neutral-200">
       
       <ParameterPanel onOptimizeClick={handleOptimizeRequest} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-2 sticky top-0 bg-neutral-900 py-1">
+        <h3 className="text-sm font-bold text-neutral-800 uppercase tracking-wider mb-2 sticky top-0 bg-white py-1">
           Optimization Jobs
         </h3>
         
@@ -85,7 +85,7 @@ export const OptimizationPanel = ({
         )}
 
         {jobs.map(job => (
-          <div key={job.id} className="bg-neutral-800 rounded-lg p-3 text-sm border border-neutral-700 shadow-sm">
+          <div key={job.id} className="bg-neutral-100 rounded-lg p-3 text-sm border border-neutral-200 shadow-sm">
             <div className="flex justify-between items-center mb-2">
               <span className="text-neutral-400 font-mono text-xs">#{job.id.slice(0, 6)}</span>
               
@@ -94,7 +94,7 @@ export const OptimizationPanel = ({
                   <Loader2 className="w-3 h-3 animate-spin" /> {job.status}
                 </span>
               ) : job.status === 'Completed' ? (
-                <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold bg-emerald-950/30 px-2 py-1 rounded">
+                <span className="flex items-center gap-1.5 text-primary-500 text-xs font-semibold bg-primary-50 px-2 py-1 rounded">
                   <CheckCircle2 className="w-3 h-3" /> Done
                 </span>
               ) : job.status === 'Completed (best from GA)' ? (
@@ -109,10 +109,10 @@ export const OptimizationPanel = ({
             </div>
 
             {job.status.startsWith('Completed') && job.optimized_parameters && (
-              <div className="mt-3 flex flex-col gap-2 border-t border-neutral-700/50 pt-3">
+              <div className="mt-3 flex flex-col gap-2 border-t border-neutral-200/50 pt-3">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-neutral-400">Fitness Score</span>
-                  <span className="font-mono text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded">
+                  <span className="font-mono text-primary-500 bg-primary-50 px-1.5 py-0.5 rounded">
                     {job.fitness_score?.toFixed(5)}
                   </span>
                 </div>
@@ -121,7 +121,7 @@ export const OptimizationPanel = ({
                   {/* 🚨 Updated to pass the full job object */}
                   <button 
                     onClick={() => applyOptimizedCode(job)}
-                    className="flex-1 bg-neutral-700 hover:bg-neutral-600 text-white text-xs py-1.5 rounded-md transition-colors flex items-center justify-center gap-1"
+                    className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 text-xs py-1.5 rounded-md transition-colors flex items-center justify-center gap-1"
                   >
                     Apply & View <ChevronRight className="w-3 h-3" />
                   </button>
@@ -130,7 +130,7 @@ export const OptimizationPanel = ({
                       href={job.result_url} 
                       target="_blank" 
                       rel="noreferrer"
-                      className="bg-neutral-700 hover:bg-neutral-600 w-8 flex items-center justify-center rounded-md text-neutral-300 transition-colors"
+                      className="bg-neutral-200 hover:bg-neutral-300 w-8 flex items-center justify-center rounded-md text-neutral-600 transition-colors"
                       title="Download raw STL"
                     >
                       <Download className="w-4 h-4" />

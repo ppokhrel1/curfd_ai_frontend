@@ -58,9 +58,9 @@ export const ModelSidebar: React.FC<ModelSidebarProps> = ({
       results.push({
         label: "Surface Area",
         value: `${formatNumber(physics.surface_area, 2)} m²`,
-        color: "text-green-400",
+        color: "text-primary-500",
         progress: Math.min((physics.surface_area / 5.0) * 100, 100),
-        gradient: "from-green-500 to-emerald-500",
+        gradient: "from-primary-500 to-primary-500",
         icon: <Activity className="w-3.5 h-3.5" />,
       });
     }
@@ -85,14 +85,14 @@ export const ModelSidebar: React.FC<ModelSidebarProps> = ({
   return (
     <div className={`space-y-3 ${className}`}>
       {/* Model Info Card */}
-      <div className="bg-neutral-900/80 backdrop-blur-md border border-neutral-800 rounded-xl overflow-hidden shadow-xl animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl overflow-hidden shadow-xl animate-in fade-in slide-in-from-right-4 duration-500">
         <button
           onClick={() => setIsInfoExpanded(!isInfoExpanded)}
           className="w-full px-5 py-4 flex items-center justify-between hover:bg-neutral-800/50 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-500/10 rounded-lg border border-green-500/20">
-              <Info className="w-4 h-4 text-green-400" />
+            <div className="p-2 bg-primary-50 rounded-lg border border-primary-500/20">
+              <Info className="w-4 h-4 text-primary-500" />
             </div>
             <h3 className="text-sm font-semibold text-white">
               Model Information
@@ -125,7 +125,7 @@ export const ModelSidebar: React.FC<ModelSidebarProps> = ({
       {/* Analysis Results Card - Only show if we have data */}
       {analysisData.length > 0 && (
         <div
-          className="bg-neutral-900/80 backdrop-blur-md border border-neutral-800 rounded-xl overflow-hidden shadow-xl animate-in fade-in slide-in-from-right-4 duration-500"
+          className="bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl overflow-hidden shadow-xl animate-in fade-in slide-in-from-right-4 duration-500"
           style={{ animationDelay: "100ms" }}
         >
           <button
@@ -133,8 +133,8 @@ export const ModelSidebar: React.FC<ModelSidebarProps> = ({
             className="w-full px-5 py-4 flex items-center justify-between hover:bg-neutral-800/50 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-500/10 rounded-lg border border-green-500/20">
-                <Activity className="w-4 h-4 text-green-400" />
+              <div className="p-2 bg-primary-50 rounded-lg border border-primary-500/20">
+                <Activity className="w-4 h-4 text-primary-500" />
               </div>
               <h3 className="text-sm font-semibold text-white">
                 Physics Analysis
@@ -180,7 +180,7 @@ export const ModelSidebar: React.FC<ModelSidebarProps> = ({
 
       {/* Quick Actions Card */}
       <div
-        className="bg-neutral-900/80 backdrop-blur-md border border-neutral-800 rounded-xl p-4 shadow-xl animate-in fade-in slide-in-from-right-4 duration-500"
+        className="bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-4 shadow-xl animate-in fade-in slide-in-from-right-4 duration-500"
         style={{ animationDelay: "200ms" }}
       >
         <h3 className="text-xs font-semibold text-neutral-400 mb-3 uppercase tracking-wider">
@@ -210,7 +210,7 @@ const InfoRow: React.FC<InfoRowProps> = ({ label, value, highlight }) => {
       <span className="text-neutral-400 font-medium">{label}:</span>
       <span
         className={`font-semibold ${
-          highlight ? "text-green-400" : "text-neutral-300"
+          highlight ? "text-primary-500" : "text-neutral-300"
         }`}
       >
         {value}
@@ -237,8 +237,8 @@ const ActionButton: React.FC<ActionButtonProps> = ({
       onClick={onClick}
       className={`w-full px-3 py-2.5 text-xs font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 ${
         variant === "primary"
-          ? "bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/30 hover:shadow-lg hover:shadow-green-500/20"
-          : "bg-neutral-800/50 text-neutral-300 hover:bg-neutral-800 border border-neutral-700/50 hover:border-neutral-600"
+          ? "bg-gradient-to-r from-primary-500/20 to-primary-500/20 text-primary-500 border border-primary-500/30 hover:from-primary-500/30 hover:to-primary-500/30 hover:shadow-lg hover:shadow-primary-500/20"
+          : "bg-neutral-800/50 text-neutral-300 hover:bg-neutral-800 border border-neutral-200/50 hover:border-neutral-600"
       }`}
     >
       {icon && <span>{icon}</span>}

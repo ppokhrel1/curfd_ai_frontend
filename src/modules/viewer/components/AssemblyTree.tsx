@@ -46,7 +46,7 @@ const AxisInput: React.FC<{
       step="0.5"
       value={value}
       onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-      className="bg-neutral-900 border border-neutral-800 rounded px-1.5 py-1 text-[11px] text-white w-full focus:outline-none focus:border-purple-500/60 hide-arrows text-center"
+      className="bg-neutral-50 border border-neutral-200 rounded px-1.5 py-1 text-[11px] text-white w-full focus:outline-none focus:border-purple-500/60 hide-arrows text-center"
     />
   </label>
 );
@@ -74,8 +74,8 @@ const PartRow: React.FC<{
       isSelected
         ? "border-purple-500/60 bg-purple-500/10"
         : part.visible
-          ? "border-neutral-700 bg-neutral-800/30"
-          : "border-neutral-800 bg-neutral-900/40 opacity-60"
+          ? "border-neutral-200 bg-neutral-800/30"
+          : "border-neutral-200 bg-neutral-50 opacity-60"
     }`}>
       {/* Part header row */}
       <div
@@ -102,7 +102,7 @@ const PartRow: React.FC<{
             onChange={(e) => setNameVal(e.target.value)}
             onBlur={commitRename}
             onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") { setNameVal(part.name); setEditingName(false); } }}
-            className="flex-1 bg-neutral-900 border border-purple-500/50 rounded px-1.5 py-0.5 text-xs text-white outline-none min-w-0"
+            className="flex-1 bg-neutral-50 border border-purple-500/50 rounded px-1.5 py-0.5 text-xs text-white outline-none min-w-0"
           />
         ) : (
           <span
@@ -142,7 +142,7 @@ const PartRow: React.FC<{
 
       {/* Expanded transform controls */}
       {expanded && (
-        <div className="px-2 pb-2 space-y-2 border-t border-neutral-800/60 pt-2">
+        <div className="px-2 pb-2 space-y-2 border-t border-neutral-200/60 pt-2">
           {/* Position */}
           <div>
             <div className="flex items-center gap-1 mb-1">
@@ -155,7 +155,7 @@ const PartRow: React.FC<{
                   key={axis}
                   label={axis}
                   value={part.position[i]}
-                  color={i === 0 ? "text-red-400" : i === 1 ? "text-green-400" : "text-blue-400"}
+                  color={i === 0 ? "text-red-400" : i === 1 ? "text-primary-500" : "text-blue-400"}
                   onChange={(v) => {
                     const pos: [number, number, number] = [...part.position];
                     pos[i] = v;
@@ -178,7 +178,7 @@ const PartRow: React.FC<{
                   key={axis}
                   label={axis}
                   value={part.rotation[i]}
-                  color={i === 0 ? "text-red-400" : i === 1 ? "text-green-400" : "text-blue-400"}
+                  color={i === 0 ? "text-red-400" : i === 1 ? "text-primary-500" : "text-blue-400"}
                   onChange={(v) => {
                     const rot: [number, number, number] = [...part.rotation];
                     rot[i] = v;
@@ -226,9 +226,9 @@ export const AssemblyTree: React.FC<AssemblyTreeProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-900/95 backdrop-blur-xl border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-full bg-neutral-50 backdrop-blur-xl border border-neutral-200 rounded-2xl overflow-hidden shadow-2xl">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-neutral-800 bg-gradient-to-r from-purple-500/10 to-blue-500/10 flex items-center justify-between flex-shrink-0">
+      <div className="px-4 py-3 border-b border-neutral-200 bg-gradient-to-r from-purple-500/10 to-blue-500/10 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 bg-purple-500/15 rounded-lg border border-purple-500/20">
             <Box className="w-3.5 h-3.5 text-purple-400" />
@@ -287,7 +287,7 @@ export const AssemblyTree: React.FC<AssemblyTreeProps> = ({
       </div>
 
       {/* Footer actions */}
-      <div className="px-3 pb-3 flex-shrink-0 border-t border-neutral-800 pt-3 space-y-2">
+      <div className="px-3 pb-3 flex-shrink-0 border-t border-neutral-200 pt-3 space-y-2">
         <div className="flex gap-2">
           <button
             onClick={handleExportScad}

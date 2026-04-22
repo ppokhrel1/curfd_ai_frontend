@@ -75,6 +75,7 @@ interface UseChatReturn {
     shapeData?: GeneratedShape
   ) => Promise<void>;
   sendImageSelection: (requestId: string, imageUrl: string, prompt: string) => void;
+  sendMeshModification: (meshUrl: string, modification: string) => void;
   generateModel: (requirements: any) => Promise<void>;
   clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
@@ -138,6 +139,26 @@ export const useChat = (
           };
           onMessageReceived?.(newMessage, chatId);
         }
+      }
+
+      // Handle modify_mesh completion
+      if (event.action === "modify_mesh" && event.status === "COMPLETED") {
+        const rawOutput = event.output?.output || event.output;
+        const modifiedUrl = rawOutput?.download_url || rawOutput?.model_url;
+        if (modifiedUrl && onShapeGenerated) {
+          onShapeGenerated({
+            id: `modified-${Date.now()}`,
+            type: "generic" as any,
+            name: "Modified 3D Model",
+            description: rawOutput?.operation?.description || "Mesh modification applied",
+            hasSimulation: false,
+            sdfUrl: modifiedUrl,
+            geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+            createdAt: new Date(),
+          }, chatId);
+        }
+        setGenerating(chatId, false);
+        return;
       }
 
       // Poll for assets if action is 'generate_scad' or 'image_to_3d'
@@ -385,6 +406,21 @@ export const useChat = (
               : event.error || event.message
               ? JSON.stringify(event.error || event.message)
               : "Image-to-3D generation failed";
+            setError(errStr);
+          }
+          setGenerating(chatId, false);
+          break;
+
+        case "mesh_modification.queued":
+          if (!chatId) break;
+          setGenerating(chatId, true, "Modifying mesh...");
+          break;
+        case "mesh_modification.error":
+          if (!chatId) break;
+          {
+            const errStr = typeof (event as any).message === "string"
+              ? (event as any).message
+              : "Mesh modification failed";
             setError(errStr);
           }
           setGenerating(chatId, false);
@@ -733,6 +769,18 @@ export const useChat = (
     [chatId, sendWs, wsConnected, setGenerating, setError]
   );
 
+  const sendMeshModification = useCallback(
+    (meshUrl: string, modification: string) => {
+      if (!chatId || !wsConnected) return;
+      sendWs({
+        type: "mesh_modification.request",
+        payload: { mesh_url: meshUrl, modification },
+      });
+      setGenerating(chatId, true, "Modifying mesh...");
+    },
+    [chatId, wsConnected, sendWs, setGenerating]
+  );
+
   const retryLastMessage = useCallback(async () => {
     if (lastUserMessage) {
       await sendMessage(lastUserMessage);
@@ -870,6 +918,7 @@ export const useChat = (
     sendMessage,
     sendSystemMessage,
     sendImageSelection,
+    sendMeshModification,
     generateModel,
     clearMessages,
     retryLastMessage,

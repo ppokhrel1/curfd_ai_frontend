@@ -123,9 +123,9 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
   }, [selectedPart, parts]);
 
   return (
-    <div className="bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl overflow-hidden shadow-xl">
+    <div className="bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl overflow-hidden shadow-xl">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-neutral-800 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-neutral-200 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium text-white">Object Parts</h3>
           {!isMinimized && (
@@ -150,7 +150,7 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
             {/* Group Header */}
             <button
               onClick={() => toggleGroup(group)}
-              className="w-full flex items-center justify-between px-4 py-2 bg-neutral-800/50 hover:bg-neutral-800 text-left border-b border-neutral-800/50"
+              className="w-full flex items-center justify-between px-4 py-2 bg-neutral-800/50 hover:bg-neutral-800 text-left border-b border-neutral-200/50"
             >
               <span className="text-xs font-medium text-neutral-400">
                 {group}
@@ -236,7 +236,7 @@ export const ObjectPartsPanel: React.FC<ObjectPartsPanelProps> = ({
 
       {/* Selection Info */}
       {!isMinimized && selectedPart && (
-        <div className="px-4 py-3 border-t border-neutral-800 bg-blue-500/5">
+        <div className="px-4 py-3 border-t border-neutral-200 bg-blue-500/5">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div>

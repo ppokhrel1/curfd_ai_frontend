@@ -39,15 +39,15 @@ const PromptBox = ({ onAuthClick }: PromptBoxProps) => {
     <div className="w-full max-w-3xl mx-auto space-y-6">
       {/* Input Box */}
       <div
-        className={`relative bg-neutral-900/60 backdrop-blur-xl border rounded-2xl overflow-hidden transition-all duration-300 ${
+        className={`relative bg-neutral-50 backdrop-blur-xl border rounded-2xl overflow-hidden transition-all duration-300 ${
           isFocused
-            ? "border-emerald-500/50 shadow-2xl shadow-emerald-500/20 scale-[1.02]"
-            : "border-white/10 hover:border-white/20"
+            ? "border-primary-500/50 shadow-2xl shadow-primary-500/20 scale-[1.02]"
+            : "border-neutral-200 hover:border-neutral-300"
         }`}
       >
         {/* Gradient Overlay */}
         <div
-          className={`absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-green-500/10 to-teal-500/10 opacity-0 transition-opacity duration-300 ${
+          className={`absolute inset-0 bg-gradient-to-r from-primary-500/10 via-green-500/10 to-teal-500/10 opacity-0 transition-opacity duration-300 ${
             isFocused ? "opacity-100" : ""
           }`}
         />
@@ -56,7 +56,7 @@ const PromptBox = ({ onAuthClick }: PromptBoxProps) => {
           <div className="flex items-start gap-4">
             {/* Icon */}
             <div className="flex-shrink-0 mt-1">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/30">
                 <svg
                   className="w-5 h-5 text-black"
                   fill="none"
@@ -91,7 +91,7 @@ const PromptBox = ({ onAuthClick }: PromptBoxProps) => {
               disabled={!prompt.trim()}
               className={`flex-shrink-0 mt-1 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${
                 prompt.trim()
-                  ? "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-black shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-110"
+                  ? "bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-black shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 hover:scale-110"
                   : "bg-neutral-800 text-neutral-600 cursor-not-allowed"
               }`}
             >
@@ -115,7 +115,7 @@ const PromptBox = ({ onAuthClick }: PromptBoxProps) => {
 
           {/* Character Count */}
           {prompt.length > 0 && (
-            <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/10">
+            <div className="flex justify-between items-center mt-3 pt-3 border-t border-neutral-200">
               <span className="text-xs text-neutral-500">
                 {prompt.length} characters
               </span>
@@ -138,11 +138,11 @@ const PromptBox = ({ onAuthClick }: PromptBoxProps) => {
               <button
                 key={i}
                 onClick={() => setPrompt(suggestion)}
-                className="group p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/50 rounded-xl text-left transition-all duration-200 hover:scale-[1.02]"
+                className="group p-4 bg-white/5 hover:bg-white/10 border border-neutral-200 hover:border-primary-500/50 rounded-xl text-left transition-all duration-200 hover:scale-[1.02]"
               >
                 <div className="flex items-start gap-3">
                   <svg
-                    className="w-5 h-5 text-neutral-500 group-hover:text-emerald-400 transition-colors flex-shrink-0 mt-0.5"
+                    className="w-5 h-5 text-neutral-500 group-hover:text-primary-500 transition-colors flex-shrink-0 mt-0.5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"

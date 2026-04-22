@@ -14,9 +14,10 @@ interface MessageListProps {
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
   onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
+  onModifyMesh?: (meshUrl: string, modification: string) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onModifyMesh }) => {
   return (
     <div className="space-y-4 w-full pb-2">
       {messages.map((message, index) => (
@@ -27,6 +28,7 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEdit
           onRegenerate={onRegenerate}
           onViewIn3D={onViewIn3D}
           onImageSelect={onImageSelect}
+          onModifyMesh={onModifyMesh}
         />
       ))}
     </div>
@@ -39,9 +41,10 @@ interface MessageBubbleProps {
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
   onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
+  onModifyMesh?: (meshUrl: string, modification: string) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onModifyMesh }) => {
   const isUser = message.role === "user";
   // Auto-open is handled by ChatInterface's AUTO-LOAD EFFECT +
   // useActiveConversationSync handles compilation — no duplicate here.
@@ -51,21 +54,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, 
       {/* Avatar */}
       <div className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mt-0.5 ${
         isUser
-          ? "bg-gradient-to-br from-green-500 to-emerald-600 shadow-sm shadow-green-500/20"
-          : "bg-neutral-800 border border-neutral-700"
+          ? "bg-primary-500 shadow-sm shadow-primary-500/20"
+          : "bg-neutral-100 border border-neutral-200"
       }`}>
         {isUser
           ? <User className="w-3.5 h-3.5 text-white" />
-          : <Bot className="w-3.5 h-3.5 text-green-400" />
+          : <Bot className="w-3.5 h-3.5 text-primary-600" />
         }
       </div>
 
       {/* Bubble */}
-      <div className={`flex-1 min-w-0 max-w-[88%] flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+      <div className={`flex-1 min-w-0 max-w-[90%] sm:max-w-[88%] flex flex-col ${isUser ? "items-end" : "items-start"}`}>
         <div className={`rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed w-fit max-w-full ${
           isUser
-            ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-tr-sm shadow-sm"
-            : "bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-tl-sm"
+            ? "bg-primary-50 text-neutral-800 border border-primary-200 rounded-tr-sm shadow-sm"
+            : "bg-white text-neutral-800 border border-neutral-200 rounded-tl-sm"
         }`}>
           {isUser ? (
             <div>
@@ -85,7 +88,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, 
               <span className="break-words whitespace-pre-wrap">{message.content}</span>
             </div>
           ) : (
-            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} />
+            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} onModifyMesh={onModifyMesh} />
           )}
         </div>
 
@@ -105,7 +108,8 @@ const TypewriterContent: React.FC<{
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
   onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
-}> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect }) => {
+  onModifyMesh?: (meshUrl: string, modification: string) => void;
+}> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onModifyMesh }) => {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
 
@@ -126,7 +130,7 @@ const TypewriterContent: React.FC<{
     return () => clearInterval(iv);
   }, [message.content, message.shapeData]);
 
-  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} />;
+  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} onModifyMesh={onModifyMesh} />;
 };
 
 // ── Content renderer ──────────────────────────────────────────────────────────
@@ -138,12 +142,13 @@ const FormattedContent: React.FC<{
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
   onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
-}> = ({ message, content, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect }) => {
-  // Handle image search results picker
+  onModifyMesh?: (meshUrl: string, modification: string) => void;
+}> = ({ message, content, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onModifyMesh }) => {
+  // Handle image search results — text in bubble, picker below it (outside bubble)
   if (message.imageSearchPayload && message.role === "assistant") {
     return (
-      <div className="space-y-2">
-        <p className="break-words whitespace-pre-wrap text-sm">{content}</p>
+      <div>
+        <p className="break-words whitespace-pre-wrap text-sm mb-1">{content}</p>
         <ImageSearchPicker
           payload={message.imageSearchPayload}
           onSelect={(imageUrl) => {
@@ -180,8 +185,8 @@ const FormattedContent: React.FC<{
   if (modelUrl && message.role === "assistant") {
     return (
       <div className="space-y-2">
-        <p className="break-words whitespace-pre-wrap text-sm text-neutral-300">3D model generated successfully</p>
-        <Model3DCard modelUrl={modelUrl} onViewIn3D={onViewIn3D} />
+        <p className="break-words whitespace-pre-wrap text-sm text-neutral-600">3D model generated successfully</p>
+        <Model3DCard modelUrl={modelUrl} onViewIn3D={onViewIn3D} onModifyMesh={onModifyMesh} />
       </div>
     );
   }
@@ -217,7 +222,7 @@ const FormattedContent: React.FC<{
             return <ModelCard key={i} code={raw} onOpenInEditor={onOpenInEditor} />;
           }
           return (
-            <pre key={i} className="px-3 py-2 rounded-lg bg-neutral-950 border border-neutral-800 text-[11px] font-mono text-neutral-300 overflow-x-auto">
+            <pre key={i} className="px-3 py-2 rounded-lg bg-neutral-50 border border-neutral-200 text-[11px] font-mono text-neutral-600 overflow-x-auto">
               <code>{raw}</code>
             </pre>
           );
@@ -272,19 +277,19 @@ const ModelCard: React.FC<{
   }, [showModelPicker]);
 
   return (
-    <div className="rounded-xl overflow-hidden border border-neutral-700/50 bg-neutral-950 mt-1 w-full max-w-[280px]">
+    <div className="rounded-xl overflow-hidden border border-neutral-200 bg-white mt-1 w-full max-w-[280px]">
       {/* Title bar */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-neutral-900/80 border-b border-neutral-800">
+      <div className="flex items-center gap-2 px-3 py-2 bg-neutral-50 border-b border-neutral-200">
         <div className="flex gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-neutral-600" />
-          <span className="w-2 h-2 rounded-full bg-neutral-600" />
-          <span className="w-2 h-2 rounded-full bg-green-500/80" />
+          <span className="w-2 h-2 rounded-full bg-neutral-300" />
+          <span className="w-2 h-2 rounded-full bg-neutral-300" />
+          <span className="w-2 h-2 rounded-full bg-primary-500" />
         </div>
         <FileCode2 className="w-3 h-3 text-neutral-500 ml-1" />
-        <span className="text-[11px] font-mono text-neutral-400 flex-1 truncate">model.scad</span>
-        <div className="flex items-center gap-1.5 text-[10px] text-neutral-600 font-mono flex-shrink-0">
+        <span className="text-[11px] font-mono text-neutral-500 flex-1 truncate">model.scad</span>
+        <div className="flex items-center gap-1.5 text-[10px] text-neutral-500 font-mono flex-shrink-0">
           <span>{lineCount}L</span>
-          {paramCount > 0 && <><span className="text-neutral-700">·</span><span>{paramCount}P</span></>}
+          {paramCount > 0 && <><span className="text-neutral-300">·</span><span>{paramCount}P</span></>}
         </div>
       </div>
 
@@ -292,19 +297,19 @@ const ModelCard: React.FC<{
       <pre className="px-3 py-2.5 text-[10.5px] font-mono text-neutral-500 leading-[1.55] overflow-hidden select-none">
         <code>{preview}</code>
         {lineCount > 7 && (
-          <span className="block text-neutral-700 mt-0.5">... {lineCount - 7} more lines</span>
+          <span className="block text-neutral-400 mt-0.5">... {lineCount - 7} more lines</span>
         )}
       </pre>
 
       {/* Action bar */}
-      <div className="flex items-center justify-between px-3 py-2 border-t border-neutral-800/60 bg-neutral-900/40">
+      <div className="flex items-center justify-between px-3 py-2 border-t border-neutral-200 bg-neutral-50/50">
         <div>
           {messageId && onRegenerate ? (
             <>
               <button
                 ref={btnRef}
                 onClick={togglePicker}
-                className="flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all"
+                className="flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 transition-all"
                 title="Regenerate with different model"
               >
                 <RefreshCw className="w-3 h-3" />
@@ -313,10 +318,10 @@ const ModelCard: React.FC<{
               {showModelPicker && (
                 <div
                   ref={dropdownRef}
-                  className="fixed w-52 bg-neutral-900 border border-neutral-700 rounded-xl shadow-xl overflow-hidden z-[100]"
+                  className="fixed w-52 bg-white border border-neutral-200 rounded-xl shadow-xl overflow-hidden z-[100]"
                   style={{ top: pickerPos.top, left: pickerPos.left }}
                 >
-                  <div className="px-3 py-1.5 text-[10px] text-neutral-500 border-b border-neutral-800">
+                  <div className="px-3 py-1.5 text-[10px] text-neutral-500 border-b border-neutral-200">
                     Regenerate with...
                   </div>
                   {MODEL_OPTIONS.map((opt) => (
@@ -330,7 +335,7 @@ const ModelCard: React.FC<{
                           thinking: opt.thinking ?? false,
                         });
                       }}
-                      className="w-full text-left px-3 py-1.5 text-[11px] text-neutral-300 hover:bg-neutral-800 transition-colors"
+                      className="w-full text-left px-3 py-1.5 text-[11px] text-neutral-700 hover:bg-neutral-100 transition-colors"
                     >
                       <div className="font-medium">{opt.label}</div>
                     </button>
@@ -339,12 +344,12 @@ const ModelCard: React.FC<{
               )}
             </>
           ) : (
-            <span className="text-[10px] text-neutral-700 font-mono">OpenSCAD</span>
+            <span className="text-[10px] text-neutral-400 font-mono">OpenSCAD</span>
           )}
         </div>
         <button
           onClick={() => onOpenInEditor?.(code, "code")}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-green-400 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 hover:border-green-400/40 transition-all group"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 border border-primary-200 hover:border-primary-300 transition-all group"
         >
           Open in Editor
           <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
@@ -361,35 +366,72 @@ const ModelCard: React.FC<{
 const Model3DCard: React.FC<{
   modelUrl: string;
   onViewIn3D?: (url: string) => void;
-}> = ({ modelUrl, onViewIn3D }) => {
+  onModifyMesh?: (meshUrl: string, modification: string) => void;
+}> = ({ modelUrl, onViewIn3D, onModifyMesh }) => {
   const filename = modelUrl.split("/").pop() || "model.glb";
   const format = filename.split(".").pop()?.toUpperCase() || "GLB";
+  const [showModify, setShowModify] = useState(false);
+  const [modText, setModText] = useState("");
+
+  const handleModifySubmit = () => {
+    if (!modText.trim()) return;
+    onModifyMesh?.(modelUrl, modText.trim());
+    setModText("");
+    setShowModify(false);
+  };
 
   return (
-    <div className="rounded-xl overflow-hidden border border-neutral-700/50 bg-neutral-950 mt-1 w-full max-w-[280px]">
-      <div className="flex items-center gap-2 px-3 py-2 bg-neutral-900/80 border-b border-neutral-800">
+    <div className="rounded-xl overflow-hidden border border-neutral-200 bg-white mt-1 w-full max-w-[280px]">
+      <div className="flex items-center gap-2 px-3 py-2 bg-neutral-50 border-b border-neutral-200">
         <div className="flex gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-neutral-600" />
-          <span className="w-2 h-2 rounded-full bg-neutral-600" />
-          <span className="w-2 h-2 rounded-full bg-violet-500/80" />
+          <span className="w-2 h-2 rounded-full bg-neutral-300" />
+          <span className="w-2 h-2 rounded-full bg-neutral-300" />
+          <span className="w-2 h-2 rounded-full bg-violet-500" />
         </div>
         <Box className="w-3 h-3 text-neutral-500 ml-1" />
-        <span className="text-[11px] font-mono text-neutral-400 flex-1 truncate">{filename}</span>
-        <span className="text-[10px] text-neutral-600 font-mono">{format}</span>
+        <span className="text-[11px] font-mono text-neutral-500 flex-1 truncate">{filename}</span>
+        <span className="text-[10px] text-neutral-500 font-mono">{format}</span>
       </div>
       <div className="px-3 py-4 flex items-center justify-center">
         <div className="flex items-center gap-2 text-neutral-500">
-          <Box className="w-8 h-8 text-violet-400/60" />
+          <Box className="w-8 h-8 text-violet-400" />
           <div className="text-[11px]">
-            <p className="text-neutral-400 font-medium">3D Model Ready</p>
-            <p className="text-neutral-600">Click to load in viewer</p>
+            <p className="text-neutral-600 font-medium">3D Model Ready</p>
+            <p className="text-neutral-500">Click to load in viewer</p>
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-end px-3 py-2 border-t border-neutral-800/60 bg-neutral-900/40">
+      {showModify && (
+        <div className="px-3 pb-2 flex gap-1.5">
+          <input
+            autoFocus
+            type="text"
+            value={modText}
+            onChange={(e) => setModText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleModifySubmit(); if (e.key === "Escape") setShowModify(false); }}
+            placeholder="e.g. add two M3 holes on top"
+            className="flex-1 text-[11px] px-2 py-1 rounded-md border border-neutral-200 bg-neutral-50 text-neutral-700 placeholder:text-neutral-400 focus:outline-none focus:border-violet-400"
+          />
+          <button
+            onClick={handleModifySubmit}
+            className="px-2 py-1 rounded-md text-[11px] font-semibold bg-violet-500 text-white hover:bg-violet-600 transition-colors"
+          >
+            Apply
+          </button>
+        </div>
+      )}
+      <div className="flex items-center justify-between px-3 py-2 border-t border-neutral-200 bg-neutral-50/50">
+        {onModifyMesh && (
+          <button
+            onClick={() => setShowModify((v) => !v)}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 border border-transparent transition-all"
+          >
+            Modify
+          </button>
+        )}
         <button
           onClick={() => onViewIn3D?.(modelUrl)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group ml-auto"
         >
           View in 3D
           <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
@@ -405,11 +447,11 @@ const renderInline = (text: string) => {
   const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`.*?`)/g);
   return parts.map((p, i) => {
     if (p.startsWith("**") && p.endsWith("**"))
-      return <strong key={i} className="font-semibold text-white">{p.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-semibold text-neutral-900">{p.slice(2, -2)}</strong>;
     if (p.startsWith("*") && p.endsWith("*"))
-      return <em key={i} className="italic text-neutral-300">{p.slice(1, -1)}</em>;
+      return <em key={i} className="italic text-neutral-600">{p.slice(1, -1)}</em>;
     if (p.startsWith("`") && p.endsWith("`"))
-      return <code key={i} className="px-1 py-0.5 rounded text-[11px] font-mono bg-neutral-800 text-green-300 border border-neutral-700">{p.slice(1, -1)}</code>;
+      return <code key={i} className="px-1 py-0.5 rounded text-[11px] font-mono bg-neutral-100 text-primary-700 border border-neutral-200">{p.slice(1, -1)}</code>;
     return p;
   });
 };

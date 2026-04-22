@@ -86,7 +86,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
   }, [onShapeGenerated]);
 
   return (
-    <div className="hidden lg:flex h-full w-full relative overflow-hidden bg-neutral-950">
+    <div className="hidden lg:flex h-full w-full relative overflow-hidden bg-white">
       
       {/* The ChatInterface serves as the global flex wrapper */}
       <ChatInterface
@@ -99,7 +99,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
       >
         
         {/* Everything inside this div fills the remaining workspace */}
-        <div className="w-full h-full flex flex-row bg-neutral-900">
+        <div className="w-full h-full flex flex-row bg-neutral-50">
           
           {isEditorMinimized ? (
             <div className="w-full h-full flex flex-row">
@@ -118,7 +118,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
 
               {/* Minimized Editor Strip — on the right */}
               <div
-                className="w-12 flex-shrink-0 border-l border-neutral-800 bg-neutral-950 flex flex-col items-center py-4 gap-4 cursor-pointer hover:bg-neutral-800 transition-colors z-20"
+                className="w-12 flex-shrink-0 border-l border-neutral-200 bg-white flex flex-col items-center py-4 gap-4 cursor-pointer hover:bg-neutral-100 transition-colors z-20"
                 onClick={() => handleMinimizeEditor(false)}
               >
                 <Pencil className="w-5 h-5 text-neutral-400" />
@@ -132,7 +132,7 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
             <div className="w-full h-full flex flex-row">
 
               {/* Center: 3D Viewer */}
-              <div className="flex-1 min-w-0 relative overflow-hidden bg-neutral-900">
+              <div className="flex-1 min-w-0 relative overflow-hidden bg-neutral-50">
                 <Viewer3D
                   shape={currentShape}
                   loadedModel={loadedModel}
@@ -145,17 +145,17 @@ export const DesktopLayout: React.FC<DesktopLayoutProps> = ({
               </div>
 
               {/* Right: CAD Editor */}
-              <div className="w-[380px] flex-shrink-0 bg-neutral-950 flex flex-col border-l border-neutral-800">
-                <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-900/50 flex items-center justify-between">
+              <div className="w-[380px] flex-shrink-0 bg-white flex flex-col border-l border-neutral-200">
+                <div className="px-4 py-3 border-b border-neutral-200 bg-neutral-50 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Pencil className="w-4 h-4 text-green-400" />
-                    <span className="text-xs font-bold text-neutral-200 uppercase tracking-widest">
+                    <Pencil className="w-4 h-4 text-primary-600" />
+                    <span className="text-xs font-bold text-neutral-700 uppercase tracking-widest">
                       Editor
                     </span>
                   </div>
                   <button
                     onClick={() => handleMinimizeEditor(true)}
-                    className="p-1 hover:bg-neutral-800 rounded-md transition-colors"
+                    className="p-1 hover:bg-neutral-100 rounded-md transition-colors"
                     title="Minimize Editor"
                   >
                     <ChevronLeft className="w-4 h-4 text-neutral-500" />

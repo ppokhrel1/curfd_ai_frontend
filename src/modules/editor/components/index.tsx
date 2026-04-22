@@ -42,19 +42,19 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
   }, [hasParameters, activeTab]);
 
   return (
-    <div className={`flex flex-col h-full bg-neutral-950 border-r border-neutral-800 ${className}`}>
+    <div className={`flex flex-col h-full bg-white border-r border-neutral-200 ${className}`}>
 
       {/* Selection Bar Header */}
-      <div className="flex-shrink-0 px-3 py-2 border-b border-neutral-800 bg-neutral-900/60 flex items-center justify-center">
+      <div className="flex-shrink-0 px-3 py-2 border-b border-neutral-200 bg-neutral-50 flex items-center justify-center">
 
         {/* Segmented Toggle Control */}
-        <div className="flex bg-neutral-950 border border-neutral-800 rounded-lg p-1 w-full max-w-[400px]">
+        <div className="flex bg-white border border-neutral-200 rounded-lg p-1 w-full max-w-[400px]">
           <button
             onClick={() => setActiveTab('code')}
             className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
               activeTab === 'code'
-                ? 'bg-neutral-800 text-blue-400 shadow-sm'
-                : 'text-neutral-500 hover:text-neutral-300'
+                ? 'bg-neutral-100 text-blue-400 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-600'
             }`}
           >
             <Code2 className="w-3.5 h-3.5" />
@@ -69,8 +69,8 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
               !hasParameters
                 ? 'opacity-40 cursor-not-allowed text-neutral-600'
                 : activeTab === 'parameters'
-                  ? 'bg-neutral-800 text-purple-400 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-300'
+                  ? 'bg-neutral-100 text-purple-400 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-600'
             }`}
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -81,8 +81,8 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
             onClick={() => setActiveTab('ai-generate')}
             className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all duration-200 ${
               activeTab === 'ai-generate'
-                ? 'bg-neutral-800 text-violet-400 shadow-sm'
-                : 'text-neutral-500 hover:text-neutral-300'
+                ? 'bg-neutral-100 text-violet-400 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-600'
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -101,13 +101,13 @@ export const EditorContainer: React.FC<EditorContainerProps> = ({
             className="border-r-0"
           />
         </div>
-        <div className={`h-full bg-neutral-950 flex flex-col ${activeTab === 'parameters' ? '' : 'hidden'}`}>
+        <div className={`h-full bg-white flex flex-col ${activeTab === 'parameters' ? '' : 'hidden'}`}>
           <OptimizationPanel
             onBuildComplete={onBuildComplete}
             onSwitchToCode={() => setActiveTab('code')}
           />
         </div>
-        <div className={`h-full bg-neutral-950 ${activeTab === 'ai-generate' ? '' : 'hidden'}`}>
+        <div className={`h-full bg-white ${activeTab === 'ai-generate' ? '' : 'hidden'}`}>
           <ImageTo3DPanel />
         </div>
       </div>

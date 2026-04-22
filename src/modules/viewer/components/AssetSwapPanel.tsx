@@ -63,9 +63,9 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-900/95 backdrop-blur-md border-l border-neutral-800 shadow-2xl">
+    <div className="flex flex-col h-full bg-neutral-50 backdrop-blur-md border-l border-neutral-200 shadow-2xl">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between bg-gradient-to-r from-purple-500/10 to-blue-500/10">
+      <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between bg-gradient-to-r from-purple-500/10 to-blue-500/10">
         <div>
           <h3 className="text-sm font-medium text-white">Swap Part</h3>
           <p className="text-xs text-neutral-500 mt-0.5">
@@ -82,7 +82,7 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
       </div>
 
       {/* Search */}
-      <div className="p-3 border-b border-neutral-800">
+      <div className="p-3 border-b border-neutral-200">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
           <input
@@ -90,7 +90,7 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
             placeholder="Search assets..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-neutral-800 border border-neutral-700 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+            className="w-full bg-neutral-800 border border-neutral-200 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
             autoFocus
           />
         </div>
@@ -114,7 +114,7 @@ export const AssetSwapPanel: React.FC<AssetSwapPanelProps> = ({
               <button
                 key={asset.id}
                 onClick={() => onSelectAsset(asset)}
-                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800 border border-transparent hover:border-neutral-700 transition-all group text-left"
+                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800 border border-transparent hover:border-neutral-200 transition-all group text-left"
               >
                 <div className={`w-10 h-10 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
                   isScadPart

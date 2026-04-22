@@ -118,13 +118,13 @@ describe("ConversationSidebar", () => {
     const inactiveItemText = screen.getByText("Legacy Code");
     const inactiveBtn = inactiveItemText.closest("button");
 
-    // Check active styling (bg-green-500/10)
-    expect(activeBtn).toHaveClass("bg-green-500/10");
-    expect(activeItemText).toHaveClass("text-green-400");
+    // Check active styling (bg-primary-50)
+    expect(activeBtn).toHaveClass("bg-primary-50");
+    expect(activeItemText).toHaveClass("text-primary-600");
 
     // Check inactive styling
-    expect(inactiveBtn).toHaveClass("hover:bg-neutral-900");
-    expect(inactiveItemText).toHaveClass("text-white");
+    expect(inactiveBtn).toHaveClass("hover:bg-neutral-100");
+    expect(inactiveItemText).toHaveClass("text-neutral-800");
   });
 
   it("calls onNewConversation when header button is clicked", () => {

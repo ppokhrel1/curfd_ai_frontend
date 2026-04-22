@@ -62,25 +62,25 @@ export const ModelImportOverlay: React.FC<ModelImportOverlayProps> = ({
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-500" />
 
             {/* Core Card */}
-            <div className="relative w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 fade-in duration-300">
+            <div className="relative w-full max-w-md bg-neutral-50 border border-neutral-200 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 fade-in duration-300">
                 {/* Visual Header */}
                 <div className="flex flex-col items-center mb-8">
                     <div className="relative mb-6">
                         {/* Outer Glow */}
-                        <div className="absolute inset-0 bg-green-500/20 blur-2xl rounded-full animate-pulse" />
+                        <div className="absolute inset-0 bg-primary-100 blur-2xl rounded-full animate-pulse" />
                         
                         {/* Animated Icon Ring */}
-                        <div className="relative w-20 h-20 bg-neutral-800 border border-neutral-700 rounded-2xl flex items-center justify-center overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent" />
+                        <div className="relative w-20 h-20 bg-neutral-800 border border-neutral-200 rounded-2xl flex items-center justify-center overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary-500/10 to-transparent" />
                             {stage === 'complete' ? (
-                                <CheckCircle2 className="w-10 h-10 text-green-400 animate-in zoom-in duration-300" />
+                                <CheckCircle2 className="w-10 h-10 text-primary-500 animate-in zoom-in duration-300" />
                             ) : (
-                                <Loader2 className="w-10 h-10 text-green-400 animate-spin" />
+                                <Loader2 className="w-10 h-10 text-primary-500 animate-spin" />
                             )}
                         </div>
 
                         {/* Overlapping Stage Icon */}
-                        <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-neutral-900 border border-neutral-700 rounded-lg flex items-center justify-center shadow-lg">
+                        <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-neutral-50 border border-neutral-200 rounded-lg flex items-center justify-center shadow-lg">
                             {getStageIcon(stage)}
                         </div>
                     </div>
@@ -104,14 +104,14 @@ export const ModelImportOverlay: React.FC<ModelImportOverlayProps> = ({
                     </div>
                     <div className="h-1.5 w-full bg-neutral-800 rounded-full overflow-hidden p-[1px]">
                         <div 
-                            className="h-full bg-gradient-to-r from-green-600 to-green-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_-2px_rgba(74,222,128,0.5)]"
+                            className="h-full bg-gradient-to-r from-primary-600 to-green-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_-2px_rgba(74,222,128,0.5)]"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
                 </div>
 
                 {/* Technical Log */}
-                <div className="bg-black/40 border border-neutral-800/50 rounded-xl p-4">
+                <div className="bg-black/40 border border-neutral-200/50 rounded-xl p-4">
                     <div className="space-y-2.5">
                         <LogEntry 
                             active={stage === 'reading' || stage === 'extracting'} 
@@ -137,9 +137,9 @@ export const ModelImportOverlay: React.FC<ModelImportOverlayProps> = ({
                 </div>
 
                 {/* Footer Deco */}
-                <div className="mt-8 pt-6 border-t border-neutral-800/50 flex items-center justify-between text-[9px] text-neutral-600 font-mono uppercase tracking-tighter">
+                <div className="mt-8 pt-6 border-t border-neutral-200/50 flex items-center justify-between text-[9px] text-neutral-600 font-mono uppercase tracking-tighter">
                     <div className="flex items-center gap-2">
-                        <Activity className="w-3 h-3 text-green-500/40" />
+                        <Activity className="w-3 h-3 text-primary-600/40" />
                         <span>System Stable</span>
                     </div>
                     <span>IO-LATENCY: 12ms</span>
@@ -151,7 +151,7 @@ export const ModelImportOverlay: React.FC<ModelImportOverlayProps> = ({
 
 const LogEntry: React.FC<{ active: boolean; complete: boolean; label: string }> = ({ active, complete, label }) => (
     <div className={`flex items-center gap-3 transition-opacity duration-300 ${!active && !complete ? 'opacity-20' : 'opacity-100'}`}>
-        <div className={`w-1.5 h-1.5 rounded-full ${complete ? 'bg-green-500' : active ? 'bg-green-400 animate-pulse' : 'bg-neutral-700'}`} />
+        <div className={`w-1.5 h-1.5 rounded-full ${complete ? 'bg-primary-500' : active ? 'bg-green-400 animate-pulse' : 'bg-neutral-700'}`} />
         <span className={`text-[11px] ${complete ? 'text-neutral-400 line-through decoration-neutral-700' : active ? 'text-white font-medium' : 'text-neutral-600'}`}>
             {label}
         </span>
@@ -189,8 +189,8 @@ const getStageIcon = (stage: ImportStage) => {
         case 'reading': return <Activity className="w-3.5 h-3.5 text-blue-400" />;
         case 'extracting': return <FileArchive className="w-3.5 h-3.5 text-purple-400" />;
         case 'analyzing': return <Search className="w-3.5 h-3.5 text-amber-400" />;
-        case 'registering': return <Database className="w-3.5 h-3.5 text-green-400" />;
-        case 'complete': return <Box className="w-3.5 h-3.5 text-green-400" />;
+        case 'registering': return <Database className="w-3.5 h-3.5 text-primary-500" />;
+        case 'complete': return <Box className="w-3.5 h-3.5 text-primary-500" />;
         default: return <Loader2 className="w-3.5 h-3.5 text-neutral-400 animate-spin" />;
     }
 };

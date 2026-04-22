@@ -123,9 +123,9 @@ export const MissionControl: React.FC<MissionControlProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-neutral-900/95 backdrop-blur-xl border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="flex flex-col h-full bg-neutral-50 backdrop-blur-xl border border-neutral-200 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-neutral-800 flex items-center justify-between bg-gradient-to-r from-blue-500/10 to-purple-500/10">
+      <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between bg-gradient-to-r from-blue-500/10 to-purple-500/10">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
             <History className="w-4 h-4 text-blue-400" />
@@ -146,7 +146,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-neutral-800">
+      <div className="flex border-b border-neutral-200">
         <button
           onClick={() => setActiveTab("history")}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors ${
@@ -179,7 +179,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
       {activeTab === "history" && (
         <>
           {/* Search */}
-          <div className="p-4 border-b border-neutral-800">
+          <div className="p-4 border-b border-neutral-200">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-500" />
               <input
@@ -187,7 +187,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                 placeholder="Search mission IDs or prompts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/40 border border-neutral-800 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-blue-500/50 transition-colors"
+                className="w-full bg-black/40 border border-neutral-200 rounded-xl py-2 pl-9 pr-4 text-xs text-white placeholder:text-neutral-600 focus:outline-none focus:border-blue-500/50 transition-colors"
               />
             </div>
           </div>
@@ -203,7 +203,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
               jobs.map((job) => (
                 <div
                   key={job.id}
-                  className="bg-black/40 border border-neutral-800 rounded-xl p-3 hover:border-neutral-700 transition-all group"
+                  className="bg-black/40 border border-neutral-200 rounded-xl p-3 hover:border-neutral-200 transition-all group"
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex-1 min-w-0">
@@ -231,7 +231,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleRecall(job.id)}
-                            className="px-2 py-1 bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/20 rounded-md text-[10px] font-bold transition-all"
+                            className="px-2 py-1 bg-primary-50 hover:bg-primary-100 text-primary-500 border border-primary-500/20 rounded-md text-[10px] font-bold transition-all"
                           >
                             Recall
                           </button>
@@ -246,7 +246,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 pt-2 border-t border-neutral-800/50">
+                  <div className="flex items-center gap-3 pt-2 border-t border-neutral-200/50">
                     <span className="text-[9px] text-neutral-500 flex items-center gap-1">
                       <FileCode className="w-2.5 h-2.5" />
                       {job.output_format?.toUpperCase() || "GLB"}
@@ -264,7 +264,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="p-3 bg-black/40 border-t border-neutral-800 flex items-center justify-between">
+          <div className="p-3 bg-black/40 border-t border-neutral-200 flex items-center justify-between">
             <span className="text-[10px] text-neutral-500 font-medium">
               Total Assets: {jobs.filter((j) => j.status === "succeeded").length}
             </span>
@@ -291,7 +291,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
               parts.map((part, idx) => (
                 <div
                   key={part.id}
-                  className="bg-black/40 border border-neutral-800 rounded-xl p-3"
+                  className="bg-black/40 border border-neutral-200 rounded-xl p-3"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -341,7 +341,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                             pos[i] = parseFloat(e.target.value) || 0;
                             updateTransform(part.id, pos);
                           }}
-                          className="bg-neutral-800 border border-neutral-700 rounded px-1.5 py-1 text-xs text-white w-full focus:outline-none focus:border-purple-500/50"
+                          className="bg-neutral-800 border border-neutral-200 rounded px-1.5 py-1 text-xs text-white w-full focus:outline-none focus:border-purple-500/50"
                         />
                       </label>
                     ))}
@@ -352,7 +352,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
           </div>
 
           {/* Assembly Footer */}
-          <div className="p-3 bg-black/40 border-t border-neutral-800 flex flex-col gap-2">
+          <div className="p-3 bg-black/40 border-t border-neutral-200 flex flex-col gap-2">
             <div className="flex gap-2">
               <button
                 onClick={handleExportScad}
@@ -389,7 +389,7 @@ export const MissionControl: React.FC<MissionControlProps> = ({
 const getStatusColor = (status: string) => {
   switch (status) {
     case "succeeded":
-      return "bg-green-500/10 text-green-500";
+      return "bg-primary-50 text-primary-600";
     case "failed":
       return "bg-red-500/10 text-red-500";
     case "running":

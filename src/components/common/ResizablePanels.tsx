@@ -116,8 +116,8 @@ export const ResizablePanels = ({
             aria-label="Panel Resizer"
             className={`group relative flex-shrink-0 w-1 cursor-col-resize transition-all duration-150 ${
               isDragging || isHovering
-                ? "bg-green-500/50"
-                : "bg-neutral-800 hover:bg-neutral-700"
+                ? "bg-primary-500/50"
+                : "bg-neutral-200 hover:bg-neutral-300"
             }`}
             onMouseDown={handleMouseDown}
             onDoubleClick={handleDoubleClick}
@@ -128,13 +128,13 @@ export const ResizablePanels = ({
             <div
               className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-12 rounded-full border transition-all duration-200 ${
                 isDragging || isHovering
-                  ? "bg-green-500/20 border-green-500/40 opacity-100"
-                  : "bg-neutral-900 border-neutral-700 opacity-0 group-hover:opacity-100"
+                  ? "bg-primary-500/20 border-primary-500/40 opacity-100"
+                  : "bg-white border-neutral-300 opacity-0 group-hover:opacity-100"
               }`}
             >
               <GripVertical
                 className={`w-3 h-3 ${
-                  isDragging || isHovering ? "text-green-400" : "text-neutral-400"
+                  isDragging || isHovering ? "text-primary-500" : "text-neutral-400"
                 }`}
               />
             </div>

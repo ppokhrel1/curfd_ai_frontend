@@ -24,10 +24,10 @@ export const FloatingJobsPanel: React.FC<FloatingJobsPanelProps> = ({ onApply })
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 right-6 z-50 flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-900 border border-neutral-700 shadow-2xl hover:bg-neutral-800 transition-all group"
+        className="fixed bottom-20 right-6 z-50 flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-neutral-200 shadow-2xl hover:bg-neutral-100 transition-all group"
       >
         <Zap className="w-4 h-4 text-purple-400" />
-        <span className="text-xs font-semibold text-neutral-300">
+        <span className="text-xs font-semibold text-neutral-600">
           {jobs.length === 0
             ? 'No jobs'
             : activeCount > 0
@@ -41,27 +41,27 @@ export const FloatingJobsPanel: React.FC<FloatingJobsPanelProps> = ({ onApply })
           </span>
         )}
         {completedCount > 0 && activeCount === 0 && (
-          <span className="text-[10px] text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded">
+          <span className="text-[10px] text-primary-500 bg-primary-50 px-1.5 py-0.5 rounded">
             {completedCount} done
           </span>
         )}
-        <ChevronDown className="w-3 h-3 text-neutral-500 group-hover:text-neutral-300 transition-colors" />
+        <ChevronDown className="w-3 h-3 text-neutral-500 group-hover:text-neutral-600 transition-colors" />
       </button>
     );
   }
 
   // Expanded: floating panel
   return (
-    <div className="fixed bottom-20 right-6 z-50 w-80 max-h-[420px] flex flex-col bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl overflow-hidden">
+    <div className="fixed bottom-20 right-6 z-50 w-80 max-h-[420px] flex flex-col bg-white border border-neutral-200 rounded-xl shadow-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-800 bg-neutral-950/60 flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-200 bg-neutral-50 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Zap className="w-3.5 h-3.5 text-purple-400" />
-          <span className="text-xs font-bold text-white uppercase tracking-wider">Optimization Jobs</span>
+          <span className="text-xs font-bold text-neutral-800 uppercase tracking-wider">Optimization Jobs</span>
         </div>
         <button
           onClick={() => setIsOpen(false)}
-          className="p-1 hover:bg-neutral-800 rounded-md transition-colors text-neutral-500 hover:text-neutral-300"
+          className="p-1 hover:bg-neutral-100 rounded-md transition-colors text-neutral-500 hover:text-neutral-600"
           title="Minimize"
         >
           <X className="w-3.5 h-3.5" />
@@ -69,31 +69,31 @@ export const FloatingJobsPanel: React.FC<FloatingJobsPanelProps> = ({ onApply })
       </div>
 
       {/* Jobs list */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-thin scrollbar-thumb-neutral-700">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-thin scrollbar-thumb-neutral-300">
         {jobs.length === 0 && (
           <div className="text-center py-6 text-neutral-500 text-xs">
             No optimization jobs yet. Use the <span className="text-purple-400 font-semibold">AI Optimize</span> button in the Parameters tab to start.
           </div>
         )}
         {jobs.map(job => (
-          <div key={job.id} className="bg-neutral-800/60 rounded-lg p-3 text-sm border border-neutral-700/50">
+          <div key={job.id} className="bg-neutral-50 rounded-lg p-3 text-sm border border-neutral-200">
             <div className="flex justify-between items-center mb-1.5">
               <span className="text-neutral-500 font-mono text-[10px]">#{job.id.slice(0, 6)}</span>
               <JobStatusBadge status={job.status} />
             </div>
 
             {job.status.startsWith('Completed') && job.optimized_parameters && (
-              <div className="mt-2 flex flex-col gap-2 border-t border-neutral-700/40 pt-2">
+              <div className="mt-2 flex flex-col gap-2 border-t border-neutral-200/40 pt-2">
                 <div className="flex justify-between items-center text-[11px]">
                   <span className="text-neutral-400">Fitness</span>
-                  <span className="font-mono text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded text-[10px]">
+                  <span className="font-mono text-primary-500 bg-primary-50 px-1.5 py-0.5 rounded text-[10px]">
                     {job.fitness_score?.toFixed(5)}
                   </span>
                 </div>
                 <div className="flex gap-1.5">
                   <button
                     onClick={() => onApply?.(job)}
-                    className="flex-1 bg-neutral-700 hover:bg-neutral-600 text-white text-[11px] py-1.5 rounded-md transition-colors flex items-center justify-center gap-1"
+                    className="flex-1 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 text-[11px] py-1.5 rounded-md transition-colors flex items-center justify-center gap-1"
                   >
                     Apply & View <ChevronRight className="w-3 h-3" />
                   </button>
@@ -102,7 +102,7 @@ export const FloatingJobsPanel: React.FC<FloatingJobsPanelProps> = ({ onApply })
                       href={job.result_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="bg-neutral-700 hover:bg-neutral-600 w-7 flex items-center justify-center rounded-md text-neutral-300 transition-colors"
+                      className="bg-neutral-200 hover:bg-neutral-300 w-7 flex items-center justify-center rounded-md text-neutral-600 transition-colors"
                       title="Download STL"
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -134,7 +134,7 @@ const JobStatusBadge: React.FC<{ status: string }> = ({ status }) => {
   }
   if (status === 'Completed') {
     return (
-      <span className="flex items-center gap-1 text-emerald-400 text-[10px] font-semibold bg-emerald-950/30 px-1.5 py-0.5 rounded">
+      <span className="flex items-center gap-1 text-primary-500 text-[10px] font-semibold bg-primary-50 px-1.5 py-0.5 rounded">
         <CheckCircle2 className="w-2.5 h-2.5" /> Done
       </span>
     );

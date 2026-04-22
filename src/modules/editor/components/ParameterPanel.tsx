@@ -89,7 +89,7 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Parameter list */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-700">
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-300">
         {parameters.map((param) => {
           const currentMin = bounds[param.name]?.min ?? param.min_val;
           const currentMax = bounds[param.name]?.max ?? param.max_val;
@@ -99,8 +99,8 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
           return (
             <div
               key={param.name}
-              className={`px-3 py-1.5 border-b border-neutral-800/40 transition-colors ${
-                !isSelected ? 'opacity-35' : 'hover:bg-neutral-800/20'
+              className={`px-3 py-1.5 border-b border-neutral-200/40 transition-colors ${
+                !isSelected ? 'opacity-35' : 'hover:bg-neutral-100/20'
               }`}
             >
               {/* Top: checkbox + name + editable value */}
@@ -118,7 +118,7 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
                   type="number"
                   value={currentVal}
                   onChange={(e) => handleValueInput(param.name, e.target.value)}
-                  className="w-14 font-mono text-[11px] text-right text-neutral-200 bg-neutral-800 border border-neutral-700 rounded px-1 py-0.5 focus:outline-none focus:border-purple-500 hide-arrows flex-shrink-0"
+                  className="w-14 font-mono text-[11px] text-right text-neutral-700 bg-neutral-100 border border-neutral-200 rounded px-1 py-0.5 focus:outline-none focus:border-purple-500 hide-arrows flex-shrink-0"
                 />
               </div>
               {/* Bottom: min — slider — max */}
@@ -127,7 +127,7 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
                   type="number"
                   value={currentMin}
                   onChange={(e) => handleBoundChange(param.name, 'min', parseFloat(e.target.value) || 0)}
-                  className="w-9 bg-transparent text-[9px] text-neutral-500 text-center focus:outline-none focus:text-neutral-300 hide-arrows flex-shrink-0"
+                  className="w-9 bg-transparent text-[9px] text-neutral-500 text-center focus:outline-none focus:text-neutral-600 hide-arrows flex-shrink-0"
                 />
                 <input
                   type="range"
@@ -136,13 +136,13 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
                   step={(currentMax - currentMin) / 100 || 0.1}
                   value={currentVal}
                   onChange={(e) => handleSliderChange(param.name, parseFloat(e.target.value))}
-                  className="flex-1 accent-purple-500 h-1 bg-neutral-700 rounded-full appearance-none cursor-pointer"
+                  className="flex-1 accent-purple-500 h-1 bg-neutral-200 rounded-full appearance-none cursor-pointer"
                 />
                 <input
                   type="number"
                   value={currentMax}
                   onChange={(e) => handleBoundChange(param.name, 'max', parseFloat(e.target.value) || 0)}
-                  className="w-9 bg-transparent text-[9px] text-neutral-500 text-center focus:outline-none focus:text-neutral-300 hide-arrows flex-shrink-0"
+                  className="w-9 bg-transparent text-[9px] text-neutral-500 text-center focus:outline-none focus:text-neutral-600 hide-arrows flex-shrink-0"
                 />
               </div>
             </div>
@@ -151,7 +151,7 @@ export const ParameterPanel = ({ onOptimizeClick }: { onOptimizeClick: (paramete
       </div>
 
       {/* Footer with optimize button */}
-      <div className="flex-shrink-0 px-3 py-2 border-t border-neutral-800 bg-neutral-950/60">
+      <div className="flex-shrink-0 px-3 py-2 border-t border-neutral-200 bg-neutral-50">
         <button
           onClick={handleOptimizeSubmit}
           disabled={!canOptimize}

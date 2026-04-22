@@ -14,6 +14,8 @@ vi.mock("lucide-react", () => ({
   User: () => <div data-testid="icon-user" />,
   ArrowRight: () => <div data-testid="icon-arrowright" />,
   FileCode2: () => <div data-testid="icon-filecode2" />,
+  RefreshCw: () => <div data-testid="icon-refreshcw" />,
+  Box: () => <div data-testid="icon-box" />,
 }));
 
 // 3. Helper to create messages
@@ -86,14 +88,11 @@ describe("MessageList Component", () => {
   });
 
   describe("Auto-Open / Component Side Effects", () => {
-    it("auto-opens large code blocks if it is the latest message", () => {
+    it("renders ModelCard for large code blocks (auto-open is now handled by ChatInterface)", () => {
       const onOpenMock = vi.fn();
       // Create a payload > 150 characters
       const largeCode = "a".repeat(160);
       const msg = createMessage("assistant", `\`\`\`javascript\n${largeCode}\n\`\`\``);
-
-      // Mock window.innerWidth for auto-open (requires >= 1024)
-      Object.defineProperty(window, "innerWidth", { value: 1024, writable: true });
 
       render(<MessageList messages={[msg]} onOpenInEditor={onOpenMock} />);
 
@@ -101,8 +100,9 @@ describe("MessageList Component", () => {
         vi.advanceTimersByTime(150);
       });
 
-      expect(onOpenMock).toHaveBeenCalledWith(largeCode, "code");
-      expect(onOpenMock).toHaveBeenCalledTimes(1);
+      // Auto-open is now handled by ChatInterface's AUTO-LOAD EFFECT,
+      // not by MessageList. MessageList just renders the ModelCard.
+      expect(screen.getByText("Open in Editor")).toBeInTheDocument();
     });
 
     it("does not auto-open if the message is NOT the latest", () => {
@@ -146,7 +146,7 @@ describe("MessageList Component", () => {
 
       const headingEl = screen.getByText("Section Title");
       expect(headingEl.tagName).toBe("STRONG");
-      expect(headingEl).toHaveClass("font-semibold", "text-white");
+      expect(headingEl).toHaveClass("font-semibold", "text-neutral-900");
     });
 
     it("renders inline bold and code formatting", () => {

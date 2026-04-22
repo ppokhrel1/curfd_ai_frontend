@@ -10,6 +10,8 @@ export const ROUTES = {
   SIGNIN: '/signin',
   SIGNUP: '/signup',
   HOME: '/home',
+  DASHBOARD: '/dashboard',
+  PRICING: '/pricing',
   AUTH_CALLBACK: '/auth/callback',
   CHAT: '/chat',
   VIEWER: '/viewer',

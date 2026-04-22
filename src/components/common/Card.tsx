@@ -24,9 +24,9 @@ export const Card: React.FC<CardProps> = ({
   };
 
   const variantStyles = {
-    default: "bg-neutral-900/50 backdrop-blur-sm border border-neutral-800",
+    default: "bg-white backdrop-blur-sm border border-neutral-200",
     gradient:
-      "bg-gradient-to-br from-neutral-900/50 to-neutral-900/30 backdrop-blur-sm border border-neutral-800",
+      "bg-gradient-to-br from-white to-neutral-50 backdrop-blur-sm border border-neutral-200",
   };
 
   return (
@@ -35,7 +35,7 @@ export const Card: React.FC<CardProps> = ({
         "rounded-xl shadow-lg",
         variantStyles[variant],
         hover &&
-          "transition-all duration-300 hover:shadow-2xl hover:border-green-500/30 hover:scale-[1.02]",
+          "transition-all duration-300 hover:shadow-2xl hover:border-primary-500/30 hover:scale-[1.02]",
         paddingStyles[padding],
         className
       )}
@@ -55,7 +55,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   children,
   className,
 }) => (
-  <div className={cn("mb-4 pb-4 border-b border-neutral-800", className)}>
+  <div className={cn("mb-4 pb-4 border-b border-neutral-200", className)}>
     {children}
   </div>
 );
@@ -69,7 +69,7 @@ export const CardTitle: React.FC<CardTitleProps> = ({
   children,
   className,
 }) => (
-  <h3 className={cn("text-xl font-semibold text-white", className)}>
+  <h3 className={cn("text-xl font-semibold text-neutral-800", className)}>
     {children}
   </h3>
 );
@@ -82,4 +82,4 @@ interface CardContentProps {
 export const CardContent: React.FC<CardContentProps> = ({
   children,
   className,
-}) => <div className={cn("text-neutral-300", className)}>{children}</div>;
+}) => <div className={cn("text-neutral-600", className)}>{children}</div>;

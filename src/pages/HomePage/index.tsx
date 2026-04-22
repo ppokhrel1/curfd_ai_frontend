@@ -319,7 +319,7 @@ const HomePage = () => {
   const safeToken = token || user?.access_token || ""; // Fallbacks based on common auth setups
 
   return (
-    <div className="h-screen bg-neutral-950 flex flex-col overflow-hidden">
+    <div className="h-screen bg-white flex flex-col overflow-hidden">
       <input
         ref={modelImport.fileInputRef}
         type="file"

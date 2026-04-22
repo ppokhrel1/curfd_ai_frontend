@@ -9,10 +9,10 @@ export const ControlsHint: React.FC = () => {
     return (
       <button
         onClick={() => setIsVisible(true)}
-        className="group absolute bottom-4 right-4 p-3 bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl shadow-xl hover:shadow-2xl hover:border-green-500/30 transition-all z-10"
+        className="group absolute bottom-4 right-4 p-3 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl shadow-xl hover:shadow-2xl hover:border-primary-500/30 transition-all z-10"
         title="Show controls help"
       >
-        <HelpCircle className="w-5 h-5 text-green-400 group-hover:scale-110 transition-transform" />
+        <HelpCircle className="w-5 h-5 text-primary-500 group-hover:scale-110 transition-transform" />
       </button>
     );
   }
@@ -21,7 +21,7 @@ export const ControlsHint: React.FC = () => {
     {
       action: "Rotate",
       control: VIEWER_CONTROLS.Rotate || "Left Click + Drag",
-      icon: <Mouse className="w-4 h-4 text-green-400" />,
+      icon: <Mouse className="w-4 h-4 text-primary-500" />,
     },
     {
       action: "Pan",
@@ -37,13 +37,13 @@ export const ControlsHint: React.FC = () => {
 
   return (
     <div className="absolute bottom-4 right-4 z-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
-      <div className="bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl shadow-2xl min-w-[300px]">
+      <div className="bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl shadow-2xl min-w-[300px]">
         {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-neutral-800">
+        <div className="px-5 pt-5 pb-4 border-b border-neutral-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-green-500/10 rounded-lg border border-green-500/20">
-                <HelpCircle className="w-4 h-4 text-green-400" />
+              <div className="p-2 bg-primary-50 rounded-lg border border-primary-500/20">
+                <HelpCircle className="w-4 h-4 text-primary-500" />
               </div>
               <h3 className="font-semibold text-white">Viewer Controls</h3>
             </div>
@@ -69,7 +69,7 @@ export const ControlsHint: React.FC = () => {
                   {item.action}
                 </span>
               </div>
-              <kbd className="px-2.5 py-1.5 bg-neutral-900 border border-neutral-700 rounded-lg text-xs font-mono text-green-400 whitespace-nowrap">
+              <kbd className="px-2.5 py-1.5 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-mono text-primary-500 whitespace-nowrap">
                 {item.control}
               </kbd>
             </div>
@@ -77,7 +77,7 @@ export const ControlsHint: React.FC = () => {
         </div>
 
         {/* Footer Tip */}
-        <div className="px-5 pb-5 pt-3 border-t border-neutral-800">
+        <div className="px-5 pb-5 pt-3 border-t border-neutral-200">
           <p className="text-xs text-neutral-500 leading-relaxed">
             💡 Double-click to focus on objects
           </p>

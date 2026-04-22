@@ -14,6 +14,8 @@ export type RunpodEventType =
   | "image_to_3d.queued"
   | "image_to_3d.image_options"
   | "image_to_3d.error"
+  | "mesh_modification.queued"
+  | "mesh_modification.error"
   | "error";
 
 export interface RunpodEvent {

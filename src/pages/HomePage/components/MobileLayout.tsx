@@ -45,7 +45,7 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
   token,
 }) => {
   return (
-    <div className={`lg:hidden h-full flex flex-col bg-neutral-950 transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+    <div className={`lg:hidden h-full flex flex-col bg-white transition-opacity duration-150 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
       <div className="flex-1 overflow-hidden relative">
         {mobilePanel === 'chooser' && (
           <MobileChooser onSelect={onMobilePanelSwitch} />
@@ -73,7 +73,7 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
         )}
 
         {mobilePanel === 'editor' && (
-          <div className="h-full flex flex-col bg-neutral-950">
+          <div className="h-full flex flex-col bg-white">
              <EditorContainer
                 chatId={chatId}
                 token={token}
@@ -85,7 +85,7 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
       </div>
       
       {/* Footer Navigation — hidden on chooser screen */}
-      <div className={`flex-shrink-0 border-t border-neutral-800 bg-neutral-900 p-2 flex gap-1.5 ${mobilePanel === 'chooser' ? 'hidden' : ''}`}>
+      <div className={`flex-shrink-0 border-t border-neutral-200 bg-neutral-50 p-2 flex gap-1.5 ${mobilePanel === 'chooser' ? 'hidden' : ''}`}>
         <TabButton 
           active={mobilePanel === 'chat'} 
           onClick={() => onMobilePanelSwitch('chat')}
@@ -102,7 +102,7 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
           active={mobilePanel === 'viewer'} 
           onClick={() => onMobilePanelSwitch('viewer')}
           label="3D View"
-          color="bg-green-500"
+          color="bg-primary-500"
         />
       </div>
     </div>

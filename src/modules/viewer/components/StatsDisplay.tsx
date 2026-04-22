@@ -16,7 +16,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
   const currentFps = fps;
 
   const getFpsColor = (fps: number) => {
-    if (fps >= 60) return "text-green-400";
+    if (fps >= 60) return "text-primary-500";
     if (fps >= 30) return "text-yellow-400";
     return "text-red-400";
   };
@@ -38,8 +38,8 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
         onClick={() => setIsExpanded(true)}
         className="absolute top-4 right-4 z-10 group"
       >
-        <div className="p-2.5 bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl shadow-xl hover:border-green-500/30 transition-all">
-          <Activity className="w-4 h-4 text-green-400 group-hover:scale-110 transition-transform" />
+        <div className="p-2.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl shadow-xl hover:border-primary-500/30 transition-all">
+          <Activity className="w-4 h-4 text-primary-500 group-hover:scale-110 transition-transform" />
         </div>
       </button>
     );
@@ -47,12 +47,12 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
 
   return (
     <div className="absolute top-4 right-4 z-10 animate-in fade-in slide-in-from-top-4 duration-500">
-      <div className="bg-neutral-950/95 backdrop-blur-md border border-neutral-800 rounded-xl shadow-2xl overflow-hidden">
+      <div className="bg-white/95 backdrop-blur-md border border-neutral-200 rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-green-500/10 rounded-lg border border-green-500/20">
-              <Activity className="w-3.5 h-3.5 text-green-400" />
+            <div className="p-1.5 bg-primary-50 rounded-lg border border-primary-500/20">
+              <Activity className="w-3.5 h-3.5 text-primary-500" />
             </div>
             <span className="font-semibold text-white text-xs">
               Performance
@@ -115,7 +115,7 @@ export const StatsDisplay: React.FC<StatsDisplayProps> = ({
             <div
               className={`h-1 rounded-full bg-gradient-to-r ${
                 currentFps >= 60
-                  ? "from-green-500 to-emerald-500"
+                  ? "from-primary-500 to-primary-500"
                   : currentFps >= 30
                   ? "from-yellow-500 to-orange-500"
                   : "from-red-500 to-pink-500"

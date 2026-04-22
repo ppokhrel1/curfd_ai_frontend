@@ -192,9 +192,9 @@ export const ShapeModificationPanel: React.FC<ShapeModificationPanelProps> = ({
   const isApplied = (label: string) => appliedMods.includes(label);
 
   return (
-    <div className="bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl overflow-hidden shadow-xl">
+    <div className="bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl overflow-hidden shadow-xl">
       {/* Header */}
-      <div className="px-3 py-2 border-b border-neutral-800 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
+      <div className="px-3 py-2 border-b border-neutral-200 bg-gradient-to-r from-purple-500/10 to-blue-500/10">
         <div className="flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-purple-400" />
           <span className="text-xs font-medium text-white">Customize</span>
@@ -218,14 +218,14 @@ export const ShapeModificationPanel: React.FC<ShapeModificationPanelProps> = ({
               disabled={applied}
               className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all ${
                 applied
-                  ? "bg-green-500/10 border border-green-500/20"
+                  ? "bg-primary-50 border border-primary-500/20"
                   : "hover:bg-purple-500/10 border border-transparent"
               }`}
             >
               <div
                 className={`w-6 h-6 rounded flex items-center justify-center ${
                   applied
-                    ? "bg-green-500/20 text-green-400"
+                    ? "bg-primary-100 text-primary-500"
                     : "bg-neutral-800 text-neutral-400"
                 }`}
               >
@@ -238,7 +238,7 @@ export const ShapeModificationPanel: React.FC<ShapeModificationPanelProps> = ({
               <div className="flex-1 min-w-0">
                 <p
                   className={`text-xs font-medium ${
-                    applied ? "text-green-400" : "text-white"
+                    applied ? "text-primary-500" : "text-white"
                   }`}
                 >
                   {mod.label}
@@ -253,7 +253,7 @@ export const ShapeModificationPanel: React.FC<ShapeModificationPanelProps> = ({
       </div>
 
       {/* Footer */}
-      <div className="px-3 py-1.5 border-t border-neutral-800 bg-neutral-900/50">
+      <div className="px-3 py-1.5 border-t border-neutral-200 bg-neutral-50">
         <p className="text-[10px] text-neutral-500 text-center">
           Or type in chat: "make wheels bigger"
         </p>

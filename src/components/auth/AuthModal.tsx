@@ -98,29 +98,29 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
         className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-[380px] bg-neutral-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 ring-1 ring-white/5">
-        
+      <div className="relative w-full max-w-[380px] bg-white backdrop-blur-xl border border-neutral-200 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+
         {/* Decorative background elements */}
-        <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none" />
-        <div className="absolute -top-24 -right-24 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-primary-500/10 to-transparent pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-40 h-40 bg-primary-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200 z-50"
+          className="absolute top-3 right-3 p-1.5 text-neutral-400 hover:text-neutral-800 hover:bg-neutral-100 rounded-full transition-all duration-200 z-50"
           aria-label="Close modal"
         >
           <X className="w-4 h-4" />
         </button>
 
         <div className="relative pt-8 pb-4 px-6 text-center">
-        <div className="w-12 h-12 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-xl border border-emerald-500/30 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/10 group">
-            <Lock className="w-5 h-5 text-emerald-400 group-hover:scale-110 transition-transform duration-300" />
+        <div className="w-12 h-12 bg-gradient-to-br from-primary-500/20 to-primary-600/20 rounded-xl border border-primary-500/30 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/10 group">
+            <Lock className="w-5 h-5 text-primary-500 group-hover:scale-110 transition-transform duration-300" />
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight mb-1">
+          <h2 className="text-2xl font-bold text-neutral-800 tracking-tight mb-1">
             {mode === "signin" ? "Welcome Back" : "Create Account"}
           </h2>
-          <p className="text-neutral-400 text-xs font-medium">
+          <p className="text-neutral-500 text-xs font-medium">
             {mode === "signin"
               ? "Sign in to continue your creative journey"
               : "Join the future of 3D modeling today"}
@@ -147,22 +147,22 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
         </div>
 
         <div className="my-5 px-6 flex items-center gap-3">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-neutral-700 to-transparent" />
-          <span className="text-[10px] text-neutral-500 font-bold tracking-widest uppercase">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-neutral-200 to-transparent" />
+          <span className="text-[10px] text-neutral-400 font-bold tracking-widest uppercase">
             Or continue with email
           </span>
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-neutral-700 to-transparent" />
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-neutral-200 to-transparent" />
         </div>
 
         {/* Email Form */}
         <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-4">
           {mode === "signup" && (
             <div className="space-y-1.5">
-              <label className="text-neutral-300 text-[10px] font-bold ml-1 uppercase tracking-wide">
+              <label className="text-neutral-600 text-[10px] font-bold ml-1 uppercase tracking-wide">
                 Full Name
               </label>
               <div className="relative group">
-                <User className="absolute left-3.5 top-3 h-3.5 w-3.5 text-neutral-500 group-focus-within:text-emerald-400 transition-colors" />
+                <User className="absolute left-3.5 top-3 h-3.5 w-3.5 text-neutral-400 group-focus-within:text-primary-500 transition-colors" />
                 <input
                   type="text"
                   value={formData.name}
@@ -170,7 +170,7 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
                     setFormData({ ...formData, name: e.target.value })
                   }
                   placeholder="John Doe"
-                  className="w-full pl-9 pr-3 py-2.5 bg-neutral-800/50 hover:bg-neutral-800/80 rounded-lg border border-neutral-700/50 text-white focus:border-emerald-500/50 focus:bg-neutral-800 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all duration-200 text-sm placeholder:text-neutral-600"
+                  className="w-full pl-9 pr-3 py-2.5 bg-neutral-50 hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-800 focus:border-primary-500/50 focus:bg-white focus:ring-2 focus:ring-primary-500/20 outline-none transition-all duration-200 text-sm placeholder:text-neutral-400"
                   required
                 />
               </div>
@@ -178,11 +178,11 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-neutral-300 text-[10px] font-bold ml-1 uppercase tracking-wide">
+            <label className="text-neutral-600 text-[10px] font-bold ml-1 uppercase tracking-wide">
               Email Address
             </label>
             <div className="relative group">
-              <Mail className="absolute left-3.5 top-3 h-3.5 w-3.5 text-neutral-500 group-focus-within:text-emerald-400 transition-colors" />
+              <Mail className="absolute left-3.5 top-3 h-3.5 w-3.5 text-neutral-400 group-focus-within:text-primary-500 transition-colors" />
               <input
                 type="email"
                 value={formData.email}
@@ -190,18 +190,18 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="Name@company.com"
-                className="w-full pl-9 pr-3 py-2.5 bg-neutral-800/50 hover:bg-neutral-800/80 rounded-lg border border-neutral-700/50 text-white focus:border-emerald-500/50 focus:bg-neutral-800 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all duration-200 text-sm placeholder:text-neutral-600"
+                className="w-full pl-9 pr-3 py-2.5 bg-neutral-50 hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-800 focus:border-primary-500/50 focus:bg-white focus:ring-2 focus:ring-primary-500/20 outline-none transition-all duration-200 text-sm placeholder:text-neutral-400"
                 required
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-neutral-300 text-[10px] font-bold ml-1 uppercase tracking-wide">
+            <label className="text-neutral-600 text-[10px] font-bold ml-1 uppercase tracking-wide">
               Password
             </label>
             <div className="relative group">
-              <Lock className="absolute left-3.5 top-3 h-3.5 w-3.5 text-neutral-500 group-focus-within:text-emerald-400 transition-colors" />
+              <Lock className="absolute left-3.5 top-3 h-3.5 w-3.5 text-neutral-400 group-focus-within:text-primary-500 transition-colors" />
               <input
                 type="password"
                 value={formData.password}
@@ -209,7 +209,7 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
                   setFormData({ ...formData, password: e.target.value })
                 }
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2.5 bg-neutral-800/50 hover:bg-neutral-800/80 rounded-lg border border-neutral-700/50 text-white focus:border-emerald-500/50 focus:bg-neutral-800 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all duration-200 text-sm placeholder:text-neutral-600"
+                className="w-full pl-9 pr-3 py-2.5 bg-neutral-50 hover:bg-neutral-100 rounded-lg border border-neutral-200 text-neutral-800 focus:border-primary-500/50 focus:bg-white focus:ring-2 focus:ring-primary-500/20 outline-none transition-all duration-200 text-sm placeholder:text-neutral-400"
                 required
               />
             </div>
@@ -218,7 +218,7 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 rounded-xl text-white font-bold text-xs shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-200 transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mt-3 relative overflow-hidden group"
+            className="w-full py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-400 hover:to-primary-500 rounded-xl text-white font-bold text-xs shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-200 transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mt-3 relative overflow-hidden group"
           >
              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             <span className="relative flex items-center justify-center gap-2">
@@ -236,14 +236,14 @@ const AuthModal = ({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) => {
           </button>
 
           <div className="text-center pt-1">
-            <p className="text-neutral-400 text-xs">
+            <p className="text-neutral-500 text-xs">
               {mode === "signin"
                 ? "Don't have an account?"
                 : "Already have an account?"}{" "}
               <button
                 type="button"
                 onClick={onSwitchMode}
-                className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors hover:underline decoration-emerald-400/30 underline-offset-4"
+                className="text-primary-500 hover:text-primary-600 font-semibold transition-colors hover:underline decoration-primary-500/30 underline-offset-4"
               >
                 {mode === "signin" ? "Sign up" : "Sign in"}
               </button>

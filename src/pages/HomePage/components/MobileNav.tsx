@@ -21,7 +21,7 @@ const NavBtn: React.FC<{
     disabled={disabled}
     className={`flex flex-col items-center gap-0.5 py-2 rounded-lg transition-all ${
       active
-        ? 'bg-green-500/15 text-green-400'
+        ? 'bg-primary-500/15 text-primary-500'
         : 'text-neutral-500 hover:text-neutral-300 disabled:opacity-40'
     }`}
   >
@@ -40,7 +40,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({
   if (mobilePanel === 'chooser') return null;
 
   return (
-    <div className="lg:hidden flex-shrink-0 border-t border-neutral-800 bg-neutral-950 p-1.5">
+    <div className="lg:hidden flex-shrink-0 border-t border-neutral-200 bg-white p-1.5">
       <div className="grid grid-cols-4 gap-1"> {/* Changed to grid-cols-4 */}
         <NavBtn
           icon={<MessageSquare />}

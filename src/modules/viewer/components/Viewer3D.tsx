@@ -272,7 +272,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     setActivePanel(prev => (prev === panel ? null : panel));
 
   return (
-    <div className={`relative h-full bg-neutral-950 overflow-hidden ${className}`}>
+    <div className={`relative h-full bg-white overflow-hidden ${className}`}>
       {/* 3D Canvas */}
       <div className="absolute inset-0">
         <ViewerCanvas
@@ -315,8 +315,8 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
       {/* Center Top: Model Name */}
       {shape && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
-          <div className="bg-neutral-900/80 backdrop-blur-sm border border-neutral-800 rounded-full px-3 py-1 flex items-center gap-2">
-            <Box className="w-3 h-3 text-green-400" />
+          <div className="bg-neutral-50 backdrop-blur-sm border border-neutral-200 rounded-full px-3 py-1 flex items-center gap-2">
+            <Box className="w-3 h-3 text-primary-500" />
             <span className="text-xs text-white font-medium">{shape.name}</span>
           </div>
           {/* Quick "add to assembly" pill */}
@@ -393,7 +393,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
 
       {/* Bottom Center: Action Bar */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
-        <div className="flex items-center gap-1.5 bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl p-1.5 shadow-xl">
+        <div className="flex items-center gap-1.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-1.5 shadow-xl">
           <ActionBtn icon={<Upload />} label="Import" onClick={onImportModel} />
 
           {/* Assembly button — always visible once there are parts, or when a model is loaded */}
@@ -425,7 +425,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           {shape?.hasSimulation && (
             <button
               onClick={handleSimulation}
-              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium rounded-lg text-xs"
+              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-primary-500 to-primary-500 text-white font-medium rounded-lg text-xs"
             >
               <Play className="w-3 h-3" />
               Simulate
@@ -445,7 +445,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
       {/* Right Edge: Sidebar Toggle */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-20 w-5 h-14 bg-neutral-900/90 border border-neutral-800 flex items-center justify-center text-neutral-400 hover:text-white transition-all ${
+        className={`absolute top-1/2 -translate-y-1/2 z-20 w-5 h-14 bg-neutral-50 border border-neutral-200 flex items-center justify-center text-neutral-400 hover:text-white transition-all ${
           isSidebarOpen ? "right-64 rounded-l-lg border-r-0" : "right-0 rounded-l-lg"
         }`}
       >
@@ -453,7 +453,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
       </button>
 
       {/* Right: Stats Sidebar */}
-      <div className={`absolute top-0 right-0 bottom-0 w-64 bg-neutral-950/95 border-l border-neutral-800 z-10 transition-transform duration-200 ${isSidebarOpen ? "translate-x-0" : "translate-x-full"}`}>
+      <div className={`absolute top-0 right-0 bottom-0 w-64 bg-white/95 border-l border-neutral-200 z-10 transition-transform duration-200 ${isSidebarOpen ? "translate-x-0" : "translate-x-full"}`}>
         <div className="h-full overflow-y-auto p-4 pt-6 scrollbar-thin scrollbar-thumb-neutral-700">
           <ModelSidebar stats={stats} shape={shape} onExport={handleExport} onScreenshot={handleScreenshot} onShare={handleShare} />
         </div>
@@ -464,9 +464,9 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
             <div className="relative inline-flex mb-6">
-              <div className="absolute inset-0 bg-green-500/20 blur-3xl rounded-full animate-pulse" />
-              <div className="relative w-20 h-20 bg-neutral-900 rounded-2xl flex items-center justify-center border border-neutral-800">
-                <Box className="w-10 h-10 text-green-400" />
+              <div className="absolute inset-0 bg-primary-100 blur-3xl rounded-full animate-pulse" />
+              <div className="relative w-20 h-20 bg-neutral-50 rounded-2xl flex items-center justify-center border border-neutral-200">
+                <Box className="w-10 h-10 text-primary-500" />
               </div>
             </div>
             <h3 className="text-xl font-bold text-white mb-2">No Model</h3>

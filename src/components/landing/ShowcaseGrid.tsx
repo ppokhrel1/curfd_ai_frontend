@@ -1,117 +1,40 @@
-interface FeatureItem {
-  title: string;
-  desc: string;
-  icon: string;
-  gradient: string;
-  stats: string;
-}
-
-const features: FeatureItem[] = [
-  {
-    title: "Text to CAD",
-    desc: "Describe a shape in plain English and get parametric CAD geometry back. Supports OpenSCAD and common 3D formats.",
-    icon: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z",
-    gradient: "from-purple-500 to-pink-500",
-    stats: "OpenSCAD",
-  },
-  {
-    title: "CFD Simulation",
-    desc: "Run fluid dynamics simulations on your geometry. Visualize airflow, pressure fields, and drag forces.",
-    icon: "M13 10V3L4 14h7v7l9-11h-7z",
-    gradient: "from-blue-500 to-cyan-500",
-    stats: "OpenFOAM",
-  },
-  {
-    title: "AI Chat Interface",
-    desc: "Talk to the AI to refine your designs. Ask it to adjust dimensions, add features, or optimize parameters.",
-    icon: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
-    gradient: "from-green-500 to-emerald-500",
-    stats: "Iterative",
-  },
-  {
-    title: "Part Decomposition",
-    desc: "Multi-part models are automatically broken down into individual components you can select, swap, or move.",
-    icon: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z",
-    gradient: "from-orange-500 to-red-500",
-    stats: "Per-part",
-  },
-  {
-    title: "3D Viewer",
-    desc: "Inspect your models in a built-in 3D viewport with orbit controls, part selection, and STL export.",
-    icon: "M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5",
-    gradient: "from-teal-500 to-green-500",
-    stats: "Three.js",
-  },
-  {
-    title: "Physics Analysis",
-    desc: "Get volume, surface area, mass, and bounding box dimensions calculated automatically for any geometry.",
-    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
-    gradient: "from-indigo-500 to-purple-500",
-    stats: "Signed volume",
-  },
+const features = [
+  { title: "Text to CAD", desc: "Describe a shape in plain English. Get parametric OpenSCAD back.", tag: "OpenSCAD" },
+  { title: "Image to 3D", desc: "Upload a photo or search for one. AI generates a mesh you can remix.", tag: "Hunyuan3D" },
+  { title: "AI Chat", desc: "Refine designs conversationally. Adjust dimensions, add features, iterate.", tag: "Iterative" },
+  { title: "Part Segmentation", desc: "Models are split into named, printable components automatically.", tag: "CoACD" },
+  { title: "3D Viewer", desc: "Inspect models with orbit controls, part selection, and STL/GLB export.", tag: "Three.js" },
+  { title: "Optimization", desc: "Genetic algorithms optimize parameters for strength, weight, or fit.", tag: "RunPod" },
 ];
 
 export const ShowcaseGrid = () => {
   return (
-    <section id="features" className="py-24 bg-neutral-950 relative">
-      {/* Background Gradients */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-6">
-        {/* Section Header */}
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            What you can do
+    <section className="py-20 bg-neutral-50 border-t border-neutral-100">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="text-center mb-14">
+          <h2 className="text-2xl md:text-3xl font-semibold text-neutral-800 mb-3">
+            What you can build
           </h2>
-          <p className="text-neutral-400 max-w-xl mx-auto">
-            Generate geometry, simulate physics, and iterate on designs — all in one place.
+          <p className="text-neutral-500 text-sm max-w-lg mx-auto">
+            Generate geometry, simulate physics, and iterate — all in one workspace.
           </p>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((item, i) => (
             <div
               key={i}
-              className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-1"
+              className="group bg-white border border-neutral-200 rounded-xl p-6 hover:border-neutral-300 hover:shadow-sm transition-all"
             >
-              {/* Icon */}
-              <div
-                className={`w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br ${item.gradient} shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300`}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="w-6 h-6 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d={item.icon} />
-                </svg>
-              </div>
-
-              {/* Content */}
-              <h3 className="text-xl font-semibold text-white mb-2">
+              <h3 className="text-base font-semibold text-neutral-800 mb-2">
                 {item.title}
               </h3>
-              <p className="text-neutral-400 text-sm leading-relaxed mb-4">
+              <p className="text-sm text-neutral-500 leading-relaxed mb-4">
                 {item.desc}
               </p>
-
-              {/* Stats Badge */}
-              <div className="inline-block">
-                <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-                  {item.stats}
-                </span>
-              </div>
-
-              {/* Hover Effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-green-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              <span className="text-[10px] font-mono uppercase tracking-wider text-primary-600 bg-primary-50 border border-primary-100 px-2 py-0.5 rounded">
+                {item.tag}
+              </span>
             </div>
           ))}
         </div>

@@ -1,4 +1,4 @@
-import { Check, Zap } from "lucide-react";
+import { Check } from "lucide-react";
 
 interface PricingTier {
   name: string;
@@ -13,56 +13,51 @@ interface PricingTier {
 
 const tiers: PricingTier[] = [
   {
-    name: "Standard",
-    price: "Free",
-    period: "forever",
-    description: "Get started with basic shapes and tools.",
+    name: "Maker",
+    price: "$0",
+    period: "free forever",
+    description: "Start building — no credit card.",
     features: [
-      "AI shape generation from text",
-      "Standard CAD editor",
-      "Common shapes (box, cylinder, sphere, extrusions)",
-      "3D viewer with physics-based rendering",
-      "Scientific volume & mass analysis",
-      "10 shape renders / day",
-      "Export STL",
+      "25 generations / month",
+      "2 active sessions",
+      "Public gallery",
+      "STL / GLB export",
+      "3D viewer + physics rendering",
     ],
-    cta: "Get Started Free",
+    cta: "Start free",
     highlighted: false,
   },
   {
-    name: "Professional",
-    price: "$19.99",
-    period: "/ month",
-    description: "For serious projects that need full power.",
-    badge: "Most Popular",
+    name: "Builder",
+    price: "$18",
+    period: "/ mo · billed yearly",
+    description: "For serious projects that ship.",
+    badge: "Most popular",
     features: [
-      "Everything in Standard",
-      "Genetic algorithm shape optimization",
-      "Complex parametric geometries",
-      "Unlimited renders",
-      "CFD simulation (airflow, pressure)",
-      "AI parameter tuning",
-      "Priority GPU processing",
-      "Export STL, STEP, OBJ",
+      "500 generations / month",
+      "Unlimited sessions",
+      "Private gallery",
+      "SCAD source access",
+      "Optimization jobs",
+      "Priority queue",
     ],
-    cta: "Start Pro Trial",
+    cta: "Go builder",
     highlighted: true,
   },
   {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    description: "For teams that need API access and dedicated support.",
+    name: "Studio",
+    price: "$64",
+    period: "/ mo · per seat",
+    description: "For teams and API access.",
     features: [
-      "Everything in Professional",
+      "Unlimited generations",
+      "Team workspaces",
+      "Shared asset library",
       "REST API access",
-      "Team collaboration",
-      "Custom simulation pipelines",
-      "Dedicated GPU workers",
-      "SLA & uptime guarantee",
-      "Onboarding & support",
+      "10 GB storage",
+      "SSO · SAML",
     ],
-    cta: "Contact Us",
+    cta: "Contact us",
     highlighted: false,
   },
 ];
@@ -73,7 +68,7 @@ interface PricingProps {
 
 export const Pricing = ({ onAuthClick }: PricingProps) => {
   const handleCta = (tier: PricingTier) => {
-    if (tier.name === "Enterprise") {
+    if (tier.name === "Studio") {
       window.location.href = "mailto:contact@curfd-ai.com";
     } else {
       onAuthClick("signup");
@@ -81,64 +76,57 @@ export const Pricing = ({ onAuthClick }: PricingProps) => {
   };
 
   return (
-    <section id="pricing" className="py-24 bg-neutral-950 relative border-t border-white/10">
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/8 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-green-500/8 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-6">
+    <section id="pricing" className="py-24 bg-white border-t border-neutral-100">
+      <div className="max-w-6xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Pricing
+          <div className="text-xs font-mono uppercase text-neutral-400 tracking-widest mb-3">Pricing</div>
+          <h2 className="text-3xl md:text-4xl font-semibold text-neutral-800 mb-3">
+            Pay for the prints you ship.
           </h2>
-          <p className="text-neutral-400 max-w-2xl mx-auto">
-            Start free. Upgrade when you need more.
+          <p className="text-neutral-500 max-w-lg mx-auto text-sm">
+            Start free. Upgrade when you iterate a lot. Cancel whenever.
           </p>
         </div>
 
         {/* Tiers */}
-        <div className="grid md:grid-cols-3 gap-8 items-start">
+        <div className="grid md:grid-cols-3 gap-6 items-start">
           {tiers.map((tier) => (
             <div
               key={tier.name}
-              className={`relative rounded-2xl p-8 flex flex-col transition-all duration-300 ${
+              className={`relative rounded-2xl p-8 flex flex-col transition-all ${
                 tier.highlighted
-                  ? "bg-gradient-to-b from-emerald-950/60 to-neutral-900/80 border border-emerald-500/40 shadow-2xl shadow-emerald-500/10 scale-[1.03]"
-                  : "bg-white/5 border border-white/10 hover:border-white/20"
+                  ? "bg-primary-50 border-2 border-primary-200 shadow-sm"
+                  : "bg-white border border-neutral-200 hover:border-neutral-300"
               }`}
             >
               {tier.badge && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-emerald-500 to-green-500 text-black shadow-lg shadow-emerald-500/30">
-                    <Zap className="w-3 h-3" />
+                <div className="absolute -top-3 left-6">
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider bg-primary-500 text-white">
                     {tier.badge}
                   </span>
                 </div>
               )}
 
-              {/* Name & Price */}
+              {/* Price */}
               <div className="mb-6">
-                <h3 className={`text-lg font-bold mb-1 ${tier.highlighted ? "text-emerald-400" : "text-white"}`}>
-                  {tier.name}
-                </h3>
-                <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-4xl font-extrabold text-white">{tier.price}</span>
+                <h3 className="text-sm font-medium text-neutral-500 mb-2">{tier.name}</h3>
+                <div className="flex items-baseline gap-1.5 mb-2">
+                  <span className="text-4xl font-semibold text-neutral-900">{tier.price}</span>
                   {tier.period && (
-                    <span className="text-neutral-500 text-sm">{tier.period}</span>
+                    <span className="text-xs font-mono text-neutral-400">{tier.period}</span>
                   )}
                 </div>
-                <p className="text-neutral-400 text-sm leading-relaxed">{tier.description}</p>
+                <p className="text-sm text-neutral-500">{tier.description}</p>
               </div>
 
               {/* CTA */}
               <button
                 onClick={() => handleCta(tier)}
-                className={`w-full py-3 rounded-xl font-semibold text-sm transition-all duration-300 mb-8 ${
+                className={`w-full py-2.5 rounded-lg font-medium text-sm transition-all mb-8 ${
                   tier.highlighted
-                    ? "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-black shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02]"
-                    : "bg-white/10 hover:bg-white/15 text-white border border-white/10 hover:border-white/20"
+                    ? "bg-neutral-900 hover:bg-neutral-800 text-white"
+                    : "bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-300 hover:border-neutral-400"
                 }`}
               >
                 {tier.cta}
@@ -147,13 +135,11 @@ export const Pricing = ({ onAuthClick }: PricingProps) => {
               {/* Features */}
               <ul className="space-y-3 flex-1">
                 {tier.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-3 text-sm">
-                    <Check
-                      className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
-                        tier.highlighted ? "text-emerald-400" : "text-neutral-400"
-                      }`}
-                    />
-                    <span className="text-neutral-300">{feature}</span>
+                  <li key={feature} className="flex items-start gap-2.5 text-sm">
+                    <Check className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                      tier.highlighted ? "text-primary-600" : "text-neutral-400"
+                    }`} />
+                    <span className="text-neutral-600">{feature}</span>
                   </li>
                 ))}
               </ul>

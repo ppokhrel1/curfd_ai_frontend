@@ -9,11 +9,18 @@ vi.mock("lucide-react", () => ({
   Sparkles: () => <div data-testid="icon-sparkles" />,
   ImagePlus: () => <div data-testid="icon-imageplus" />,
   X: () => <div data-testid="icon-x" />,
+  FileCode2: () => <div data-testid="icon-filecode2" />,
+  ChevronDown: () => <div data-testid="icon-chevrondown" />,
 }));
 
 // Mock ModelSelector
 vi.mock("@/modules/ai/components/ModelSelector", () => ({
   ModelSelector: () => <div data-testid="model-selector" />,
+}));
+
+// Mock LanguageSelector
+vi.mock("@/modules/ai/components/LanguageSelector", () => ({
+  LanguageSelector: () => <div data-testid="language-selector" />,
 }));
 
 describe("MessageInput", () => {

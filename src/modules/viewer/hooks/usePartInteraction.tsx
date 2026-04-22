@@ -74,8 +74,8 @@ export const usePartInteraction = ({
   const renderLabel = (position: [number, number, number] = [0, 4, 0]) =>
     selectedPart ? (
       <Html position={position} center className="pointer-events-none">
-        <div className="bg-neutral-900/90 backdrop-blur-md border border-green-500/50 px-3 py-1.5 rounded-lg text-xs text-white whitespace-nowrap shadow-xl">
-          <span className="font-bold text-green-400 mr-2">Selected:</span>
+        <div className="bg-neutral-50 backdrop-blur-md border border-primary-500/50 px-3 py-1.5 rounded-lg text-xs text-white whitespace-nowrap shadow-xl">
+          <span className="font-bold text-primary-500 mr-2">Selected:</span>
           {selectedPart
             .split("_")
             .map((w) => w.charAt(0).toUpperCase() + w.slice(1))

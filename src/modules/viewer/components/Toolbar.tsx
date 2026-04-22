@@ -30,7 +30,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   return (
     <div className="flex flex-row items-start gap-1.5">
       {/* View controls */}
-      <div className="flex items-center gap-0.5 bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl p-1.5 shadow-2xl">
+      <div className="flex items-center gap-0.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-1.5 shadow-2xl">
         <ToolButton
           icon={<Box className="w-4 h-4" />}
           label="Wireframe"
@@ -60,7 +60,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       {/* Transform tools — only shown when a model is loaded */}
       {hasModel && onSetTransformMode && (
-        <div className="flex items-center gap-0.5 bg-neutral-900/95 backdrop-blur-md border border-neutral-800 rounded-xl p-1.5 shadow-xl">
+        <div className="flex items-center gap-0.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-1.5 shadow-xl">
           <ToolButton
             icon={<Move className="w-4 h-4" />}
             label="Translate"
@@ -118,7 +118,7 @@ const ToolButton: React.FC<ToolButtonProps> = ({
   activeColor = "green",
 }) => {
   const activeClass = {
-    green:  "bg-green-500/20  text-green-400  shadow-lg shadow-green-500/20",
+    green:  "bg-primary-100  text-primary-500  shadow-lg shadow-primary-500/20",
     blue:   "bg-blue-500/20   text-blue-400   shadow-lg shadow-blue-500/20",
     purple: "bg-purple-500/20 text-purple-400 shadow-lg shadow-purple-500/20",
     amber:  "bg-amber-500/20  text-amber-400  shadow-lg shadow-amber-500/20",
@@ -137,7 +137,7 @@ const ToolButton: React.FC<ToolButtonProps> = ({
       title={label}
     >
       {icon}
-      <span className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1.5 bg-neutral-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none border border-neutral-700 shadow-xl z-[100]">
+      <span className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1.5 bg-neutral-50 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none border border-neutral-200 shadow-xl z-[100]">
         {label}
         <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-neutral-700" />
       </span>

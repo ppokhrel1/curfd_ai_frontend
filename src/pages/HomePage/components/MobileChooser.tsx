@@ -30,15 +30,15 @@ const panels = [
     icon: Box,
     label: '3D Viewer',
     description: 'View and interact with your model',
-    color: 'bg-green-500',
-    borderColor: 'border-green-500/30',
-    hoverBg: 'hover:bg-green-500/10',
+    color: 'bg-primary-500',
+    borderColor: 'border-primary-500/30',
+    hoverBg: 'hover:bg-primary-50',
   },
 ] as const;
 
 export const MobileChooser: React.FC<MobileChooserProps> = ({ onSelect }) => {
   return (
-    <div className="h-full flex flex-col items-center justify-center bg-neutral-950 px-6 gap-4">
+    <div className="h-full flex flex-col items-center justify-center bg-white px-6 gap-4">
       <h2 className="text-neutral-400 text-sm font-medium uppercase tracking-wider mb-2">
         Choose a view
       </h2>
@@ -47,7 +47,7 @@ export const MobileChooser: React.FC<MobileChooserProps> = ({ onSelect }) => {
         <button
           key={key}
           onClick={() => onSelect(key)}
-          className={`w-full max-w-sm flex items-center gap-4 p-5 rounded-xl border ${borderColor} ${hoverBg} bg-neutral-900/50 transition-all active:scale-[0.98]`}
+          className={`w-full max-w-sm flex items-center gap-4 p-5 rounded-xl border ${borderColor} ${hoverBg} bg-neutral-50 transition-all active:scale-[0.98]`}
         >
           <div className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center flex-shrink-0`}>
             <Icon className="w-5 h-5 text-white" />

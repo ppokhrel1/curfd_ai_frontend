@@ -16,9 +16,15 @@ describe('LandingPage', () => {
             </BrowserRouter>
         );
 
-        expect(screen.getByText(/Design 3D models/i)).toBeInTheDocument();
-        expect(screen.getByText(/with AI/i)).toBeInTheDocument();
+        // Hero headline
+        expect(screen.getByText(/Think it\./i)).toBeInTheDocument();
+        expect(screen.getByText(/Say it\./i)).toBeInTheDocument();
+        expect(screen.getByText(/Slice it\./i)).toBeInTheDocument();
+        // AI-native CAD badge
+        expect(screen.getByText(/AI-native CAD/i)).toBeInTheDocument();
+        // Generate button in Hero form
         expect(screen.getAllByText(/Generate/i).length).toBeGreaterThan(0);
+        // Showcase grid
         expect(screen.getByTestId('showcase-grid')).toBeInTheDocument();
     });
 
@@ -29,7 +35,7 @@ describe('LandingPage', () => {
             </BrowserRouter>
         );
 
-        const ctaButton = screen.getAllByRole('button', { name: /Generate/i })[0];
+        const ctaButton = screen.getAllByRole('button', { name: /Start free|Generate|Get started/i })[0];
         fireEvent.click(ctaButton);
 
         // Check if modal appears (assuming AuthModal renders some specific text)

@@ -21,10 +21,11 @@ describe("ImageSearchPicker Component", () => {
       <ImageSearchPicker payload={mockPayload} onSelect={onSelect} />
     );
 
-    // Check that 3 image buttons are rendered
-    const imageButtons = container.querySelectorAll("button[onClick]");
-    // First 3 buttons are images, then 1 is confirm button
-    expect(imageButtons.length).toBeGreaterThanOrEqual(3);
+    // Check that 3 image buttons are rendered (plus 1 confirm button)
+    const imageButtons = Array.from(
+      container.querySelectorAll("button")
+    ).filter((btn) => btn.querySelector("img"));
+    expect(imageButtons.length).toBe(3);
   });
 
   it("renders confirm button in disabled state initially", () => {
@@ -86,7 +87,7 @@ describe("ImageSearchPicker Component", () => {
 
     // Check that first button has violet ring styling
     const firstButton = imageButtons[0];
-    expect(firstButton.className).toContain("ring-violet-500");
+    expect(firstButton.className).toContain("border-primary-500");
   });
 
   it("disables buttons while generating", () => {
@@ -138,7 +139,7 @@ describe("ImageSearchPicker Component", () => {
     // Select first image
     fireEvent.click(imageButtons[0]);
     let firstButton = imageButtons[0];
-    expect(firstButton.className).toContain("ring-violet-500");
+    expect(firstButton.className).toContain("border-primary-500");
 
     // Change to second image
     fireEvent.click(imageButtons[1]);
@@ -146,7 +147,7 @@ describe("ImageSearchPicker Component", () => {
     const secondButton = imageButtons[1];
 
     // Second should be selected, first should not
-    expect(firstButton.className).not.toContain("ring-violet-500");
-    expect(secondButton.className).toContain("ring-violet-500");
+    expect(firstButton.className).not.toContain("border-primary-500");
+    expect(secondButton.className).toContain("border-primary-500");
   });
 });
