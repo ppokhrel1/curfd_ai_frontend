@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ImageSearchPayload } from '../types/chat.type';
+import type { ImageSearchPayload } from '../types/chat.type';
 
 interface ImageSearchPickerProps {
   payload: ImageSearchPayload;
