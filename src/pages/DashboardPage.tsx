@@ -50,11 +50,11 @@ const MOCK_SESSIONS: Session[] = [
   { id: "6", title: "Turbine Blade Study", chatCount: 4, partCount: 9, status: "active", updatedAgo: "5h ago" },
 ];
 
-const NAV_ITEMS: NavItem[] = [
+const NAV_ITEMS: (NavItem & { route?: string })[] = [
   { label: "Sessions", icon: LayoutGrid, id: "sessions" },
-  { label: "Assets", icon: FileBox, id: "assets" },
-  { label: "Jobs", icon: Archive, id: "jobs" },
-  { label: "Billing", icon: CreditCard, id: "billing" },
+  { label: "Assets", icon: FileBox, id: "assets", route: "/assets" },
+  { label: "Jobs", icon: Archive, id: "jobs", route: "/jobs" },
+  { label: "Billing", icon: CreditCard, id: "billing", route: "/pricing" },
   { label: "Settings", icon: Settings, id: "settings" },
 ];
 
@@ -187,7 +187,10 @@ const DashboardPage = () => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveNav(item.id)}
+                onClick={() => {
+                  setActiveNav(item.id);
+                  if (item.route) navigate(item.route);
+                }}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
                   isActive
                     ? "bg-white border border-neutral-200 font-semibold text-neutral-800 shadow-sm"

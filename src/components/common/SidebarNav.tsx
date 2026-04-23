@@ -7,7 +7,7 @@ interface SidebarNavProps {
 }
 
 const navItems = [
-  { key: "home" as const, label: "Dashboard", path: "/home", icon: LayoutDashboard },
+  { key: "home" as const, label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { key: "jobs" as const, label: "Jobs", path: "/jobs", icon: Briefcase },
   { key: "assets" as const, label: "Assets", path: "/assets", icon: Box },
   { key: "printers" as const, label: "Printers", path: "/printers", icon: Printer },
@@ -27,7 +27,7 @@ export const SidebarNav = ({ activePage }: SidebarNavProps) => {
       <aside className="hidden md:flex w-[200px] shrink-0 border-r border-neutral-200 bg-white h-full flex-col">
         {/* Logo area */}
         <div className="px-5 py-5 border-b border-neutral-100">
-          <Link to="/home" className="text-sm font-semibold tracking-tight text-neutral-900">
+          <Link to="/dashboard" className="text-sm font-semibold tracking-tight text-neutral-900">
             CURFD
           </Link>
           <p className="text-[10px] font-mono text-neutral-400 mt-0.5">ai cad platform</p>
