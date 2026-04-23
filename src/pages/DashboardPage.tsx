@@ -144,32 +144,43 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        // Fetch sessions
         const sessResp = await api.get<Session[]>("/sessions");
         const sessData = sessResp.data || [];
+        if (cancelled) return;
 
-        // Fetch chats to count per session
+        // Show sessions immediately, then fetch chat counts in parallel
+        setSessions(sessData.map((s) => ({ ...s, chatCount: 0 })));
+        setLoading(false);
+
+        // Fetch chat counts in parallel (non-blocking)
+        const counts = await Promise.all(
+          sessData.map(async (sess) => {
+            try {
+              const r = await api.get<Chat[]>("/chats", { params: { session_id: sess.id } });
+              return { id: sess.id, count: r.data?.length || 0 };
+            } catch {
+              return { id: sess.id, count: 0 };
+            }
+          })
+        );
+        if (cancelled) return;
         const chatCounts: Record<string, number> = {};
-        for (const sess of sessData) {
-          try {
-            const chatResp = await api.get<Chat[]>("/chats", { params: { session_id: sess.id } });
-            chatCounts[sess.id] = chatResp.data?.length || 0;
-          } catch {
-            chatCounts[sess.id] = 0;
-          }
-        }
-
+        for (const c of counts) chatCounts[c.id] = c.count;
         setSessions(sessData.map((s) => ({ ...s, chatCount: chatCounts[s.id] || 0 })));
       } catch (err) {
         console.error("Failed to load sessions:", err);
-      } finally {
         setLoading(false);
       }
     })();
+    return () => { cancelled = true; };
   }, [isAuthenticated]);
 
   if (authLoading) return null;
@@ -209,9 +220,9 @@ const DashboardPage = () => {
           </button>
           <button
             onClick={() => navigate(ROUTES.HOME)}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-neutral-200 hover:bg-neutral-100 text-neutral-700 text-sm font-medium rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 border border-neutral-200 hover:bg-neutral-100 text-neutral-600 text-xs font-medium rounded-lg transition-colors"
           >
-            Back to Workspace
+            &larr; Workspace
           </button>
         </div>
 
