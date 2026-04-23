@@ -27,10 +27,10 @@ describe("proxifyUrl", () => {
     expect(proxifyUrl(url)).toBe(url);
   });
 
-  it("passes through backblaze URLs directly", async () => {
+  it("routes backblaze B2 URLs through backend storage proxy", async () => {
     const { proxifyUrl } = await import("@/lib/apiConfig");
     const url = "https://f005.backblazeb2.com/file/bucket/model.glb";
-    expect(proxifyUrl(url)).toBe(url);
+    expect(proxifyUrl(url)).toBe("/api/v1/storage/bucket/model.glb");
   });
 
   it("proxifies signed supabase URLs through backend too", async () => {

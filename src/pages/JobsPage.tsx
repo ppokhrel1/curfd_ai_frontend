@@ -1,43 +1,60 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/utils/formatters";
 import { SidebarNav } from "@/components/common/SidebarNav";
+import { jobService, type Job } from "@/modules/ai/services/jobService";
+import { Loader2 } from "lucide-react";
 
-type StatusKey = "running" | "queued" | "done" | "failed";
+type StatusKey = "running" | "queued" | "succeeded" | "failed" | "cancelled";
 
-interface Job {
-  id: string;
-  session: string;
-  action: string;
-  status: StatusKey;
-  progress: number; // 0-100
-  time: string;
-}
+const FILTERS = ["All", "Running", "Queued", "Succeeded", "Failed"] as const;
 
-const MOCK_JOBS: Job[] = [
-  { id: "j_8f2a", session: "Drone Frame v3", action: "generate_scad", status: "running", progress: 62, time: "1m 14s" },
-  { id: "j_3b7c", session: "Motor Mount", action: "compile_stl", status: "done", progress: 100, time: "42s" },
-  { id: "j_a1d4", session: "Propeller Guard", action: "generate_scad", status: "queued", progress: 0, time: "—" },
-  { id: "j_c9e0", session: "Battery Tray", action: "optimize", status: "failed", progress: 34, time: "2m 01s" },
-  { id: "j_f5b8", session: "Landing Gear", action: "generate_scad", status: "running", progress: 88, time: "3m 22s" },
-  { id: "j_72da", session: "Camera Gimbal", action: "compile_stl", status: "done", progress: 100, time: "1m 05s" },
-];
-
-const FILTERS = ["All", "Running", "Queued", "Done", "Failed"] as const;
-
-const STATUS_STYLES: Record<StatusKey, string> = {
+const STATUS_STYLES: Record<string, string> = {
   running: "bg-primary-100 text-primary-700",
   queued: "bg-neutral-100 text-neutral-600",
-  done: "bg-primary-100 text-primary-700",
+  succeeded: "bg-primary-100 text-primary-700",
   failed: "bg-red-100 text-red-700",
+  cancelled: "bg-neutral-100 text-neutral-500",
 };
 
+function formatDuration(job: Job): string {
+  // Backend sets started_at = finished_at = now() at persistence time,
+  // so use created_at → updated_at as the wall-clock approximation
+  const start = new Date(job.created_at).getTime();
+  const end = job.updated_at ? new Date(job.updated_at).getTime() : Date.now();
+  const diff = Math.max(0, end - start);
+  if (diff < 1000) return job.status === "running" || job.status === "queued" ? "running..." : "--";
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  const rem = sec % 60;
+  return `${min}m ${rem.toString().padStart(2, "0")}s`;
+}
+
+function progressForStatus(status: string): number {
+  if (status === "succeeded") return 100;
+  if (status === "failed" || status === "cancelled") return 100;
+  if (status === "running") return 50;
+  return 0;
+}
+
 const JobsPage = () => {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("All");
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const data = await jobService.getJobs();
+      setJobs(data);
+      setLoading(false);
+    })();
+  }, []);
 
   const filtered =
     filter === "All"
-      ? MOCK_JOBS
-      : MOCK_JOBS.filter((j) => j.status === filter.toLowerCase());
+      ? jobs
+      : jobs.filter((j) => j.status === filter.toLowerCase());
 
   return (
     <div className="h-screen flex bg-white">
@@ -56,7 +73,7 @@ const JobsPage = () => {
                   className={cn(
                     "px-3 py-1 text-xs font-mono rounded-full border transition-colors",
                     filter === f
-                      ? "bg-neutral-50 text-white border-neutral-900"
+                      ? "bg-neutral-800 text-white border-neutral-800"
                       : "border-neutral-200 text-neutral-500 hover:border-neutral-400"
                   )}
                 >
@@ -66,107 +83,108 @@ const JobsPage = () => {
             </div>
           </div>
 
-          {/* Table (desktop) */}
-          <div className="w-full">
-            {/* Header row */}
-            <div className="hidden md:grid grid-cols-[80px_1.5fr_1fr_100px_1.5fr_100px] gap-4 px-4 pb-2 border-b border-neutral-200">
-              {["ID", "Session", "Action", "Status", "Progress", "Actions"].map((col) => (
-                <span key={col} className="text-[11px] font-mono uppercase text-neutral-400 tracking-wider">
-                  {col}
-                </span>
-              ))}
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-6 h-6 animate-spin text-neutral-400" />
             </div>
-
-            {/* Desktop data rows */}
-            {filtered.map((job) => (
-              <div
-                key={job.id}
-                className="hidden md:grid grid-cols-[80px_1.5fr_1fr_100px_1.5fr_100px] gap-4 px-4 py-3 border-b border-dashed border-neutral-200 items-center"
-              >
-                <span className="font-mono text-xs text-neutral-400">{job.id}</span>
-                <span className="font-medium text-neutral-800 text-sm">{job.session}</span>
-                <span className="font-mono text-xs text-neutral-600">{job.action}</span>
-                <span
-                  className={cn(
-                    "text-xs font-medium px-2 py-0.5 rounded-full w-fit",
-                    STATUS_STYLES[job.status]
-                  )}
-                >
-                  {job.status}
-                </span>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-1 bg-neutral-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary-500 rounded-full transition-all"
-                      style={{ width: `${job.progress}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-mono text-neutral-400 whitespace-nowrap">{job.time}</span>
-                </div>
-                <div className="flex gap-2">
-                  {job.status === "running" && (
-                    <button className="text-xs font-mono text-neutral-400 hover:text-neutral-700">Cancel</button>
-                  )}
-                  {job.status === "failed" && (
-                    <button className="text-xs font-mono text-neutral-400 hover:text-neutral-700">Retry</button>
-                  )}
-                  {job.status === "done" && (
-                    <button className="text-xs font-mono text-primary-600 hover:text-primary-800">Open</button>
-                  )}
-                </div>
+          ) : (
+            <div className="w-full">
+              {/* Header row */}
+              <div className="hidden md:grid grid-cols-[80px_1.5fr_1fr_100px_1.5fr_100px] gap-4 px-4 pb-2 border-b border-neutral-200">
+                {["ID", "Prompt", "Format", "Status", "Duration", "Actions"].map((col) => (
+                  <span key={col} className="text-[11px] font-mono uppercase text-neutral-400 tracking-wider">
+                    {col}
+                  </span>
+                ))}
               </div>
-            ))}
 
-            {/* Mobile card view */}
-            <div className="md:hidden space-y-3 mt-2">
-              {filtered.map((job) => (
-                <div
-                  key={job.id}
-                  className="bg-white border border-neutral-200 rounded-xl p-4 space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-neutral-400">{job.id}</span>
+              {/* Desktop rows */}
+              {filtered.map((job) => {
+                const status = job.status as StatusKey;
+                const duration = formatDuration(job);
+                const progress = progressForStatus(status);
+
+                return (
+                  <div
+                    key={job.id}
+                    className="hidden md:grid grid-cols-[80px_1.5fr_1fr_100px_1.5fr_100px] gap-4 px-4 py-3 border-b border-dashed border-neutral-200 items-center"
+                  >
+                    <span className="font-mono text-xs text-neutral-400 truncate" title={job.id}>
+                      {job.id.slice(0, 8)}
+                    </span>
+                    <span className="font-medium text-neutral-800 text-sm truncate">
+                      {job.prompt || "—"}
+                    </span>
+                    <span className="font-mono text-xs text-neutral-600">
+                      {job.output_format || "—"}
+                    </span>
                     <span
                       className={cn(
-                        "text-xs font-medium px-2 py-0.5 rounded-full",
-                        STATUS_STYLES[job.status]
+                        "text-xs font-medium px-2 py-0.5 rounded-full w-fit",
+                        STATUS_STYLES[status] || "bg-neutral-100 text-neutral-600"
                       )}
                     >
-                      {job.status}
+                      {status}
                     </span>
-                  </div>
-                  <p className="font-medium text-neutral-800 text-sm">{job.session}</p>
-                  <p className="font-mono text-xs text-neutral-600">{job.action}</p>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-1.5 bg-neutral-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary-500 rounded-full transition-all"
-                        style={{ width: `${job.progress}%` }}
-                      />
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-1 bg-neutral-200 rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            status === "failed" ? "bg-red-400" : "bg-primary-500"
+                          )}
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-neutral-400 whitespace-nowrap">{duration}</span>
                     </div>
-                    <span className="text-xs font-mono text-neutral-400 whitespace-nowrap">{job.time}</span>
+                    <div className="flex gap-2">
+                      {status === "failed" && job.error && (
+                        <span className="text-xs text-red-500 truncate" title={job.error}>error</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-3 pt-1">
-                    {job.status === "running" && (
-                      <button className="text-xs font-mono text-neutral-400 hover:text-neutral-700">Cancel</button>
-                    )}
-                    {job.status === "failed" && (
-                      <button className="text-xs font-mono text-neutral-400 hover:text-neutral-700">Retry</button>
-                    )}
-                    {job.status === "done" && (
-                      <button className="text-xs font-mono text-primary-600 hover:text-primary-800">Open</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                );
+              })}
 
-            {filtered.length === 0 && (
-              <div className="py-12 text-center text-sm text-neutral-400">
-                No jobs matching "{filter.toLowerCase()}"
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3 mt-2">
+                {filtered.map((job) => {
+                  const status = job.status as StatusKey;
+                  const duration = formatDuration(job);
+                  const progress = progressForStatus(status);
+
+                  return (
+                    <div key={job.id} className="bg-white border border-neutral-200 rounded-xl p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs text-neutral-400">{job.id.slice(0, 8)}</span>
+                        <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", STATUS_STYLES[status] || "bg-neutral-100")}>
+                          {status}
+                        </span>
+                      </div>
+                      <p className="font-medium text-neutral-800 text-sm truncate">{job.prompt || "—"}</p>
+                      <p className="font-mono text-xs text-neutral-600">{job.output_format || "—"}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-1.5 bg-neutral-200 rounded-full overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full", status === "failed" ? "bg-red-400" : "bg-primary-500")}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-mono text-neutral-400 whitespace-nowrap">{duration}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          </div>
+
+              {filtered.length === 0 && (
+                <div className="py-12 text-center text-sm text-neutral-400">
+                  {jobs.length === 0 ? "No jobs yet. Generate a model to see jobs here." : `No jobs matching "${filter.toLowerCase()}"`}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>
