@@ -71,31 +71,30 @@ export const useModelFetch = ({
           drawCalls: imported.group.children.length,
         };
 
-        // Step 3: Build parts list — prefer API-provided parts (from segmentation)
-        // over THREE.js scene graph parts (which is just 1 mesh for single-mesh GLBs)
-        const existingParts = shape.geometry?.parts || [];
-        let finalParts: any[];
+        // Step 3: Build parts list from THREE.js scene graph
+        // For segmented models, the GLB contains named sub-meshes (temple, gates, etc.)
+        // that THREE.js discovers automatically. For single-mesh models, we get 1 part.
+        const sceneParts: any[] = [];
+        imported.group.traverse((child: THREE.Object3D) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const partId = child.name || child.uuid;
+            sceneParts.push({
+              id: partId,
+              name: child.name || 'Solid Part',
+              category: 'component',
+              role: 'structural',
+              group: 'Model Components',
+              assetName: child.userData.sourceFile || null,
+            });
+          }
+        });
 
-        if (existingParts.length > 1) {
-          // API already provided named parts (temple, gates, etc.) — keep them
-          finalParts = existingParts;
-        } else {
-          // Fall back to THREE.js scene graph parts
-          finalParts = [];
-          imported.group.traverse((child: THREE.Object3D) => {
-            if ((child as THREE.Mesh).isMesh) {
-              const partId = child.name || child.uuid;
-              finalParts.push({
-                id: partId,
-                name: child.name || 'Solid Part',
-                category: 'component',
-                role: 'structural',
-                group: 'Model Components',
-                assetName: child.userData.sourceFile || null,
-              });
-            }
-          });
-        }
+        // If scene graph found named parts, use those (they link to actual 3D objects).
+        // Fall back to API-provided parts only if scene graph has just 1 unnamed mesh.
+        const existingApiParts = shape.geometry?.parts || [];
+        const finalParts = sceneParts.length > 1 ? sceneParts
+          : existingApiParts.length > 1 ? existingApiParts
+          : sceneParts;
 
         // Step 4: Construct the final shape object before any state updates
         const updatedShape: GeneratedShape = {
