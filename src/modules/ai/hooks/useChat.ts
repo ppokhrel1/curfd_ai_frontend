@@ -771,14 +771,28 @@ export const useChat = (
 
   const sendMeshModification = useCallback(
     (meshUrl: string, modification: string) => {
-      if (!chatId || !wsConnected) return;
-      sendWs({
+      if (!chatId) {
+        console.warn("[useChat] sendMeshModification: no chatId");
+        setError("No active chat");
+        return;
+      }
+      if (!wsConnected) {
+        console.warn("[useChat] sendMeshModification: WS not connected");
+        setError("WebSocket not connected. Try refreshing the page.");
+        return;
+      }
+      console.log("[useChat] sendMeshModification:", { meshUrl, modification });
+      const sent = sendWs({
         type: "mesh_modification.request",
         payload: { mesh_url: meshUrl, modification },
       });
-      setGenerating(chatId, true, "Modifying mesh...");
+      if (sent) {
+        setGenerating(chatId, true, "Modifying mesh...");
+      } else {
+        setError("Failed to send mesh modification request");
+      }
     },
-    [chatId, wsConnected, sendWs, setGenerating]
+    [chatId, wsConnected, sendWs, setGenerating, setError]
   );
 
   const retryLastMessage = useCallback(async () => {

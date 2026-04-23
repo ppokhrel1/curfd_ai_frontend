@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Code2, Play, Zap } from 'lucide-react';
+import { LogOut, Code2, LayoutGrid, Play, Zap } from 'lucide-react';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
 import type { ViewMode } from '../types';
 import type { User } from "@/types/global";
@@ -46,6 +46,14 @@ export const HomePageHeader: React.FC<HomePageHeaderProps> = ({
 
         {/* Center: Navigation */}
         <div className="hidden lg:flex items-center gap-0.5 bg-neutral-100 border border-neutral-200 rounded-lg p-0.5">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 transition-all"
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            Dashboard
+          </button>
+
           <button
             onClick={() => onSetActiveView('editor')}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium transition-all ${

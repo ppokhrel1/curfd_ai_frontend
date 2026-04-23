@@ -374,8 +374,14 @@ const Model3DCard: React.FC<{
   const [modText, setModText] = useState("");
 
   const handleModifySubmit = () => {
-    if (!modText.trim()) return;
-    onModifyMesh?.(modelUrl, modText.trim());
+    const text = modText.trim();
+    if (!text) return;
+    console.log("[Model3DCard] Modify submit:", { modelUrl, text, hasHandler: !!onModifyMesh });
+    if (!onModifyMesh) {
+      console.warn("[Model3DCard] onModifyMesh is undefined");
+      return;
+    }
+    onModifyMesh(modelUrl, text);
     setModText("");
     setShowModify(false);
   };
