@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, MessageSquare, Minimize2, Pencil, Play } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Box, Home, MessageSquare, Pencil, Play } from 'lucide-react';
 import type { ViewMode, MobilePanel } from '../types';
 
 interface MobileNavProps {
@@ -37,11 +38,18 @@ export const MobileNav: React.FC<MobileNavProps> = ({
   onMobilePanelSwitch,
   onOpenSimulation,
 }) => {
+  const navigate = useNavigate();
   if (mobilePanel === 'chooser') return null;
 
   return (
     <div className="lg:hidden flex-shrink-0 border-t border-neutral-200 bg-white p-1.5">
-      <div className="grid grid-cols-4 gap-1"> {/* Changed to grid-cols-4 */}
+      <div className="grid grid-cols-5 gap-1">
+        <NavBtn
+          icon={<Home />}
+          label="Home"
+          active={false}
+          onClick={() => navigate('/dashboard')}
+        />
         <NavBtn
           icon={<MessageSquare />}
           label="AI Chat"

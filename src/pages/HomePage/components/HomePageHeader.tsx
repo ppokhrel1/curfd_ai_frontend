@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LogOut, Code2, Play, Zap } from 'lucide-react';
 import type { GeneratedShape } from '@/modules/ai/types/chat.type';
 import type { ViewMode } from '../types';
@@ -23,21 +24,25 @@ export const HomePageHeader: React.FC<HomePageHeaderProps> = ({
   onOpenSimulation,
   onSignOut,
 }) => {
+  const navigate = useNavigate();
   return (
     <header className="flex-shrink-0 border-b border-neutral-200 bg-white px-4 py-2">
       <div className="flex items-center justify-between">
-        {/* Left: Branding */}
-        <div className="flex items-center gap-2.5">
+        {/* Left: Branding — click to go to dashboard */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+        >
           <div className="p-1.5 bg-primary-50 rounded-lg border border-primary-100">
             <Zap className="w-4 h-4 text-primary-600" />
           </div>
-          <div className="hidden sm:block">
+          <div className="hidden sm:block text-left">
             <h1 className="text-sm font-bold text-neutral-800 tracking-tight">curfd</h1>
             <p className="text-[10px] text-neutral-400 font-mono">
               {user?.name?.split(' ')[0] || 'workspace'}
             </p>
           </div>
-        </div>
+        </button>
 
         {/* Center: Navigation */}
         <div className="hidden lg:flex items-center gap-0.5 bg-neutral-100 border border-neutral-200 rounded-lg p-0.5">
