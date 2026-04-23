@@ -71,22 +71,31 @@ export const useModelFetch = ({
           drawCalls: imported.group.children.length,
         };
 
-        // Step 3: Build updated parts list locally
-        const parts: any[] = [];
-        imported.group.traverse((child: THREE.Object3D) => {
-          if ((child as THREE.Mesh).isMesh) {
-            // Use mesh.name as the ID (matches ViewerCanvas click handler)
-            const partId = child.name || child.uuid;
-            parts.push({
-              id: partId,
-              name: child.name || 'Solid Part',
-              category: 'component',
-              role: 'structural',
-              group: 'Model Components',
-              assetName: child.userData.sourceFile || null,
-            });
-          }
-        });
+        // Step 3: Build parts list — prefer API-provided parts (from segmentation)
+        // over THREE.js scene graph parts (which is just 1 mesh for single-mesh GLBs)
+        const existingParts = shape.geometry?.parts || [];
+        let finalParts: any[];
+
+        if (existingParts.length > 1) {
+          // API already provided named parts (temple, gates, etc.) — keep them
+          finalParts = existingParts;
+        } else {
+          // Fall back to THREE.js scene graph parts
+          finalParts = [];
+          imported.group.traverse((child: THREE.Object3D) => {
+            if ((child as THREE.Mesh).isMesh) {
+              const partId = child.name || child.uuid;
+              finalParts.push({
+                id: partId,
+                name: child.name || 'Solid Part',
+                category: 'component',
+                role: 'structural',
+                group: 'Model Components',
+                assetName: child.userData.sourceFile || null,
+              });
+            }
+          });
+        }
 
         // Step 4: Construct the final shape object before any state updates
         const updatedShape: GeneratedShape = {
@@ -94,7 +103,7 @@ export const useModelFetch = ({
           scadCode: imported.scad || shape.scadCode,
           geometry: {
             ...shape.geometry,
-            parts: parts,
+            parts: finalParts,
             metadata: {
               ...shape.geometry.metadata,
               totalVertices: vertCount,
