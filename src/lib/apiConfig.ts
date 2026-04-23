@@ -40,8 +40,19 @@ export const proxifyUrl = (url: string): string => {
         return url;
     }
 
-    // B2 pre-signed URLs — fetch directly
-    if (url.includes("backblazeb2.com")) {
+    // B2 URLs — route through backend storage proxy (bucket is private)
+    // e.g. https://f005.backblazeb2.com/file/nooriat-models/generated_models/foo.glb
+    //   → {apiBase}/storage/nooriat-models/generated_models/foo.glb
+    if (url.includes("backblazeb2.com") && url.includes("/file/")) {
+        try {
+            const parsed = new URL(url);
+            // Extract everything after /file/ (bucket/path)
+            const match = parsed.pathname.match(/\/file\/(.+)/);
+            if (match) {
+                const apiBase = getApiBaseUrl();
+                return `${apiBase}/storage/${match[1]}`;
+            }
+        } catch {}
         return url;
     }
 
