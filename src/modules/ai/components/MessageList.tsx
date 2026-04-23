@@ -166,27 +166,28 @@ const FormattedContent: React.FC<{
   }
 
   // Check for 3D model URL in message metadata or content
-  const modelUrl = (() => {
+  const { modelUrl, stlUrl } = (() => {
     const meta = (message as any).metadata_json || (message as any).metadata;
     const output = meta?.output;
     const url = output?.uri || output?.model_url || output?.download_url
       || meta?.model_url || meta?.download_url;
-    if (url && /\.(glb|stl|obj)/i.test(url)) return url;
+    const stl = output?.stl_url || meta?.stl_url;
+    if (url && /\.(glb|stl|obj)/i.test(url)) return { modelUrl: url, stlUrl: stl || null };
     if (typeof content === "string" && content.startsWith("{")) {
       try {
         const parsed = JSON.parse(content);
         const pUrl = parsed.uri || parsed.model_url || parsed.download_url;
-        if (pUrl && /\.(glb|stl|obj)/i.test(pUrl)) return pUrl;
+        if (pUrl && /\.(glb|stl|obj)/i.test(pUrl)) return { modelUrl: pUrl, stlUrl: parsed.stl_url || null };
       } catch {}
     }
-    return null;
+    return { modelUrl: null, stlUrl: null };
   })();
 
   if (modelUrl && message.role === "assistant") {
     return (
       <div className="space-y-2">
         <p className="break-words whitespace-pre-wrap text-sm text-neutral-600">3D model generated successfully</p>
-        <Model3DCard modelUrl={modelUrl} onViewIn3D={onViewIn3D} onModifyMesh={onModifyMesh} />
+        <Model3DCard modelUrl={modelUrl} stlUrl={stlUrl} onViewIn3D={onViewIn3D} onModifyMesh={onModifyMesh} />
       </div>
     );
   }
@@ -365,9 +366,10 @@ const ModelCard: React.FC<{
 
 const Model3DCard: React.FC<{
   modelUrl: string;
+  stlUrl?: string | null;
   onViewIn3D?: (url: string) => void;
   onModifyMesh?: (meshUrl: string, modification: string) => void;
-}> = ({ modelUrl, onViewIn3D, onModifyMesh }) => {
+}> = ({ modelUrl, stlUrl, onViewIn3D, onModifyMesh }) => {
   const filename = modelUrl.split("/").pop() || "model.glb";
   const format = filename.split(".").pop()?.toUpperCase() || "GLB";
   const [showModify, setShowModify] = useState(false);
@@ -426,7 +428,7 @@ const Model3DCard: React.FC<{
           </button>
         </div>
       )}
-      <div className="flex items-center justify-between px-3 py-2 border-t border-neutral-200 bg-neutral-50/50">
+      <div className="flex items-center justify-between px-3 py-2 border-t border-neutral-200 bg-neutral-50/50 gap-1">
         {onModifyMesh && (
           <button
             onClick={() => setShowModify((v) => !v)}
@@ -435,13 +437,24 @@ const Model3DCard: React.FC<{
             Modify
           </button>
         )}
-        <button
-          onClick={() => onViewIn3D?.(modelUrl)}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group ml-auto"
-        >
-          View in 3D
-          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-        </button>
+        <div className="flex items-center gap-1 ml-auto">
+          {stlUrl && (
+            <a
+              href={stlUrl}
+              download
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
+            >
+              STL
+            </a>
+          )}
+          <button
+            onClick={() => onViewIn3D?.(modelUrl)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group"
+          >
+            View in 3D
+            <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        </div>
       </div>
     </div>
   );
