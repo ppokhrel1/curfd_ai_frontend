@@ -118,6 +118,7 @@ export const useChat = (
   // --- 1. HANDLE COMPLETION (Asset Polling) ---
   const handleJobCompletion = useCallback(
     async (event: RunpodEvent) => {
+      console.log("[useChat] handleJobCompletion:", { type: event.type, action: event.action, status: event.status, hasOutput: !!event.output, outputKeys: event.output ? Object.keys(event.output) : [], parts: event.output?.parts?.length || event.output?.output?.parts?.length || 0 });
       if (!chatId) return;
       const jobId = event.job_id || event.runpod_id;
       if (!jobId) return;
