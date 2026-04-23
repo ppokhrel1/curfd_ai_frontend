@@ -438,15 +438,13 @@ const Model3DCard: React.FC<{
           </button>
         )}
         <div className="flex items-center gap-1 ml-auto">
-          {stlUrl && (
-            <a
-              href={stlUrl}
-              download
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
-            >
-              STL
-            </a>
-          )}
+          <a
+            href={stlUrl || `${import.meta.env.VITE_API_URL || "/api/v1"}/convert/stl?url=${encodeURIComponent(modelUrl)}`}
+            download
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
+          >
+            STL
+          </a>
           <button
             onClick={() => onViewIn3D?.(modelUrl)}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group"
