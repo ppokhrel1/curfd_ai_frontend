@@ -2,7 +2,6 @@ import type { GeneratedShape } from "@/modules/ai/types/chat.type";
 import type { AssemblyPart } from "@/modules/viewer/stores/assemblyStore";
 import {
   Center,
-  Environment,
   GizmoHelper,
   GizmoViewport,
   Grid,
@@ -101,7 +100,7 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
         <Lighting />
       </Suspense>
 
-      <Environment preset="city" />
+      {/* Removed Environment preset="city" — it downloads potsdamer_platz HDR at runtime which fails on mobile */}
 
       <Grid
         infiniteGrid
