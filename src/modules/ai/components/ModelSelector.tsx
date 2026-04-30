@@ -15,8 +15,6 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { provider: "anthropic", model: "claude-haiku-4-5-20251001", label: "Haiku 4.5 (Thinking)", thinking: true },
   { provider: "gemini", model: "gemini-2.5-flash", label: "Gemini 2.5 Flash", thinking: false },
   { provider: "groq", model: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", thinking: false },
-  { provider: "openai", model: "gpt-4o", label: "GPT-4o", thinking: false },
-  { provider: "openai", model: "gpt-4o-mini", label: "GPT-4o Mini", thinking: false },
 ];
 
 export const ModelSelector: React.FC = () => {
