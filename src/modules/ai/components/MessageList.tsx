@@ -1,12 +1,34 @@
 import { formatTime } from "@/utils/formatters";
-import { Bot, User, ArrowRight, FileCode2, RefreshCw, Box } from "lucide-react";
+import { Bot, User, ArrowRight, Download, FileCode2, RefreshCw, Box } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import type { Message } from "../types/chat.type";
 import { MODEL_OPTIONS, type ModelOption } from "./ModelSelector";
 import type { ModelOverride } from "../hooks/useChat";
 import { ImageSearchPicker } from "./ImageSearchPicker";
+import { proxifyUrl } from "@/lib/apiConfig";
+import { STORAGE_KEYS } from "@/lib/constants";
 
 export type EditorPayloadType = "requirements" | "code";
+
+/** Fetch a URL with auth token and trigger a browser file download. */
+function downloadFile(url: string, filename: string) {
+  const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+  fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+    .then((resp) => {
+      if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
+      return resp.blob();
+    })
+    .then((blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch((err) => console.error("Download failed:", err));
+}
 
 interface MessageListProps {
   messages: Message[];
@@ -438,13 +460,28 @@ const Model3DCard: React.FC<{
           </button>
         )}
         <div className="flex items-center gap-1 ml-auto">
-          <a
-            href={stlUrl || `${import.meta.env.VITE_API_URL || "/api/v1"}/convert/stl?url=${encodeURIComponent(modelUrl)}`}
-            download
+          <button
+            onClick={() => downloadFile(proxifyUrl(modelUrl), modelUrl.split("/").pop() || "model.glb")}
             className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
+            title="Download GLB (for viewing)"
           >
+            <Download className="w-3 h-3" />
+            GLB
+          </button>
+          <button
+            onClick={() => {
+              const stl = stlUrl
+                ? proxifyUrl(stlUrl)
+                : `${import.meta.env.VITE_API_URL || "/api/v1"}/convert/stl?url=${encodeURIComponent(modelUrl)}`;
+              const name = (modelUrl.split("/").pop() || "model").replace(/\.\w+$/, "") + ".stl";
+              downloadFile(stl, name);
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
+            title="Download STL (for 3D printing)"
+          >
+            <Download className="w-3 h-3" />
             STL
-          </a>
+          </button>
           <button
             onClick={() => onViewIn3D?.(modelUrl)}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group"

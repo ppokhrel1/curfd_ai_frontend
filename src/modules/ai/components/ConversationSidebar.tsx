@@ -50,25 +50,25 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
       {/* Sidebar */}
       <div
         className={`
-        fixed left-0 top-0 bottom-0 w-72 bg-neutral-950 border-r border-neutral-800
+        fixed left-0 top-0 bottom-0 w-72 bg-white border-r border-neutral-200
         z-50 flex flex-col animate-in slide-in-from-left duration-200
         lg:relative lg:z-10
       `}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-neutral-800">
-          <h2 className="text-sm font-semibold text-white">Conversations</h2>
+        <div className="flex items-center justify-between p-4 border-b border-neutral-200">
+          <h2 className="text-sm font-semibold text-neutral-800">Conversations</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={onNewConversation}
-              className="p-2 hover:bg-neutral-800 rounded-lg transition-colors text-green-400"
+              className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-primary-600"
               title="New Chat"
             >
               <Plus className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-neutral-800 rounded-lg transition-colors text-neutral-400 lg:hidden"
+              className="p-2 hover:bg-neutral-100 rounded-lg transition-colors text-neutral-500 lg:hidden"
             >
               <X className="w-4 h-4" />
             </button>
@@ -79,7 +79,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         <div className="p-3">
           <button
             onClick={onNewConversation}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 hover:from-green-500/20 hover:to-emerald-500/20 border border-green-500/20 rounded-xl text-green-400 transition-all"
+            className="w-full flex items-center gap-3 px-4 py-3 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-xl text-primary-600 transition-all"
           >
             <Plus className="w-4 h-4" />
             <span className="text-sm font-medium">New Chat</span>
@@ -87,7 +87,7 @@ export const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
         </div>
 
         {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-neutral-900">
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-neutral-50">
           {conversations.length === 0 ? (
             <div className="text-center py-8">
               <MessageSquare className="w-8 h-8 text-neutral-600 mx-auto mb-3" />
@@ -153,8 +153,8 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
         w-full text-left p-3 rounded-xl transition-all duration-200 group
         ${
           isActive
-            ? "bg-green-500/10 border border-green-500/20"
-            : "hover:bg-neutral-900 border border-transparent"
+            ? "bg-primary-50 border border-primary-200"
+            : "hover:bg-neutral-100 border border-transparent"
         }
       `}
     >
@@ -162,7 +162,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
         <div className="flex-1 min-w-0">
           <p
             className={`text-sm font-medium truncate ${
-              isActive ? "text-green-400" : "text-white"
+              isActive ? "text-primary-600" : "text-neutral-800"
             }`}
           >
             {conversation.title}

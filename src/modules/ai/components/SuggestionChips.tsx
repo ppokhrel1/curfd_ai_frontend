@@ -21,8 +21,8 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = ({
     <div className="max-w-3xl mx-auto px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-5">
-        <div className="p-1.5 bg-green-500/10 rounded-lg border border-green-500/20">
-          <Lightbulb className="w-3.5 h-3.5 text-green-400" />
+        <div className="p-1.5 bg-primary-50 rounded-lg border border-primary-500/20">
+          <Lightbulb className="w-3.5 h-3.5 text-primary-500" />
         </div>
         <h3 className="text-xs font-medium text-neutral-400">
           Try these prompts to get started:
@@ -38,23 +38,23 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = ({
             <button
               key={index}
               onClick={() => onSuggestionClick(suggestion)}
-              className="group relative text-left p-3.5 bg-neutral-900/40 border border-neutral-800/50 rounded-xl hover:border-green-500/40 hover:bg-neutral-900/60 transition-all duration-200 backdrop-blur-sm overflow-hidden"
+              className="group relative text-left p-3.5 bg-neutral-50 border border-neutral-200/50 rounded-xl hover:border-primary-500/40 hover:bg-neutral-50 transition-all duration-200 backdrop-blur-sm overflow-hidden"
               style={{
                 animationDelay: `${index * 50}ms`,
               }}
             >
               {/* Gradient overlay on hover */}
-              <div className="relative inset-0 bg-gradient-to-br from-green-500/0 to-emerald-500/0 group-hover:from-green-500/5 group-hover:to-emerald-500/5 transition-all duration-300" />
+              <div className="relative inset-0 bg-gradient-to-br from-primary-500/0 to-primary-500/0 group-hover:from-primary-500/5 group-hover:to-primary-500/5 transition-all duration-300" />
 
               <div className="relative flex items-start gap-3">
                 {/* Icon */}
-                <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-neutral-900 border border-neutral-800 group-hover:border-green-500/30 flex items-center justify-center transition-all duration-200">
-                  <Icon className="w-3.5 h-3.5 text-neutral-500 group-hover:text-green-400 transition-colors" />
+                <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-neutral-50 border border-neutral-200 group-hover:border-primary-500/30 flex items-center justify-center transition-all duration-200">
+                  <Icon className="w-3.5 h-3.5 text-neutral-500 group-hover:text-primary-500 transition-colors" />
                 </div>
 
                 {/* Text */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-neutral-400 group-hover:text-green-400 transition-colors leading-relaxed">
+                  <p className="text-xs text-neutral-400 group-hover:text-primary-500 transition-colors leading-relaxed">
                     {suggestion}
                   </p>
                 </div>
