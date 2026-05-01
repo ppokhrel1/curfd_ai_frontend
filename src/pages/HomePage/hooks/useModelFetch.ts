@@ -31,6 +31,20 @@ export const useModelFetch = ({
     async (shape: GeneratedShape) => {
       if (!shape.sdfUrl) return;
       const originalFilename = shape.geometry?.metadata?.originalFilename;
+
+      const tryCompileFromCode = (reason: string): boolean => {
+        const code = shape.scadCode;
+        if (!code) return false;
+        const es = useEditorStore.getState();
+        es.setOriginalCode(code);
+        es.setCode(code);
+        // Defer slightly so the editor mounts before compile fires
+        setTimeout(() => useEditorStore.getState().requestCompile(), 300);
+        console.warn(`[useModelFetch] ${reason} — falling back to compile from scadCode.`);
+        toast('3D file unavailable — rebuilding from code…', { icon: 'ℹ️' });
+        return true;
+      };
+
       try {
         // Step 1: Perform the full import from the URL first
         const imported = await importer.importFromUrl(
@@ -132,8 +146,15 @@ export const useModelFetch = ({
         onModelLoaded?.(imported.group, stats, updatedShape);
         
       } catch (err) {
+        const msg = (err as Error)?.message || String(err);
+        const isMissing = /\b404\b|not found/i.test(msg);
+        const isNetwork = /\b(?:5\d{2}|fetch|network|failed to fetch)\b/i.test(msg);
         console.error('Failed to fetch model files:', err);
-        toast.error('Could not load 3D model assets.');
+
+        if ((isMissing || isNetwork) && tryCompileFromCode(isMissing ? '3D file missing (404)' : 'Network error')) {
+          return; // recovered via compile fallback — don't throw
+        }
+        toast.error(isMissing ? 'The 3D file is no longer available.' : 'Could not load 3D model assets.');
         throw err;
       }
     },
@@ -143,23 +164,28 @@ export const useModelFetch = ({
 
     const recoverModel = useCallback(
     async (jobId: string, existingShape?: GeneratedShape) => {
-        // If we already have a complete shape, just load it directly
-        if (existingShape?.sdfUrl && existingShape.scadCode) {
-        await fetchModelFiles(existingShape);
-        return;
+        // If we already have a complete shape, just load it directly.
+        // fetchModelFiles handles its own URL-failure → scadCode fallback.
+        if (existingShape?.sdfUrl) {
+            try { await fetchModelFiles(existingShape); } catch {}
+            return;
         }
 
         try {
-        // Fetch assets for the job from the backend
-        const assets = await assetService.fetchAssets(jobId);
-        const recoveredShape = await assetService.mapToGeneratedShape(jobId, assets);
-
-        if (recoveredShape) {
-            await fetchModelFiles(recoveredShape);
-        }
+            const assets = await assetService.fetchAssets(jobId);
+            const recoveredShape = await assetService.mapToGeneratedShape(jobId, assets);
+            if (recoveredShape) {
+                try { await fetchModelFiles(recoveredShape); } catch {}
+            } else if (existingShape?.scadCode) {
+                // No assets came back but we have code — compile from it.
+                const es = useEditorStore.getState();
+                es.setOriginalCode(existingShape.scadCode);
+                es.setCode(existingShape.scadCode);
+                setTimeout(() => useEditorStore.getState().requestCompile(), 300);
+            }
         } catch (e) {
-        console.error('[useModelFetch] Failed to recover model:', e);
-        toast.error('Failed to recover model from backend.');
+            console.error('[useModelFetch] Failed to recover model:', e);
+            toast.error('Failed to recover model from backend.');
         }
     },
     [fetchModelFiles]

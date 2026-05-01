@@ -167,72 +167,45 @@ const HomePage = () => {
 
     const updatedShape = { ...shape, scadCode };
 
-    // --- NEW: Optimization/B2 Explicit Path ---
-    // If the shape comes from the optimization worker (has sdfUrl), 
-    // we bypass the cache check and force a new fetch to render the B2 file.
-    if (shape.sdfUrl) {
-      console.log("Optimization Result Detected: Fetching from B2...");
-      setCurrentShape(updatedShape);
-      setLoadedModel(null); // Clear view to show loading state
-      setModelStats(undefined);
-
-      if (scadCode) {
-          store.setOriginalCode(scadCode);
-          store.setCode(scadCode);
-          if (typeof store.setParameters === 'function') {
-            store.setParameters([]);
-            if (params.length > 0) store.setParameters(params);
-          }
+    // Hydrate the editor with code + parameters. Done up-front so that even if
+    // the URL fetch fails, the user sees the source and can edit/recompile.
+    const hydrateEditor = () => {
+      if (!scadCode) return;
+      store.setOriginalCode(scadCode);
+      store.setCode(scadCode);
+      if (typeof store.setParameters === 'function') {
+        store.setParameters([]);
+        if (params.length > 0) store.setParameters(params);
       }
+      if (activeView !== 'editor' && window.innerWidth >= 1024) setActiveView('editor');
+    };
 
-      fetchModelFiles(updatedShape);
+    setCurrentShape(updatedShape);
+
+    // 1. Cached model — reuse the in-memory THREE.Group, no network.
+    const cached = shape.id ? modelCache.getFromCache(shape.id) : undefined;
+    if (cached) {
+      setLoadedModel(cached);
+      hydrateEditor();
       return;
     }
 
-    // --- Existing Cached Path ---
-    const cached = modelCache.getFromCache(shape.id);
-    if (shape.id && cached) {
-        setLoadedModel(cached);
-        setCurrentShape(updatedShape); 
-                
-        if (scadCode) {
-            store.setOriginalCode(scadCode);
-            store.setCode(scadCode);
-            if (typeof store.setParameters === 'function') {
-              store.setParameters([]);
-              if (params.length > 0) store.setParameters(params);
-            }
-            // Desktop: auto-switch to editor. Mobile: respect user's panel choice
-            if (activeView !== 'editor' && window.innerWidth >= 1024) setActiveView('editor');
-        }
-        return;
+    setLoadedModel(null);
+    setModelStats(undefined);
+    hydrateEditor();
+
+    // 2. Have a usable remote URL — fetch through proxy. fetchModelFiles
+    //    handles its own 404 fallback to compile-from-scadCode.
+    const hasUsableUrl = !!shape.sdfUrl && !shape.sdfUrl.startsWith('blob:');
+    if (hasUsableUrl) {
+      console.log('[HomePage] Loading model from remote URL.');
+      fetchModelFiles(updatedShape).catch(() => { /* already handled inside */ });
+      return;
     }
 
-    // --- Existing Fresh Load Path ---
-    setCurrentShape(updatedShape);
-    
-    if (shape.id) {
-        setLoadedModel(null);
-        setModelStats(undefined);
-        
-        if (scadCode) {
-            store.setOriginalCode(scadCode);
-            store.setCode(scadCode);
-            if (typeof store.setParameters === 'function') {
-              store.setParameters([]);
-              if (params.length > 0) store.setParameters(params);
-            }
-            // Desktop: auto-switch to editor. Mobile: respect user's panel choice
-            if (activeView !== 'editor' && window.innerWidth >= 1024) setActiveView('editor');
-        }
-
-        const hasValidSdfUrl = shape.sdfUrl && !shape.sdfUrl.startsWith('blob:');
-        if (hasValidSdfUrl && updatedShape) {
-            fetchModelFiles(updatedShape);
-        } else if (scadCode) {
-            // No valid sdfUrl — trigger compile so the model renders from code
-            setTimeout(() => useEditorStore.getState().requestCompile(), 300);
-        }
+    // 3. No cache, no usable URL — recompile from code if we have it.
+    if (scadCode) {
+      setTimeout(() => useEditorStore.getState().requestCompile(), 300);
     }
   }, [fetchModelFiles, modelCache, setActiveView, setMobilePanel, activeView]);
   
