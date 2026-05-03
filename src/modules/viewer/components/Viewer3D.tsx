@@ -15,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   Upload,
+  Wrench,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import toast from "react-hot-toast";
 import * as THREE from "three";
 import { useViewer } from "../hooks/useViewer";
 import type { Asset } from "../services/assetService";
+import { meshFillService } from "../services/meshFillService";
 import { ModelExporter } from "../services/ModelExporter";
 import { AssetSwapPanel } from "./AssetSwapPanel";
 import { AssemblyTree } from "./AssemblyTree";
@@ -60,7 +62,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
   onAddToAssembly,
   className = "",
 }) => {
-  const { activeConversationId } = useChatStore();
+  const { activeConversationId, updateConversation } = useChatStore();
 
   const {
     state,
@@ -168,6 +170,31 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     } catch (err) {
       console.error("Export failed:", err);
       toast.error("Failed to export model", { id: toastId });
+    }
+  };
+
+  const handleFillForPrinting = async () => {
+    if (!shape?.sdfUrl) {
+      toast.error("No model URL to fill");
+      return;
+    }
+    const toastId = toast.loading("Repairing mesh for printing…");
+    try {
+      const res = await meshFillService.fill({ url: shape.sdfUrl });
+      // Swap the conversation's shape over to the filled URL so the viewer
+      // re-fetches and the next export uses the watertight version.
+      if (activeConversationId) {
+        updateConversation(activeConversationId, {
+          generatedShape: { ...shape, sdfUrl: res.url, id: `filled-${Date.now()}` },
+        });
+      }
+      toast.success(
+        `Filled (${res.method}) — ${res.face_count} faces, ${res.is_watertight ? "watertight" : "still has gaps"}`,
+        { id: toastId, duration: 5000 }
+      );
+    } catch (e: any) {
+      console.error("Fill failed:", e);
+      toast.error(e?.response?.data?.detail || "Failed to fill mesh", { id: toastId });
     }
   };
 
@@ -437,6 +464,7 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           <ActionBtn icon={<ZoomIn />} label="Zoom In" onClick={() => handleZoom("in")} />
           <ActionBtn icon={<ZoomOut />} label="Zoom Out" onClick={() => handleZoom("out")} />
           <ActionBtn icon={<RotateCcw />} label="Reset" onClick={reset} />
+          <ActionBtn icon={<Wrench />} label="Fill for printing" onClick={handleFillForPrinting} />
           <ActionBtn icon={<Download />} label="Export" onClick={handleExport} />
           <ActionBtn icon={<Maximize2 />} label="Full" onClick={handleFullscreen} />
         </div>

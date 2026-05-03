@@ -135,10 +135,13 @@ export class ModelImporter {
     const n = name.toLowerCase();
     const baseColor = this.getColorForPart(name);
 
+    // Blender-default-cube look: matte off-white with no metalness, slight
+    // roughness. Keyword overrides below still apply for "metal", "glass",
+    // "light", etc. so meaningful parts still get the right material.
     const props: THREE.MeshStandardMaterialParameters = {
       color: baseColor,
       roughness: 0.5,
-      metalness: 0.3,
+      metalness: 0.0,
       emissive: new THREE.Color(0x000000),
       emissiveIntensity: 0,
       transparent: false,
@@ -711,8 +714,10 @@ export class ModelImporter {
       return 0x3b82f6; // Default link color
     }
 
-    const hash = this.hashString(n);
-    return this.generateHarmonicColor(hash);
+    // Blender-default-cube neutral. Replaces a hashed harmonic color that
+    // would assign different (often jarring) colors per part name —
+    // including the green users were complaining about for vanilla STLs.
+    return 0xcccccc;
   }
 
   private hashString(str: string): number {
