@@ -94,7 +94,10 @@ export const useViewer = () => {
   }, []);
 
   useEffect(() => {
-    const savedPreferences = localStorage.getItem("viewer-preferences");
+    // One-time cleanup of the v1 key (which had the dark default).
+    localStorage.removeItem("viewer-preferences");
+
+    const savedPreferences = localStorage.getItem("viewer-preferences-v2");
     if (savedPreferences) {
       try {
         const preferences = JSON.parse(savedPreferences);
@@ -112,7 +115,7 @@ export const useViewer = () => {
       backgroundColor: state.backgroundColor,
     };
     localStorage.setItem(
-      "viewer-preferences",
+      "viewer-preferences-v2",
       JSON.stringify(preferencesToSave)
     );
   }, [state.showGrid, state.showAxes, state.backgroundColor]);
