@@ -569,6 +569,7 @@ export const useChat = (
               image_url: imageUrlForRunpod || undefined,
               prompt: promptText,
               output_format: "glb",
+              skip_segmentation: useChatStore.getState().imageTo3DSkipSegmentation,
             });
 
             // Backend returned image search results for user to pick from
@@ -739,6 +740,8 @@ export const useChat = (
       // Set generating state so user sees progress
       setGenerating(chatId, true, "Downloading selected image and starting 3D generation...");
 
+      const skipSegmentation = useChatStore.getState().imageTo3DSkipSegmentation;
+
       // Try WebSocket first
       if (wsConnected) {
         const sent = sendWs({
@@ -746,6 +749,7 @@ export const useChat = (
           request_id: requestId,
           image_url: imageUrl,
           prompt,
+          skip_segmentation: skipSegmentation,
         });
         if (sent) return;
       }
@@ -759,6 +763,7 @@ export const useChat = (
             image_url: imageUrl,
             prompt,
             output_format: "glb",
+            skip_segmentation: skipSegmentation,
           });
         } catch (err: any) {
           console.error("[useChat] HTTP fallback for image selection failed:", err);

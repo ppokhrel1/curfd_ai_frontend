@@ -4,6 +4,9 @@ export interface ImageTo3DRequest {
   image_url?: string;
   prompt?: string;
   output_format?: "glb" | "stl";
+  // When true the worker skips Hunyuan3D-Part decomposition and returns
+  // mesh-only (~5-10s faster). Default: produce parts.
+  skip_segmentation?: boolean;
 }
 
 export interface ImageTo3DResponse {
@@ -28,6 +31,7 @@ class ImageTo3DService {
         image_url: request.image_url || "",
         prompt: request.prompt || "",
         output_format: request.output_format || "glb",
+        skip_segmentation: request.skip_segmentation ?? false,
       }
     );
     return response.data;

@@ -17,6 +17,9 @@ interface ChatState {
     selectedModel: string;
     selectedThinking: boolean;
     selectedLanguage: "openscad" | "cadquery" | "image_to_3d";
+    // For image_to_3d: when true, skip Hunyuan3D-Part decomposition and
+    // return only the main mesh (~5-10s faster).
+    imageTo3DSkipSegmentation: boolean;
 
     // Actions
     setConversations: (conversations: Conversation[]) => void;
@@ -32,6 +35,7 @@ interface ChatState {
     setCurrentUserId: (userId: string | null) => void;
     setSelectedModel: (provider: string, model: string, thinking: boolean) => void;
     setSelectedLanguage: (language: "openscad" | "cadquery" | "image_to_3d") => void;
+    setImageTo3DSkipSegmentation: (skip: boolean) => void;
 }
 
 // Helper to get user-scoped storage key
@@ -65,6 +69,7 @@ export const useChatStore = create<ChatState>()(
             selectedModel: "claude-opus-4-6",
             selectedThinking: true,
             selectedLanguage: "openscad",
+            imageTo3DSkipSegmentation: false,
 
             setConversations: (newConversations) => set((state) => ({
                 conversations: newConversations.map(nc => {
@@ -173,6 +178,7 @@ export const useChatStore = create<ChatState>()(
             }),
 
             setSelectedLanguage: (language) => set({ selectedLanguage: language }),
+            setImageTo3DSkipSegmentation: (skip) => set({ imageTo3DSkipSegmentation: skip }),
         }),
         {
             name: getUserStorageKey(),
@@ -196,6 +202,7 @@ export const useChatStore = create<ChatState>()(
                 selectedModel: state.selectedModel,
                 selectedThinking: state.selectedThinking,
                 selectedLanguage: state.selectedLanguage,
+                imageTo3DSkipSegmentation: state.imageTo3DSkipSegmentation,
             }),
             onRehydrateStorage: (state) => {
                 return (rehydratedState) => {

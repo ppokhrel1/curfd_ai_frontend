@@ -18,6 +18,8 @@ export const ImageTo3DPanel: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const chatId = useChatStore((s) => s.activeConversationId);
+  const skipSegmentation = useChatStore((s) => s.imageTo3DSkipSegmentation);
+  const setSkipSegmentation = useChatStore((s) => s.setImageTo3DSkipSegmentation);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -71,6 +73,7 @@ export const ImageTo3DPanel: React.FC = () => {
         image_url: resolvedImageUrl,
         prompt: resolvedPrompt,
         output_format: outputFormat,
+        skip_segmentation: skipSegmentation,
       });
       setStatus(`Job queued (${response.runpod_id || "processing"}). Check viewer for results.`);
     } catch (err: any) {
@@ -79,7 +82,7 @@ export const ImageTo3DPanel: React.FC = () => {
     } finally {
       setIsGenerating(false);
     }
-  }, [chatId, mode, uploadedImage, imageUrl, searchQuery, prompt, outputFormat]);
+  }, [chatId, mode, uploadedImage, imageUrl, searchQuery, prompt, outputFormat, skipSegmentation]);
 
   const modes: { key: InputMode; label: string; icon: React.ReactNode }[] = [
     { key: "search", label: "Search", icon: <Search className="w-3.5 h-3.5" /> },
@@ -195,6 +198,31 @@ export const ImageTo3DPanel: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {/* Segment into parts — toggle. Off = mesh only (faster). */}
+      <label className="flex items-center justify-between gap-3 cursor-pointer select-none">
+        <div className="flex flex-col">
+          <span className="text-xs font-medium text-neutral-700">Segment into parts</span>
+          <span className="text-[11px] text-neutral-500">
+            Decompose the mesh into named sub-parts ({skipSegmentation ? "off — faster" : "on — adds ~5–10s"})
+          </span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={!skipSegmentation}
+          onClick={() => setSkipSegmentation(!skipSegmentation)}
+          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+            !skipSegmentation ? "bg-violet-500" : "bg-neutral-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+              !skipSegmentation ? "translate-x-4" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+      </label>
 
       {/* Generate Button */}
       <button
