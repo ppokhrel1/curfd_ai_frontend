@@ -176,6 +176,12 @@ export const useChatStore = create<ChatState>()(
         }),
         {
             name: getUserStorageKey(),
+            // Bumping the version invalidates persisted state on every client.
+            // Do this whenever stored conversations may reference assets that
+            // no longer exist (e.g. after a server-side wipe or a storage
+            // backend migration). On version mismatch Zustand drops the
+            // saved state and starts fresh.
+            version: 2,
             storage: createJSONStorage(() => localStorage),
             // Handle Set serialization
             partialize: (state) => ({

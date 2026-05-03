@@ -56,6 +56,21 @@ export const proxifyUrl = (url: string): string => {
         return url;
     }
 
+    // Cloudflare R2 URLs — same pattern, route through backend storage proxy
+    // e.g. https://<account>.r2.cloudflarestorage.com/nooriat-models/generated_models/foo.glb
+    //   → {apiBase}/storage/nooriat-models/generated_models/foo.glb
+    if (url.includes("r2.cloudflarestorage.com")) {
+        try {
+            const parsed = new URL(url);
+            const path = parsed.pathname.replace(/^\//, "");
+            if (path) {
+                const apiBase = getApiBaseUrl();
+                return `${apiBase}/storage/${path}`;
+            }
+        } catch {}
+        return url;
+    }
+
     try {
         let pathForExtCheck = url;
         try { pathForExtCheck = new URL(url).pathname; } catch {}
