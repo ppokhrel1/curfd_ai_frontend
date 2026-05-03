@@ -452,10 +452,27 @@ const Lighting: React.FC = () => {
 };
 
 const LoadingModel: React.FC = () => {
+  // Subtle pulsing sphere — replaces a placeholder green wireframe cube.
+  // Uses the brand violet accent and breathes via useFrame so the user
+  // feels something is happening while the GLTF loader streams the model.
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const s = 1 + 0.08 * Math.sin(clock.elapsedTime * 2);
+    ref.current.scale.set(s, s, s);
+  });
   return (
-    <mesh position={[0, 0, 0]}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="#4ade80" wireframe />
+    <mesh ref={ref} position={[0, 0, 0]}>
+      <sphereGeometry args={[0.7, 32, 24]} />
+      <meshStandardMaterial
+        color="#a78bfa"
+        emissive="#7c3aed"
+        emissiveIntensity={0.25}
+        roughness={0.4}
+        metalness={0.1}
+        transparent
+        opacity={0.85}
+      />
     </mesh>
   );
 };

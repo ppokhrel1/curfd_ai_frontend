@@ -6,7 +6,9 @@ const initialState: ViewerState = {
   wireframe: false,
   showAxes: true,
   autoRotate: false,
-  backgroundColor: "#0a0a0a",
+  // Soft neutral background — was near-black which clashed with the
+  // light-themed UI surrounding the canvas.
+  backgroundColor: "#f5f5f5",
 };
 
 const initialStats: ViewerStats = {
