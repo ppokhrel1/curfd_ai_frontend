@@ -69,7 +69,10 @@ export const useChatStore = create<ChatState>()(
             selectedModel: "claude-opus-4-6",
             selectedThinking: true,
             selectedLanguage: "openscad",
-            imageTo3DSkipSegmentation: false,
+            // Default to skipping Part segmentation: it doubles VRAM use
+            // on the worker and may OOM on 32 GB GPUs. Users opt in via
+            // the toggle in ImageTo3DPanel when they want named parts.
+            imageTo3DSkipSegmentation: true,
 
             setConversations: (newConversations) => set((state) => ({
                 conversations: newConversations.map(nc => {
@@ -187,7 +190,7 @@ export const useChatStore = create<ChatState>()(
             // no longer exist (e.g. after a server-side wipe or a storage
             // backend migration). On version mismatch Zustand drops the
             // saved state and starts fresh.
-            version: 2,
+            version: 3,
             storage: createJSONStorage(() => localStorage),
             // Handle Set serialization
             partialize: (state) => ({
