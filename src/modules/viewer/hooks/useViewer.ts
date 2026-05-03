@@ -6,9 +6,8 @@ const initialState: ViewerState = {
   wireframe: false,
   showAxes: true,
   autoRotate: false,
-  // Soft neutral background — was near-black which clashed with the
-  // light-themed UI surrounding the canvas.
-  backgroundColor: "#f5f5f5",
+  // Translucent white — lets the page show through subtly behind the model.
+  backgroundColor: "rgba(255, 255, 255, 0.7)",
 };
 
 const initialStats: ViewerStats = {

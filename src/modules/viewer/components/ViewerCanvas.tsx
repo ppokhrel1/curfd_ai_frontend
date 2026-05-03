@@ -62,7 +62,10 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
       style={{ background: state.backgroundColor }}
       gl={{
         antialias: true,
-        alpha: false,
+        // alpha must be true for the CSS background to show through —
+        // otherwise WebGL clears with an opaque colour and the
+        // translucent CSS layer behind it gets covered.
+        alpha: true,
         powerPreference: "high-performance",
         stencil: false,
         preserveDrawingBuffer: true,
