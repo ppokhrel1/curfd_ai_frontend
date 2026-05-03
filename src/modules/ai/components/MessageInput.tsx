@@ -1,6 +1,7 @@
 import { Send, Sparkles, ImagePlus, X } from "lucide-react";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { LanguageSelector } from "./LanguageSelector";
+import { SegmentationToggle } from "./SegmentationToggle";
 import { ModelSelector } from "./ModelSelector";
 
 const MAX_IMAGES = 4;
@@ -92,6 +93,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       <div className="flex items-center mb-1.5 px-1">
         <ModelSelector />
         <LanguageSelector />
+        <SegmentationToggle />
       </div>
 
       {/* Image Previews + Modification Mode Pill */}
