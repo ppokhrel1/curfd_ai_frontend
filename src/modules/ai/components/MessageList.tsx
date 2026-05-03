@@ -411,7 +411,7 @@ const Model3DCard: React.FC<{
   };
 
   return (
-    <div className="rounded-xl overflow-hidden border border-neutral-200 bg-white mt-1 w-full max-w-[280px]">
+    <div className="rounded-xl overflow-hidden border border-neutral-200 bg-white mt-1 w-full max-w-[340px]">
       <div className="flex items-center gap-2 px-3 py-2 bg-neutral-50 border-b border-neutral-200">
         <div className="flex gap-1.5">
           <span className="w-2 h-2 rounded-full bg-neutral-300" />
@@ -484,7 +484,7 @@ const Model3DCard: React.FC<{
           </button>
           <button
             onClick={() => onViewIn3D?.(modelUrl)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group whitespace-nowrap shrink-0"
           >
             View in 3D
             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
