@@ -86,7 +86,18 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     "parts" | "history" | "assembly" | "swap" | null
   >(null);
   const [selectedPart, setSelectedPart] = useState<string | null>(null);
-  const [selectedAssemblyPartId, setSelectedAssemblyPartId] = useState<string | null>(null);
+  // Selection lifted to assemblyStore so the chat-side parts list can also
+  // read/write it (bidirectional click → highlight).
+  const selectedAssemblyPartId = useAssemblyStore(s => s.selectedPartId);
+  const setSelectedAssemblyPartId = useCallback(
+    (idOrUpdater: string | null | ((prev: string | null) => string | null)) => {
+      const next = typeof idOrUpdater === "function"
+        ? idOrUpdater(useAssemblyStore.getState().selectedPartId)
+        : idOrUpdater;
+      useAssemblyStore.getState().selectPart(next);
+    },
+    []
+  );
   const [transformMode, setTransformMode] = useState<"translate" | "rotate" | "scale" | null>(null);
   const [swappingPartId, setSwappingPartId] = useState<string | null>(null);
   const [highlightedParts, setHighlightedParts] = useState<Set<string>>(new Set());
@@ -334,29 +345,16 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         />
       </div>
 
-      {/* Top Right: Stats */}
-      <div className="absolute top-3 right-3 z-10">
-        <StatsDisplay fps={stats.fps} triangles={stats.triangles} drawCalls={stats.drawCalls} />
-      </div>
+      {/* Stats overlay (FPS / Triangles / Draw Calls) removed — was
+          unconditionally on every viewer load and the user found it
+          noisy. The component still exists for opt-in use later. */}
 
-      {/* Center Top: Model Name */}
-      {shape && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
-          <div className="bg-neutral-50 backdrop-blur-sm border border-neutral-200 rounded-full px-3 py-1 flex items-center gap-2">
-            <Box className="w-3 h-3 text-primary-500" />
-            <span className="text-xs text-white font-medium">{shape.name}</span>
-          </div>
-          {/* Quick "add to assembly" pill */}
-          <button
-            onClick={handleAddCurrentToAssembly}
-            title="Add this model to Assembly"
-            className="flex items-center gap-1 bg-purple-600/80 hover:bg-purple-500 backdrop-blur-sm border border-purple-500/30 rounded-full px-2.5 py-1 text-[10px] font-bold text-white transition-all"
-          >
-            <Plus className="w-2.5 h-2.5" />
-            Assembly
-          </button>
-        </div>
-      )}
+      {/* Removed: center-top "AI Generated 3D Model" pill + "+ Assembly"
+          quick-add button. The model name was redundant with the chat
+          card and the Add-to-Assembly pill applied to the wrong workflow
+          (auto-registered parts from image_to_3d don't need to be
+          re-added). handleAddCurrentToAssembly remains available for
+          callers that still trigger it. */}
 
       {/* Left panels */}
       {/* Mission Control Panel */}
@@ -386,8 +384,12 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         </div>
       )}
 
-      {/* Parts Panel */}
-      {shape && activePanel === "parts" && (
+      {/* Parts Panel — only shown for non-assembly content (e.g. SCAD
+          models with named sub-meshes). When assemblyStore has parts
+          (image_to_3d decomposition path), AssemblyTree is the wired-up
+          panel and ObjectPartsPanel would just be a dead duplicate
+          whose clicks don't sync with assemblyStore.selectedPartId. */}
+      {shape && activePanel === "parts" && assemblyParts.length === 0 && (
         <div className="absolute top-16 left-3 right-3 sm:right-auto z-20 w-auto sm:w-56 max-h-[60vh] overflow-y-auto animate-in fade-in slide-in-from-left-2 duration-150">
           <ObjectPartsPanel
             shape={shape}

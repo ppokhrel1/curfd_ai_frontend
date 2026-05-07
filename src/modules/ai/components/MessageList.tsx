@@ -7,6 +7,7 @@ import type { ModelOverride } from "../hooks/useChat";
 import { ImageSearchPicker } from "./ImageSearchPicker";
 import { proxifyUrl } from "@/lib/apiConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
+import { useAssemblyStore } from "@/modules/viewer/stores/assemblyStore";
 
 export type EditorPayloadType = "requirements" | "code";
 
@@ -187,29 +188,49 @@ const FormattedContent: React.FC<{
     );
   }
 
-  // Check for 3D model URL in message metadata or content
-  const { modelUrl, stlUrl } = (() => {
+  // Check for 3D model URL + parts in message metadata or content.
+  const { modelUrl, stlUrl, meshParts } = (() => {
     const meta = (message as any).metadata_json || (message as any).metadata;
     const output = meta?.output;
     const url = output?.uri || output?.model_url || output?.download_url
       || meta?.model_url || meta?.download_url;
     const stl = output?.stl_url || meta?.stl_url;
-    if (url && /\.(glb|stl|obj)/i.test(url)) return { modelUrl: url, stlUrl: stl || null };
+    const partsList = (output?.parts || meta?.parts) as
+      | { name?: string; mesh_url?: string; url?: string }[]
+      | undefined;
+    if (url && /\.(glb|stl|obj)/i.test(url)) {
+      return { modelUrl: url, stlUrl: stl || null, meshParts: partsList };
+    }
     if (typeof content === "string" && content.startsWith("{")) {
       try {
         const parsed = JSON.parse(content);
         const pUrl = parsed.uri || parsed.model_url || parsed.download_url;
-        if (pUrl && /\.(glb|stl|obj)/i.test(pUrl)) return { modelUrl: pUrl, stlUrl: parsed.stl_url || null };
+        if (pUrl && /\.(glb|stl|obj)/i.test(pUrl)) {
+          return {
+            modelUrl: pUrl,
+            stlUrl: parsed.stl_url || null,
+            meshParts: parsed.parts as typeof partsList,
+          };
+        }
       } catch {}
     }
-    return { modelUrl: null, stlUrl: null };
+    return { modelUrl: null, stlUrl: null, meshParts: undefined };
   })();
 
   if (modelUrl && message.role === "assistant") {
     return (
       <div className="space-y-2">
-        <p className="break-words whitespace-pre-wrap text-sm text-neutral-600">3D model generated successfully</p>
-        <Model3DCard modelUrl={modelUrl} stlUrl={stlUrl} onViewIn3D={onViewIn3D} onModifyMesh={onModifyMesh} />
+        <p className="break-words whitespace-pre-wrap text-sm text-neutral-600">
+          3D model generated successfully
+          {meshParts && meshParts.length > 0 ? ` — ${meshParts.length} parts` : ""}
+        </p>
+        <Model3DCard
+          modelUrl={modelUrl}
+          stlUrl={stlUrl}
+          parts={meshParts}
+          onViewIn3D={onViewIn3D}
+          onModifyMesh={onModifyMesh}
+        />
       </div>
     );
   }
@@ -389,13 +410,75 @@ const ModelCard: React.FC<{
 const Model3DCard: React.FC<{
   modelUrl: string;
   stlUrl?: string | null;
+  parts?: { name?: string; mesh_url?: string; url?: string }[];
   onViewIn3D?: (url: string) => void;
   onModifyMesh?: (meshUrl: string, modification: string) => void;
-}> = ({ modelUrl, stlUrl, onViewIn3D, onModifyMesh }) => {
+}> = ({ modelUrl, stlUrl, parts, onViewIn3D, onModifyMesh }) => {
   const filename = modelUrl.split("/").pop() || "model.glb";
   const format = filename.split(".").pop()?.toUpperCase() || "GLB";
   const [showModify, setShowModify] = useState(false);
   const [modText, setModText] = useState("");
+  const [showParts, setShowParts] = useState(false);
+
+  // Selection sync: read selectedPartId from the assembly store so this list
+  // shows which part is currently active in the 3D viewer, and click here
+  // sets it (so AssemblyTree + viewer canvas highlight the same part).
+  const selectedPartId = useAssemblyStore((s) => s.selectedPartId);
+  const assemblyParts = useAssemblyStore((s) => s.parts);
+  const partsWithUrl = (parts || []).filter((p) => p.mesh_url || p.url);
+
+  // Auto-register parts to assemblyStore when this card mounts with parts
+  // metadata. The websocket auto-register in useChat.ts only fires for
+  // freshly-completed image_to_3d events; historical messages (chat
+  // reloaded from backend, multi-tab, browser refresh) still need their
+  // parts in the store so the viewer renders them as a multi-part
+  // assembly instead of falling back to the combined model_url.
+  useEffect(() => {
+    if (partsWithUrl.length === 0) return;
+    const store = useAssemblyStore.getState();
+    const alreadyRegistered = partsWithUrl.every((p) => {
+      const url = p.mesh_url || p.url;
+      return store.parts.some((ap) => ap.shape.sdfUrl === url);
+    });
+    if (alreadyRegistered) return;
+
+    // Replace the assembly with this card's parts so we don't accumulate
+    // across messages.
+    store.clearAssembly();
+    import("@/modules/viewer/services/ModelImporter").then(
+      ({ ModelImporter }) => {
+        const importer = new ModelImporter();
+        partsWithUrl.forEach((p, i) => {
+          const partUrl = (p.mesh_url || p.url)!;
+          const partShape = {
+            id: `img3d-part-${Date.now()}-${i}`,
+            type: "generic" as any,
+            name: p.name || `Part ${i + 1}`,
+            description: `Segmented part ${i + 1} of ${partsWithUrl.length}`,
+            hasSimulation: false,
+            sdfUrl: partUrl,
+            geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+            createdAt: new Date(),
+          };
+          const id = useAssemblyStore.getState().addPart(partShape, `img3d-${Date.now()}`);
+          // X-Part decomposition: every part should sit at the origin
+          // so they reassemble into the original mesh. addPart's default
+          // position offsets each part along X for an assembly-builder
+          // workflow, which is wrong for our use case.
+          useAssemblyStore.getState().updateTransform(id, [0, 0, 0], [0, 0, 0]);
+          importer
+            .importFromUrl(proxifyUrl(partUrl), undefined, undefined, [], `part_${i}.glb`)
+            .then((imp) => {
+              useAssemblyStore.getState().updatePartModel(id, imp.group);
+            })
+            .catch((err) => {
+              console.warn(`[Model3DCard] failed to load part ${p.name || i}:`, err);
+            });
+        });
+      }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partsWithUrl.map((p) => p.mesh_url || p.url).join("|")]);
 
   const handleModifySubmit = () => {
     const text = modText.trim();
@@ -427,10 +510,113 @@ const Model3DCard: React.FC<{
           <Box className="w-8 h-8 text-violet-400" />
           <div className="text-[11px]">
             <p className="text-neutral-600 font-medium">3D Model Ready</p>
-            <p className="text-neutral-500">Click to load in viewer</p>
+            <p className="text-neutral-500">
+              {partsWithUrl.length > 0
+                ? `${partsWithUrl.length} parts • click to load`
+                : "Click to load in viewer"}
+            </p>
           </div>
         </div>
       </div>
+      {partsWithUrl.length > 0 && (
+        <div className="border-t border-neutral-200">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setShowParts((v) => !v); }}
+            className="w-full px-3 py-1.5 flex items-center justify-between text-[11px] text-neutral-600 hover:bg-neutral-50 transition-colors"
+          >
+            <span>{showParts ? "Hide" : "Show"} {partsWithUrl.length} parts</span>
+            <span className="text-neutral-400">{showParts ? "▲" : "▼"}</span>
+          </button>
+          {showParts && (
+            <div className="px-3 pb-2 max-h-40 overflow-y-auto space-y-1">
+              {/* Explicit "back to combined view" affordance — clicking
+                  the same part twice also deselects, but that toggle
+                  isn't discoverable. Only show this button when
+                  something is actually selected. */}
+              {selectedPartId && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    useAssemblyStore.getState().selectPart(null);
+                  }}
+                  className="w-full flex items-center gap-2 px-2 py-1 rounded-md text-[11px] text-left text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 border border-dashed border-neutral-200 transition-colors"
+                  title="Deselect — show the combined model"
+                >
+                  <Box className="w-3 h-3 shrink-0 text-neutral-400" />
+                  <span className="truncate">← Show full object</span>
+                </button>
+              )}
+              {partsWithUrl.map((p, i) => {
+                const url = (p.mesh_url || p.url)!;
+                const label = p.name || `Part ${i + 1}`;
+                // Match this list entry to its assemblyStore counterpart by URL.
+                const asmPart = assemblyParts.find((ap) => ap.shape.sdfUrl === url);
+                const isActive = !!asmPart && asmPart.id === selectedPartId;
+                return (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      const store = useAssemblyStore.getState();
+                      if (asmPart) {
+                        // Already in the store — just toggle selection.
+                        store.selectPart(isActive ? null : asmPart.id);
+                        return;
+                      }
+                      // Not in store yet (historical chat / store cleared).
+                      // Register the part synchronously, then kick off the
+                      // model fetch in the background. Fire-and-forget so
+                      // the popup doesn't reflow during await.
+                      const newShape = {
+                        id: `img3d-part-${Date.now()}-${i}`,
+                        type: "generic" as any,
+                        name: label,
+                        description: `Segmented part ${i + 1} of ${partsWithUrl.length}`,
+                        hasSimulation: false,
+                        sdfUrl: url,
+                        geometry: { parts: [], metadata: { totalVertices: 0, fileSize: 0 } },
+                        createdAt: new Date(),
+                      };
+                      const newId = store.addPart(newShape, `img3d-${Date.now()}`);
+                      store.selectPart(newId);
+                      import("@/modules/viewer/services/ModelImporter")
+                        .then(({ ModelImporter }) =>
+                          new ModelImporter().importFromUrl(
+                            proxifyUrl(url),
+                            undefined,
+                            undefined,
+                            [],
+                            `part_${i}.glb`
+                          )
+                        )
+                        .then((imp) => {
+                          useAssemblyStore.getState().updatePartModel(newId, imp.group);
+                        })
+                        .catch((err) => {
+                          console.warn(`[Model3DCard] failed to load part ${label}:`, err);
+                        });
+                    }}
+                    className={`w-full flex items-center gap-2 px-2 py-1 rounded-md text-[11px] text-left transition-colors ${
+                      isActive
+                        ? "bg-violet-100 text-violet-700"
+                        : "text-neutral-600 hover:bg-violet-50 hover:text-violet-700"
+                    }`}
+                    title={isActive ? "Click to deselect" : "Click to highlight in viewer"}
+                  >
+                    <Box className={`w-3 h-3 shrink-0 ${isActive ? "text-violet-600" : "text-violet-400"}`} />
+                    <span className="truncate">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
       {showModify && (
         <div className="px-3 pb-2 flex gap-1.5">
           <input

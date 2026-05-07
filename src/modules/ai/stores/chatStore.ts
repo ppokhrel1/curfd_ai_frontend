@@ -20,6 +20,9 @@ interface ChatState {
     // For image_to_3d: when true, skip Hunyuan3D-Part decomposition and
     // return only the main mesh (~5-10s faster).
     imageTo3DSkipSegmentation: boolean;
+    // For image_to_3d: when true, run Hunyuan3D-Paint after the mesh is
+    // generated to add UV-mapped textures (~+30-90s, ~+12-16 GB VRAM).
+    imageTo3DWithTexture: boolean;
 
     // Actions
     setConversations: (conversations: Conversation[]) => void;
@@ -36,6 +39,7 @@ interface ChatState {
     setSelectedModel: (provider: string, model: string, thinking: boolean) => void;
     setSelectedLanguage: (language: "openscad" | "cadquery" | "image_to_3d") => void;
     setImageTo3DSkipSegmentation: (skip: boolean) => void;
+    setImageTo3DWithTexture: (on: boolean) => void;
 }
 
 // Helper to get user-scoped storage key
@@ -68,11 +72,13 @@ export const useChatStore = create<ChatState>()(
             selectedProvider: "anthropic",
             selectedModel: "claude-opus-4-6",
             selectedThinking: true,
-            selectedLanguage: "openscad",
+            selectedLanguage: "image_to_3d",
             // Default to skipping Part segmentation: it doubles VRAM use
             // on the worker and may OOM on 32 GB GPUs. Users opt in via
             // the toggle in ImageTo3DPanel when they want named parts.
             imageTo3DSkipSegmentation: true,
+            // Texture pass is opt-in — significant time/VRAM cost.
+            imageTo3DWithTexture: false,
 
             setConversations: (newConversations) => set((state) => ({
                 conversations: newConversations.map(nc => {
@@ -182,6 +188,7 @@ export const useChatStore = create<ChatState>()(
 
             setSelectedLanguage: (language) => set({ selectedLanguage: language }),
             setImageTo3DSkipSegmentation: (skip) => set({ imageTo3DSkipSegmentation: skip }),
+            setImageTo3DWithTexture: (on) => set({ imageTo3DWithTexture: on }),
         }),
         {
             name: getUserStorageKey(),
@@ -206,6 +213,7 @@ export const useChatStore = create<ChatState>()(
                 selectedThinking: state.selectedThinking,
                 selectedLanguage: state.selectedLanguage,
                 imageTo3DSkipSegmentation: state.imageTo3DSkipSegmentation,
+                imageTo3DWithTexture: state.imageTo3DWithTexture,
             }),
             onRehydrateStorage: (state) => {
                 return (rehydratedState) => {

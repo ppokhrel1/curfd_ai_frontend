@@ -10,7 +10,7 @@ import {
   TransformControls,
 } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useRef, useCallback } from "react";
+import { Suspense, useEffect, useMemo, useRef, useCallback } from "react";
 import * as THREE from "three";
 import type { ViewerState } from "../types/viewer.type";
 
@@ -31,6 +31,8 @@ interface ViewerCanvasProps {
   transformMode?: "translate" | "rotate" | "scale" | null;
   assemblyParts?: AssemblyPart[];
   selectedAssemblyPartId?: string | null;
+  /** 0..1 explode factor — passed through to AssemblyPartScene per part. */
+  explodeAmount?: number;
   onSelectAssemblyPart?: (id: string | null) => void;
   onAssemblyTransformChange?: (id: string, position: [number, number, number], rotation: [number, number, number]) => void;
   onPartTransformChange?: (partId: string, transform: PartTransform) => void;
@@ -49,6 +51,7 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
   transformMode,
   assemblyParts,
   selectedAssemblyPartId,
+  explodeAmount,
   onSelectAssemblyPart,
   onAssemblyTransformChange,
   onPartTransformChange,
@@ -128,10 +131,31 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
         </GizmoHelper>
       )}
 
-      {/* Scene Content */}
+      {/* Scene Content. Three modes:
+            1. A part is selected from chat / AssemblyTree → render
+               assembly so the selected part can highlight (the
+               combined mesh has no per-part hooks).
+            2. No part selected, combined `loadedModel` available →
+               render it (smooth, high-quality output).
+            3. No combined, but assembly parts loaded → fallback to
+               assembly view.
+            4. Otherwise EmptyState. */}
       <Suspense fallback={<LoadingModel />}>
-        {/* Primary single model */}
-        {loadedModel ? (
+        {(assemblyParts && assemblyParts.length > 0 && selectedAssemblyPartId) ? (
+          assemblyParts
+            .filter(p => p.visible && p.model)
+            .map(p => (
+              <AssemblyPartScene
+                key={p.id}
+                part={p}
+                isSelected={selectedAssemblyPartId === p.id}
+                transformMode={transformMode || null}
+                explodeAmount={explodeAmount}
+                onSelect={(id) => onSelectAssemblyPart?.(id)}
+                onTransformChange={(id, pos, rot) => onAssemblyTransformChange?.(id, pos, rot)}
+              />
+            ))
+        ) : loadedModel ? (
           <ModelScene
             model={loadedModel}
             selectedPart={selectedPart || null}
@@ -142,21 +166,23 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
             onPartTransformChange={onPartTransformChange}
             partTransforms={partTransforms}
           />
-        ) : (!assemblyParts || assemblyParts.length === 0) ? (
+        ) : assemblyParts && assemblyParts.length > 0 ? (
+          assemblyParts
+            .filter(p => p.visible && p.model)
+            .map(p => (
+              <AssemblyPartScene
+                key={p.id}
+                part={p}
+                isSelected={selectedAssemblyPartId === p.id}
+                transformMode={transformMode || null}
+                explodeAmount={explodeAmount}
+                onSelect={(id) => onSelectAssemblyPart?.(id)}
+                onTransformChange={(id, pos, rot) => onAssemblyTransformChange?.(id, pos, rot)}
+              />
+            ))
+        ) : (
           <EmptyState />
-        ) : null}
-
-        {/* Assembly parts — each rendered with click selection + optional TransformControls */}
-        {assemblyParts?.filter(p => p.visible && p.model).map(p => (
-          <AssemblyPartScene
-            key={p.id}
-            part={p}
-            isSelected={selectedAssemblyPartId === p.id}
-            transformMode={transformMode || null}
-            onSelect={(id) => onSelectAssemblyPart?.(id)}
-            onTransformChange={(id, pos, rot) => onAssemblyTransformChange?.(id, pos, rot)}
-          />
-        ))}
+        )}
 
         {children}
       </Suspense>
@@ -171,20 +197,40 @@ const AssemblyPartScene: React.FC<{
   part: AssemblyPart;
   isSelected: boolean;
   transformMode: "translate" | "rotate" | "scale" | null;
+  /** 0..1 explode factor; offset applied along the part's centroid
+   *  direction from the assembly origin. */
+  explodeAmount?: number;
   onSelect: (id: string) => void;
   onTransformChange: (id: string, position: [number, number, number], rotation: [number, number, number]) => void;
-}> = ({ part, isSelected, transformMode, onSelect, onTransformChange }) => {
+}> = ({ part, isSelected, transformMode, explodeAmount = 0, onSelect, onTransformChange }) => {
   const groupRef = useRef<THREE.Group>(null!);
   const { controls } = useThree();
   const isDraggingRef = useRef(false);
 
-  // Imperatively sync position/rotation from store (skipped while dragging to avoid R3F conflict)
+  // Compute the part's centroid offset from the assembly origin (per-mount).
+  // Used to push the part outward when explodeAmount > 0.
+  const explodeDirection = useMemo<[number, number, number]>(() => {
+    if (!part.model) return [0, 0, 0];
+    const box = new THREE.Box3().setFromObject(part.model);
+    if (box.isEmpty()) return [0, 0, 0];
+    const center = box.getCenter(new THREE.Vector3());
+    return [center.x, center.y, center.z];
+  }, [part.model]);
+
+  // Imperatively sync position/rotation from store (skipped while dragging to avoid R3F conflict).
+  // explodeAmount adds an offset on top of the stored position so the user can scrub the slider
+  // without overwriting their actual transforms.
   useEffect(() => {
     if (!groupRef.current || isDraggingRef.current) return;
     const [rx, ry, rz] = part.rotation.map(d => (d * Math.PI) / 180);
-    groupRef.current.position.set(part.position[0], part.position[1], part.position[2]);
+    const factor = explodeAmount * 4; // 0..1 → 0..4 units of separation
+    groupRef.current.position.set(
+      part.position[0] + explodeDirection[0] * factor,
+      part.position[1] + explodeDirection[1] * factor,
+      part.position[2] + explodeDirection[2] * factor,
+    );
     groupRef.current.rotation.set(rx, ry, rz);
-  }, [part.position, part.rotation]);
+  }, [part.position, part.rotation, explodeAmount, explodeDirection]);
 
   // Highlight selected part with emissive tint
   useEffect(() => {
@@ -207,10 +253,14 @@ const AssemblyPartScene: React.FC<{
     if (!groupRef.current) return;
     const p = groupRef.current.position;
     const r = groupRef.current.rotation;
-    const toDeg = (rad: number) => parseFloat(((rad * 180) / Math.PI).toFixed(2));
+    // Don't round — rounding here makes the model snap to the rounded
+    // value when the position useEffect re-applies the stored position
+    // after mouse-up (visible as an abrupt jump at the end of a
+    // transform). Pass the full precision through to the store.
+    const toDeg = (rad: number) => (rad * 180) / Math.PI;
     onTransformChange(
       part.id,
-      [parseFloat(p.x.toFixed(3)), parseFloat(p.y.toFixed(3)), parseFloat(p.z.toFixed(3))],
+      [p.x, p.y, p.z],
       [toDeg(r.x), toDeg(r.y), toDeg(r.z)]
     );
   }, [controls, onTransformChange, part.id]);

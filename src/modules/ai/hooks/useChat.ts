@@ -8,6 +8,7 @@ import type { RunpodEvent } from "./useChatSocket";
 import { useAuthStore } from "@/lib/auth";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { useEditorStore } from "@/modules/editor/stores/editorStore";
+import { useAssemblyStore } from "@/modules/viewer/stores/assemblyStore";
 
 // --- HELPER: Auto-Parse OpenSCAD Variables ---
 const extractParametersFromCode = (code: string) => {
@@ -208,6 +209,14 @@ export const useChat = (
                   createdAt: new Date(),
                 };
                 onShapeGenerated(shape, chatId);
+
+                // Auto-register of segmented parts to assemblyStore is
+                // done in Model3DCard's mount effect (MessageList.tsx),
+                // not here. That single source of truth covers both
+                // fresh websocket events AND historical messages
+                // re-rendering after page reload — eliminating the race
+                // that would otherwise duplicate parts when both paths
+                // dispatched concurrently.
               }
             } else {
               // Standard generate_scad asset polling
@@ -570,6 +579,7 @@ export const useChat = (
               prompt: promptText,
               output_format: "glb",
               skip_segmentation: useChatStore.getState().imageTo3DSkipSegmentation,
+              with_texture: useChatStore.getState().imageTo3DWithTexture,
             });
 
             // Backend returned image search results for user to pick from
@@ -741,6 +751,7 @@ export const useChat = (
       setGenerating(chatId, true, "Downloading selected image and starting 3D generation...");
 
       const skipSegmentation = useChatStore.getState().imageTo3DSkipSegmentation;
+      const withTexture = useChatStore.getState().imageTo3DWithTexture;
 
       // Try WebSocket first
       if (wsConnected) {
@@ -750,6 +761,7 @@ export const useChat = (
           image_url: imageUrl,
           prompt,
           skip_segmentation: skipSegmentation,
+          with_texture: withTexture,
         });
         if (sent) return;
       }
@@ -764,6 +776,7 @@ export const useChat = (
             prompt,
             output_format: "glb",
             skip_segmentation: skipSegmentation,
+            with_texture: withTexture,
           });
         } catch (err: any) {
           console.error("[useChat] HTTP fallback for image selection failed:", err);

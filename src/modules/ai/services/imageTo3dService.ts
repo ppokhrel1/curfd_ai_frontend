@@ -7,6 +7,9 @@ export interface ImageTo3DRequest {
   // When true the worker skips Hunyuan3D-Part decomposition and returns
   // mesh-only (~5-10s faster). Default: produce parts.
   skip_segmentation?: boolean;
+  // When true the worker also runs Hunyuan3D-Paint to apply UV-mapped
+  // textures to the mesh — adds ~30-90s per request and ~12-16 GB VRAM.
+  with_texture?: boolean;
 }
 
 export interface ImageTo3DResponse {

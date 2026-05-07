@@ -100,15 +100,20 @@ const PartRow: React.FC<{
             autoFocus
             value={nameVal}
             onChange={(e) => setNameVal(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
             onBlur={commitRename}
-            onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") { setNameVal(part.name); setEditingName(false); } }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") { setNameVal(part.name); setEditingName(false); }
+            }}
             className="flex-1 bg-neutral-50 border border-purple-500/50 rounded px-1.5 py-0.5 text-xs text-white outline-none min-w-0"
           />
         ) : (
           <span
-            className="flex-1 text-xs text-white font-medium truncate min-w-0 cursor-pointer hover:text-purple-300 transition-colors"
+            className="flex-1 text-xs text-white font-medium truncate min-w-0 cursor-text hover:text-purple-300 transition-colors"
             title="Click to rename"
-            onDoubleClick={() => setEditingName(true)}
+            onClick={(e) => { e.stopPropagation(); setEditingName(true); }}
           >
             {part.name}
           </span>

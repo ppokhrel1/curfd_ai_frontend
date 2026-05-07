@@ -17,6 +17,14 @@ export interface AssemblyPart {
 
 interface AssemblyState {
   parts: AssemblyPart[];
+  selectedPartId: string | null;
+  /** 0..1 explode factor — 0 = parts at origin, 1 = max separation. */
+  explodeAmount: number;
+  /** When true the viewer renders assembly parts instead of the
+   * combined `loadedModel` (the X-Part decomposition view). */
+  decomposedView: boolean;
+  setExplode: (amount: number) => void;
+  setDecomposedView: (on: boolean) => void;
   addPart: (shape: GeneratedShape, jobId: string) => string;
   removePart: (id: string) => void;
   updatePartModel: (id: string, model: THREE.Group) => void;
@@ -27,6 +35,8 @@ interface AssemblyState {
   ) => void;
   renamePart: (id: string, name: string) => void;
   toggleVisibility: (id: string) => void;
+  selectPart: (id: string | null) => void;
+  selectPartByUrl: (url: string) => void;
   clearAssembly: () => void;
   generateCombinedScad: () => string | null;
   saveToBackend: (chatId: string, token: string) => Promise<void>;
@@ -37,6 +47,21 @@ let _saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useAssemblyStore = create<AssemblyState>((set, get) => ({
   parts: [],
+  selectedPartId: null,
+  explodeAmount: 0,
+  decomposedView: false,
+
+  setExplode: (amount) => set({ explodeAmount: Math.max(0, Math.min(1, amount)) }),
+  setDecomposedView: (on) => set({ decomposedView: on }),
+
+  selectPart: (id) => {
+    set({ selectedPartId: id });
+  },
+
+  selectPartByUrl: (url) => {
+    const match = get().parts.find(p => p.shape.sdfUrl === url);
+    set({ selectedPartId: match ? match.id : null });
+  },
 
   addPart: (shape, jobId) => {
     const id = `asm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -95,7 +120,7 @@ export const useAssemblyStore = create<AssemblyState>((set, get) => ({
   },
 
   clearAssembly: () => {
-    set({ parts: [] });
+    set({ parts: [], selectedPartId: null, explodeAmount: 0, decomposedView: false });
   },
 
   generateCombinedScad: () => {
