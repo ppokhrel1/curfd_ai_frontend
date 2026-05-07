@@ -91,7 +91,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <div className="border-t border-neutral-200 bg-white/80 backdrop-blur-xl px-2.5 py-2.5">
-      <div className="flex items-center mb-1.5 px-1">
+      <div className="flex items-center flex-wrap gap-1 mb-1.5 px-1">
         <ModelSelector />
         <LanguageSelector />
         <SegmentationToggle />

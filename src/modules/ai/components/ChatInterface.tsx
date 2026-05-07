@@ -362,7 +362,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
               <ChevronRight className="w-5 h-5 text-neutral-500" />
             </div>
           ) : (
-            <div className={`flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col z-20 ${children ? 'w-[320px]' : 'w-full'}`}>
+            <div className={`flex-shrink-0 bg-white border-r border-neutral-200 flex flex-col z-20 ${children ? 'w-[400px]' : 'w-full'}`}>
               {/* Header */}
               <div className="flex-shrink-0 border-b border-neutral-200 bg-neutral-50 px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
