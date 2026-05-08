@@ -188,18 +188,23 @@ const FormattedContent: React.FC<{
     );
   }
 
-  // Check for 3D model URL + parts in message metadata or content.
-  const { modelUrl, stlUrl, meshParts } = (() => {
+  // Check for 3D model URL + parts + textured variant in metadata or content.
+  const { modelUrl, stlUrl, meshParts, texturedUrl } = (() => {
     const meta = (message as any).metadata_json || (message as any).metadata;
     const output = meta?.output;
     const url = output?.uri || output?.model_url || output?.download_url
       || meta?.model_url || meta?.download_url;
     const stl = output?.stl_url || meta?.stl_url;
+    // Worker emits textured_url at top of output; backend's
+    // _persist_image_to_3d_asset also stuffs it in metadata_json.
+    const tex = output?.textured_url
+      || output?.metadata_json?.textured_url
+      || meta?.textured_url;
     const partsList = (output?.parts || meta?.parts) as
       | { name?: string; mesh_url?: string; url?: string }[]
       | undefined;
     if (url && /\.(glb|stl|obj)/i.test(url)) {
-      return { modelUrl: url, stlUrl: stl || null, meshParts: partsList };
+      return { modelUrl: url, stlUrl: stl || null, meshParts: partsList, texturedUrl: tex || null };
     }
     if (typeof content === "string" && content.startsWith("{")) {
       try {
@@ -210,11 +215,12 @@ const FormattedContent: React.FC<{
             modelUrl: pUrl,
             stlUrl: parsed.stl_url || null,
             meshParts: parsed.parts as typeof partsList,
+            texturedUrl: parsed.textured_url || null,
           };
         }
       } catch {}
     }
-    return { modelUrl: null, stlUrl: null, meshParts: undefined };
+    return { modelUrl: null, stlUrl: null, meshParts: undefined, texturedUrl: null };
   })();
 
   if (modelUrl && message.role === "assistant") {
@@ -223,11 +229,13 @@ const FormattedContent: React.FC<{
         <p className="break-words whitespace-pre-wrap text-sm text-neutral-600">
           3D model generated successfully
           {meshParts && meshParts.length > 0 ? ` — ${meshParts.length} parts` : ""}
+          {texturedUrl ? " · textured" : ""}
         </p>
         <Model3DCard
           modelUrl={modelUrl}
           stlUrl={stlUrl}
           parts={meshParts}
+          texturedUrl={texturedUrl}
           onViewIn3D={onViewIn3D}
           onModifyMesh={onModifyMesh}
         />
@@ -411,9 +419,10 @@ const Model3DCard: React.FC<{
   modelUrl: string;
   stlUrl?: string | null;
   parts?: { name?: string; mesh_url?: string; url?: string }[];
+  texturedUrl?: string | null;
   onViewIn3D?: (url: string) => void;
   onModifyMesh?: (meshUrl: string, modification: string) => void;
-}> = ({ modelUrl, stlUrl, parts, onViewIn3D, onModifyMesh }) => {
+}> = ({ modelUrl, stlUrl, parts, texturedUrl, onViewIn3D, onModifyMesh }) => {
   const filename = modelUrl.split("/").pop() || "model.glb";
   const format = filename.split(".").pop()?.toUpperCase() || "GLB";
   const [showModify, setShowModify] = useState(false);
@@ -668,6 +677,15 @@ const Model3DCard: React.FC<{
             <Download className="w-3 h-3" />
             STL
           </button>
+          {texturedUrl && (
+            <button
+              onClick={() => onViewIn3D?.(texturedUrl)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-500 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 hover:border-violet-500/50 transition-all whitespace-nowrap shrink-0"
+              title="View the textured (UV-mapped) variant"
+            >
+              View textured
+            </button>
+          )}
           <button
             onClick={() => onViewIn3D?.(modelUrl)}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group whitespace-nowrap shrink-0"
