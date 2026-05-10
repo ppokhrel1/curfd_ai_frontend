@@ -9,32 +9,35 @@ export const Footer = () => {
     { icon: Mail, href: "mailto:contact@curfd-ai.com", label: "Email" },
   ];
 
+  // Only ship links that actually go somewhere. Items without a real
+  // destination (Changelog, API Reference, Blog, dedicated About / Privacy
+  // pages) are dropped rather than left as dead `href="#"` anchors. Every
+  // route here is either a real page anchor or a mailto.
   const columns = [
     {
       title: "Product",
       links: [
+        { name: "How it works", href: "#how-it-works" },
         { name: "Features", href: "#features" },
-        { name: "Pricing", href: "#pricing" },
         { name: "Gallery", href: "#gallery" },
-        { name: "Changelog", href: "#" },
-      ],
-    },
-    {
-      title: "Resources",
-      links: [
-        { name: "Documentation", href: "#docs" },
-        { name: "API Reference", href: "#" },
-        { name: "Examples", href: "#" },
-        { name: "Blog", href: "#" },
+        { name: "Pricing", href: "#pricing" },
       ],
     },
     {
       title: "Company",
       links: [
-        { name: "About", href: "#" },
-        { name: "Careers", href: "#" },
-        { name: "Contact", href: "mailto:contact@curfd-ai.com" },
-        { name: "Privacy", href: "#" },
+        {
+          name: "Contact",
+          href: "mailto:contact@curfd-ai.com?subject=Hello%20curfd",
+        },
+        {
+          name: "Careers",
+          href: "mailto:contact@curfd-ai.com?subject=Careers%20at%20curfd",
+        },
+        {
+          name: "Support",
+          href: "mailto:contact@curfd-ai.com?subject=curfd%20support",
+        },
       ],
     },
   ];
@@ -42,8 +45,8 @@ export const Footer = () => {
   return (
     <footer className="bg-neutral-900 text-neutral-400">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        {/* Main grid */}
-        <div className="py-16 grid grid-cols-2 md:grid-cols-5 gap-10 lg:gap-16">
+        {/* Main grid — brand col spans 2, then 2 link cols on md+ */}
+        <div className="py-16 grid grid-cols-2 md:grid-cols-4 gap-10 lg:gap-16">
           {/* Brand column */}
           <div className="col-span-2">
             <a href="/" className="flex items-center gap-2.5 mb-4">
@@ -89,14 +92,19 @@ export const Footer = () => {
           ))}
         </div>
 
-        {/* Bottom bar */}
+        {/* Bottom bar — Terms / Privacy links removed until those pages
+            exist; replaced with a single working contact mailto. */}
         <div className="py-6 border-t border-neutral-800 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-xs text-neutral-500">
             &copy; {new Date().getFullYear()} CURFD. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-neutral-500">
-            <a href="#" className="hover:text-neutral-300 transition-colors">Terms</a>
-            <a href="#" className="hover:text-neutral-300 transition-colors">Privacy</a>
+            <a
+              href="mailto:contact@curfd-ai.com"
+              className="hover:text-neutral-300 transition-colors"
+            >
+              contact@curfd-ai.com
+            </a>
             <span className="font-mono text-neutral-600">v2.0</span>
           </div>
         </div>

@@ -15,22 +15,23 @@ export const Hero = ({ onAuthClick }: HeroProps) => {
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary-200 bg-primary-50">
               <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
               <span className="text-xs font-medium text-primary-700 tracking-wide">
-                AI-native CAD &middot; beta
+                AI-native CAD &middot; idea to printable parts
               </span>
             </div>
 
             {/* Headline */}
             <h1 className="text-5xl md:text-6xl lg:text-[4rem] font-semibold leading-[1.1] text-neutral-900">
-              Think it.{" "}
-              <span className="text-primary-500">Say it.</span>{" "}
+              Describe it.{" "}
+              <span className="text-primary-500">Split it.</span>{" "}
               <br className="hidden sm:block" />
-              Slice it.
+              Print every piece.
             </h1>
 
             {/* Subheading */}
             <p className="text-lg text-neutral-500 max-w-lg leading-relaxed">
-              An AI copilot that speaks OpenSCAD. Describe a part, get a
-              parametric model, tweak it in chat, and send it to your printer.
+              Type a prompt — or drop in an image — and get a colored 3D
+              model that auto-decomposes into named, printable parts.
+              Download each part as STL and slice straight to your printer.
             </p>
 
             {/* CTAs */}
@@ -51,9 +52,9 @@ export const Hero = ({ onAuthClick }: HeroProps) => {
             {/* Stats row */}
             <div className="flex flex-wrap gap-10 pt-6 border-t border-neutral-100">
               {[
-                { value: "12k+", label: "parts generated" },
-                { value: "1.4M", label: "SCAD lines" },
-                { value: "47s", label: "median gen" },
+                { value: "~60 s", label: "prompt → mesh" },
+                { value: "auto-split", label: "into named parts" },
+                { value: "STL/GLB", label: "slicer-ready output" },
               ].map((stat) => (
                 <div key={stat.label}>
                   <div className="text-2xl font-semibold text-neutral-800">{stat.value}</div>
@@ -141,18 +142,18 @@ export const Hero = ({ onAuthClick }: HeroProps) => {
                 </svg>
               </div>
 
-              {/* Floating chat preview */}
+              {/* Floating chat preview — frames the parts → print story */}
               <div className="absolute bottom-3 left-14 right-14">
                 <div className="bg-white/95 border border-neutral-200 rounded-xl p-3 shadow-sm">
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
-                    <span className="text-[10px] font-mono text-primary-600 uppercase">live prompt</span>
+                    <span className="text-[10px] font-mono text-primary-600 uppercase">3 parts ready</span>
                   </div>
                   <div className="text-[12px] text-neutral-600">
-                    &ldquo;make the arms 5 mm thicker and add vents&rdquo;
+                    &ldquo;a desk lamp&rdquo; &middot; base, arm, shade
                   </div>
                   <div className="text-[10px] font-mono text-primary-500/70 mt-1">
-                    regenerating... 14s
+                    download all &middot; STL · GLB
                   </div>
                 </div>
               </div>

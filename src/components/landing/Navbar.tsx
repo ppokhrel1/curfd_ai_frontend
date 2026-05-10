@@ -22,11 +22,14 @@ export { CurfdLogo };
 export const Navbar = ({ onAuthClick }: NavbarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
+  // Anchor-only links — every entry maps to a real section on the page.
+  // The previous "Docs" link pointed at a #docs anchor that doesn't exist;
+  // dropped until we ship docs.
   const navLinks = [
+    { name: "How it works", href: "#how-it-works" },
     { name: "Gallery", href: "#gallery" },
     { name: "Features", href: "#features" },
     { name: "Pricing", href: "#pricing" },
-    { name: "Docs", href: "#docs" },
   ];
 
   return (
