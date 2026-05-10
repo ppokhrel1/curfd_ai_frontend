@@ -331,8 +331,9 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         />
       </div>
 
-      {/* Top Left: Toolbar */}
-      <div className="absolute top-3 left-3 z-10">
+      {/* Top Left: Toolbar — narrow padding on mobile, scrollable if it
+          overflows; right-edge gives space for the sidebar toggle. */}
+      <div className="absolute top-2 left-2 right-12 sm:top-3 sm:left-3 sm:right-auto z-10 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <Toolbar
           state={state}
           onToggleWireframe={toggleWireframe}
@@ -415,14 +416,19 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         </div>
       )}
 
-      {/* Bottom Left: Hints */}
-      <div className="absolute bottom-16 left-3 z-10">
+      {/* Bottom Left: Hints — desktop only. The hint surfaces mouse-specific
+          controls (right-click drag, scroll wheel) which don't apply on
+          touch devices and just adds noise on small screens. */}
+      <div className="hidden md:block absolute bottom-16 left-3 z-10">
         <ControlsHint />
       </div>
 
-      {/* Bottom Center: Action Bar */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
-        <div className="flex items-center gap-1.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-1.5 shadow-xl">
+      {/* Bottom Center: Action Bar — scrolls horizontally on phones,
+          centered fixed-width on tablet+ */}
+      <div className="absolute bottom-2 sm:bottom-3 left-2 right-2 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-10 flex justify-center pointer-events-none">
+        <div
+          className="pointer-events-auto flex items-center gap-1 sm:gap-1.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-1 sm:p-1.5 shadow-xl max-w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        >
           <ActionBtn icon={<Upload />} label="Import" onClick={onImportModel} />
 
           {/* Assembly button — always visible once there are parts, or when a model is loaded */}
@@ -454,14 +460,14 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
           {shape?.hasSimulation && (
             <button
               onClick={handleSimulation}
-              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-primary-500 to-primary-500 text-white font-medium rounded-lg text-xs"
+              className="flex items-center gap-1.5 px-3 py-2.5 sm:py-2 bg-gradient-to-r from-primary-500 to-primary-500 text-white font-medium rounded-lg text-xs whitespace-nowrap snap-start"
             >
               <Play className="w-3 h-3" />
               Simulate
             </button>
           )}
 
-          <div className="w-px h-6 bg-neutral-700" />
+          <div className="w-px h-6 bg-neutral-300 shrink-0" />
 
           <ActionBtn icon={<ZoomIn />} label="Zoom In" onClick={() => handleZoom("in")} />
           <ActionBtn icon={<ZoomOut />} label="Zoom Out" onClick={() => handleZoom("out")} />
@@ -472,18 +478,33 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
         </div>
       </div>
 
-      {/* Right Edge: Sidebar Toggle */}
+      {/* Right Edge: Sidebar Toggle — fatter tap target on mobile. */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-20 w-5 h-14 bg-neutral-50 border border-neutral-200 flex items-center justify-center text-neutral-400 hover:text-white transition-all ${
-          isSidebarOpen ? "right-64 rounded-l-lg border-r-0" : "right-0 rounded-l-lg"
+        className={`absolute top-1/2 -translate-y-1/2 z-30 w-6 sm:w-5 h-16 sm:h-14 bg-neutral-50 border border-neutral-200 flex items-center justify-center text-neutral-400 hover:text-white transition-all ${
+          isSidebarOpen
+            ? "right-[calc(100vw-2.5rem)] sm:right-64 rounded-l-lg border-r-0"
+            : "right-0 rounded-l-lg"
         }`}
+        aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
       >
-        {isSidebarOpen ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+        {isSidebarOpen ? <ChevronRight className="w-4 h-4 sm:w-3 sm:h-3" /> : <ChevronLeft className="w-4 h-4 sm:w-3 sm:h-3" />}
       </button>
 
-      {/* Right: Stats Sidebar */}
-      <div className={`absolute top-0 right-0 bottom-0 w-64 bg-white/95 border-l border-neutral-200 z-10 transition-transform duration-200 ${isSidebarOpen ? "translate-x-0" : "translate-x-full"}`}>
+      {/* Mobile backdrop for sidebar — tap-out to close. */}
+      {isSidebarOpen && (
+        <div
+          className="md:hidden absolute inset-0 z-10 bg-black/30 animate-in fade-in duration-150"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Right: Stats Sidebar — full-width on mobile, 256px on tablet+. */}
+      <div
+        className={`absolute top-0 right-0 bottom-0 w-[calc(100vw-2.5rem)] sm:w-64 bg-white/95 border-l border-neutral-200 z-20 transition-transform duration-200 ${
+          isSidebarOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <div className="h-full overflow-y-auto p-4 pt-6 scrollbar-thin scrollbar-thumb-neutral-700">
           <ModelSidebar stats={stats} shape={shape} onExport={handleExport} onScreenshot={handleScreenshot} onShare={handleShare} />
         </div>
@@ -517,6 +538,10 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
 
 // ── Action button helpers ─────────────────────────────────────────────────────
 
+// Mobile: 44×44 tap target (iOS HIG minimum). Desktop: tighter 32px.
+// `snap-start` keeps each button aligned to the visible edge while the bar
+// scrolls horizontally on small screens. `active:` styles replace `hover:`
+// affordances for touch devices.
 const ActionBtn: React.FC<{
   icon: React.ReactNode;
   label: string;
@@ -525,12 +550,15 @@ const ActionBtn: React.FC<{
 }> = ({ icon, label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`p-2 rounded-lg transition-colors relative group ${
-      active ? "bg-purple-500/20 text-purple-400" : "text-neutral-400 hover:text-white hover:bg-neutral-800"
+    className={`shrink-0 snap-start p-2.5 sm:p-2 rounded-lg transition-colors relative group ${
+      active
+        ? "bg-purple-500/20 text-purple-400"
+        : "text-neutral-400 hover:text-white hover:bg-neutral-800 active:bg-neutral-200"
     }`}
     title={label}
+    aria-label={label}
   >
-    <div className="w-4 h-4">{icon}</div>
+    <div className="w-5 h-5 sm:w-4 sm:h-4">{icon}</div>
   </button>
 );
 
@@ -543,12 +571,15 @@ const ActionBtnBadge: React.FC<{
 }> = ({ icon, label, active, badge, onClick }) => (
   <button
     onClick={onClick}
-    className={`p-2 rounded-lg transition-colors relative group ${
-      active ? "bg-purple-500/20 text-purple-400" : "text-neutral-400 hover:text-white hover:bg-neutral-800"
+    className={`shrink-0 snap-start p-2.5 sm:p-2 rounded-lg transition-colors relative group ${
+      active
+        ? "bg-purple-500/20 text-purple-400"
+        : "text-neutral-400 hover:text-white hover:bg-neutral-800 active:bg-neutral-200"
     }`}
     title={label}
+    aria-label={label}
   >
-    <div className="w-4 h-4">{icon}</div>
+    <div className="w-5 h-5 sm:w-4 sm:h-4">{icon}</div>
     {badge !== undefined && badge > 0 && (
       <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-purple-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center leading-none">
         {badge > 9 ? "9+" : badge}

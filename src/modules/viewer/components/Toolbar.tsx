@@ -28,9 +28,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   };
 
   return (
-    <div className="flex flex-row items-start gap-1.5">
+    <div className="flex flex-row items-start gap-1 sm:gap-1.5 w-max">
       {/* View controls */}
-      <div className="flex items-center gap-0.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-1.5 shadow-2xl">
+      <div className="flex items-center gap-0.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-1 sm:p-1.5 shadow-2xl shrink-0">
         <ToolButton
           icon={<Box className="w-4 h-4" />}
           label="Wireframe"
@@ -60,7 +60,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       {/* Transform tools — only shown when a model is loaded */}
       {hasModel && onSetTransformMode && (
-        <div className="flex items-center gap-0.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-1.5 shadow-xl">
+        <div className="flex items-center gap-0.5 bg-neutral-50 backdrop-blur-md border border-neutral-200 rounded-xl p-1 sm:p-1.5 shadow-xl shrink-0">
           <ToolButton
             icon={<Move className="w-4 h-4" />}
             label="Translate"
@@ -127,17 +127,19 @@ const ToolButton: React.FC<ToolButtonProps> = ({
   return (
     <button
       onClick={onClick}
-      className={`group relative p-2.5 rounded-lg transition-all duration-200 ${
+      className={`group relative p-3 sm:p-2.5 rounded-lg transition-all duration-200 shrink-0 ${
         active
           ? activeClass
           : variant === "danger"
-          ? "text-neutral-400 hover:text-red-400 hover:bg-red-500/10"
-          : "text-neutral-400 hover:text-white hover:bg-neutral-800/70"
+          ? "text-neutral-400 hover:text-red-400 hover:bg-red-500/10 active:bg-red-500/20"
+          : "text-neutral-400 hover:text-white hover:bg-neutral-800/70 active:bg-neutral-200"
       }`}
       title={label}
+      aria-label={label}
     >
       {icon}
-      <span className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1.5 bg-neutral-50 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none border border-neutral-200 shadow-xl z-[100]">
+      {/* Tooltip — desktop only; touch users don't get hover. */}
+      <span className="hidden sm:block absolute left-1/2 -translate-x-1/2 top-full mt-2 px-3 py-1.5 bg-neutral-50 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none border border-neutral-200 shadow-xl z-[100]">
         {label}
         <div className="absolute left-1/2 -translate-x-1/2 bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-neutral-700" />
       </span>
