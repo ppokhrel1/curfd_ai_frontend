@@ -748,15 +748,34 @@ const Model3DCard: React.FC<{
         )}
         <div className="flex items-center gap-1 ml-auto">
           <button
-            onClick={() => downloadFile(proxifyUrl(modelUrl), modelUrl.split("/").pop() || "model.glb")}
+            onClick={() => {
+              // Prefer the textured GLB when the worker produced one —
+              // user expects "GLB" to match what they see in the viewer.
+              // Falls back to the bare mesh when no texture was baked.
+              const src = texturedUrl || modelUrl;
+              const base = (src.split("/").pop() || "model.glb").replace(
+                /\.glb$/i,
+                texturedUrl ? "_textured.glb" : ".glb"
+              );
+              downloadFile(proxifyUrl(src), base);
+            }}
             className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
-            title="Download GLB (for viewing)"
+            title={
+              texturedUrl
+                ? "Download GLB (textured / coloured)"
+                : "Download GLB (bare mesh)"
+            }
           >
             <Download className="w-3 h-3" />
             GLB
           </button>
           <button
             onClick={() => {
+              // STL is a geometry-only format — no per-vertex colour
+              // (the binary STL spec's "attribute byte count" word is
+              // not honoured by any slicer worth shipping). We always
+              // convert from the BARE mesh, which is highest-detail
+              // and what slicers want anyway.
               const stl = stlUrl
                 ? proxifyUrl(stlUrl)
                 : `${import.meta.env.VITE_API_URL || "/api/v1"}/convert/stl?url=${encodeURIComponent(modelUrl)}`;
@@ -764,7 +783,7 @@ const Model3DCard: React.FC<{
               downloadFile(stl, name);
             }}
             className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
-            title="Download STL (for 3D printing)"
+            title="Download STL (geometry only — STL has no colour by design; use GLB if you want colour)"
           >
             <Download className="w-3 h-3" />
             STL
