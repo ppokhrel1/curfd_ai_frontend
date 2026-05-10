@@ -112,15 +112,24 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
     const t = composeText.trim();
     if (!t || !onGenerateCustom) return;
     onGenerateCustom(t);
-    setMode('browse');
+    // Stay in COMPOSE while the generation is in flight — the button
+    // flips to "Generating…" via the `pending === 'generate'` prop.
+    // Once candidate_ready arrives, `effectiveShowReview` becomes true
+    // and the picker auto-transitions into REVIEW. If candidate_error
+    // arrives we stay here with the error banner so the user can fix
+    // the prompt instead of being booted back to the search grid.
   };
 
   const handleSubmitEdit = () => {
     const t = editText.trim();
     if (!t || !effectiveCandidate || !onEditCandidate) return;
     onEditCandidate(effectiveCandidate.runpod_url || effectiveCandidate.url, t);
-    setEditText('');
-    setMode('browse');
+    // Same logic as the generate path — stay in EDIT while pending so
+    // the spinner is visible. The form is already disabled via the
+    // `pending === 'edit'` prop on EditForm; the spinner overlay on
+    // the preview also shows. We only clear the editText / leave EDIT
+    // when the new candidate actually replaces the current one (driven
+    // by candidate_ready in useChat, which mutates payload.candidate).
   };
 
   const handleConfirm = () => {
