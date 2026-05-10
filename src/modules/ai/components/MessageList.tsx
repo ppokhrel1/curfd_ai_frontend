@@ -11,14 +11,25 @@ import { useAssemblyStore } from "@/modules/viewer/stores/assemblyStore";
 
 export type EditorPayloadType = "requirements" | "code";
 
-/** Fetch a URL with auth token and trigger a browser file download. */
+/** Fetch a URL with auth token and trigger a browser file download.
+ *  Refuses HTML/JSON responses for binary asset extensions — otherwise an
+ *  error page would land on disk as `model.glb` and produce a confusing
+ *  "UTF-8 decoding" failure when the user tries to open it. */
 function downloadFile(url: string, filename: string) {
   const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
   fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
-    .then((resp) => {
-      if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
+    .then(async (resp) => {
+      if (!resp.ok) {
+        throw new Error(`Download failed: ${resp.status} ${resp.statusText}`);
+      }
+      const ct = (resp.headers.get("content-type") || "").toLowerCase();
+      const isBinaryAsset = /\.(glb|stl|obj|gltf|step|stp|3mf)$/i.test(filename);
+      if (isBinaryAsset && (ct.startsWith("text/html") || ct.startsWith("application/json"))) {
+        const preview = (await resp.text()).slice(0, 200);
+        throw new Error(`Server returned ${ct} instead of a binary asset: ${preview}`);
+      }
       return resp.blob();
     })
     .then((blob) => {
@@ -28,7 +39,10 @@ function downloadFile(url: string, filename: string) {
       a.click();
       URL.revokeObjectURL(a.href);
     })
-    .catch((err) => console.error("Download failed:", err));
+    .catch((err) => {
+      console.error("Download failed:", err);
+      alert(`Download failed: ${err.message || err}`);
+    });
 }
 
 interface MessageListProps {
@@ -104,6 +118,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, 
                       alt={`Attached ${i + 1}`}
                       className="rounded-lg max-h-[150px] w-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => window.open(url, '_blank')}
+                      onError={(e) => {
+                        // Persisted chat-image URLs from /tmp may 404 after the
+                        // backend restarts (uploads dir wiped). Hide rather
+                        // than render a broken-image icon for every old msg.
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                      }}
                     />
                   ))}
                 </div>
