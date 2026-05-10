@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
@@ -63,11 +63,57 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
   const [editText, setEditText] = useState('');
   const [expandedUrl, setExpandedUrl] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  // Optimistic spinner — flips on the moment the user clicks Generate /
+  // Apply edit, so they get instant feedback without waiting for the WS
+  // candidate_pending event. Cleared by a useEffect once the real state
+  // takes over, OR by a 30 s timeout if the backend never replies (so
+  // the user isn't stuck staring at "Generating…" forever).
+  const [submitting, setSubmitting] = useState<'generate' | 'edit' | null>(null);
+  const submittingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const candidate: ImageCandidate | undefined = payload.candidate;
   const pending = payload.candidatePending; // 'generate' | 'edit' | undefined
   const error = payload.candidateError;
   const showReview = !!candidate;
+
+  // Merge optimistic submitting with the real WS-driven pending state.
+  // submitting wins right after click; once pending or candidate or error
+  // arrives, the useEffect below clears submitting and the real state
+  // takes over.
+  const effectivePending = pending || submitting || undefined;
+
+  useEffect(() => {
+    // Real state arrived → clear optimistic submitting.
+    if (pending || candidate || error) {
+      setSubmitting(null);
+      if (submittingTimerRef.current) {
+        clearTimeout(submittingTimerRef.current);
+        submittingTimerRef.current = null;
+      }
+    }
+  }, [pending, candidate, error]);
+
+  useEffect(() => {
+    // Cleanup timer on unmount.
+    return () => {
+      if (submittingTimerRef.current) clearTimeout(submittingTimerRef.current);
+    };
+  }, []);
+
+  const armSubmittingTimeout = (action: 'generate' | 'edit') => {
+    setSubmitting(action);
+    if (submittingTimerRef.current) clearTimeout(submittingTimerRef.current);
+    submittingTimerRef.current = setTimeout(() => {
+      // Backend never acknowledged in 30 s — give the user their UI back
+      // so they can retry / rephrase / cancel.
+      setSubmitting(null);
+      submittingTimerRef.current = null;
+      console.warn(
+        `[ImageSearchPicker] ${action} timed out — no candidate_pending / ` +
+        `candidate_ready / candidate_error within 30s. WS message lost?`
+      );
+    }, 30_000);
+  };
 
   // Once a candidate exists we always render REVIEW. Mode only matters in
   // the pre-candidate state (BROWSE vs COMPOSE).
@@ -110,26 +156,31 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
 
   const handleSubmitGenerate = () => {
     const t = composeText.trim();
-    if (!t || !onGenerateCustom) return;
+    if (!t) {
+      console.warn('[Picker] generate clicked with empty prompt');
+      return;
+    }
+    if (!onGenerateCustom) {
+      console.warn('[Picker] generate clicked but onGenerateCustom is undefined');
+      return;
+    }
+    console.log('[Picker] Submitting generate', {
+      promptLen: t.length,
+      requestId: payload.request_id,
+    });
+    armSubmittingTimeout('generate');
     onGenerateCustom(t);
-    // Stay in COMPOSE while the generation is in flight — the button
-    // flips to "Generating…" via the `pending === 'generate'` prop.
-    // Once candidate_ready arrives, `effectiveShowReview` becomes true
-    // and the picker auto-transitions into REVIEW. If candidate_error
-    // arrives we stay here with the error banner so the user can fix
-    // the prompt instead of being booted back to the search grid.
   };
 
   const handleSubmitEdit = () => {
     const t = editText.trim();
-    if (!t || !effectiveCandidate || !onEditCandidate) return;
+    if (!t) return;
+    if (!effectiveCandidate || !onEditCandidate) {
+      console.warn('[Picker] edit clicked without candidate or callback');
+      return;
+    }
+    armSubmittingTimeout('edit');
     onEditCandidate(effectiveCandidate.runpod_url || effectiveCandidate.url, t);
-    // Same logic as the generate path — stay in EDIT while pending so
-    // the spinner is visible. The form is already disabled via the
-    // `pending === 'edit'` prop on EditForm; the spinner overlay on
-    // the preview also shows. We only clear the editText / leave EDIT
-    // when the new candidate actually replaces the current one (driven
-    // by candidate_ready in useChat, which mutates payload.candidate).
   };
 
   const handleConfirm = () => {
@@ -159,7 +210,7 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
           {effectiveShowReview ? (
             <ReviewStep
               candidate={effectiveCandidate!}
-              pending={pending}
+              pending={effectivePending}
               error={error}
               onExpand={(u) => setExpandedUrl(u)}
               onTryDifferent={handleClearCandidate}
@@ -176,7 +227,7 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
                       setEditText('');
                       setMode('browse');
                     }}
-                    pending={pending === 'edit'}
+                    pending={effectivePending === 'edit'}
                   />
                 ) : null
               }
@@ -187,7 +238,7 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
               onChange={setComposeText}
               onSubmit={handleSubmitGenerate}
               onCancel={() => setMode('browse')}
-              pending={pending === 'generate'}
+              pending={effectivePending === 'generate'}
               error={error}
               defaultPrompt={payload.prompt}
             />
@@ -198,7 +249,7 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
               onExpand={(u) => setExpandedUrl(u)}
               onAskGenerate={() => setMode('compose')}
               error={error}
-              pending={pending === 'generate'}
+              pending={effectivePending === 'generate'}
             />
           )}
         </div>
