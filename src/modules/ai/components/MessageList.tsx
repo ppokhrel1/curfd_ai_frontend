@@ -33,11 +33,21 @@ function downloadFile(url: string, filename: string) {
       return resp.blob();
     })
     .then((blob) => {
+      const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
+      a.href = objectUrl;
       a.download = filename;
+      a.style.display = "none";
+      // Some browsers (Firefox, older Chrome) ignore .click() on a detached
+      // <a>. Attach it before clicking, then clean up after a tick — revoking
+      // the object URL synchronously after click() races the browser's
+      // deferred download start and silently aborts large downloads.
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(a.href);
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(objectUrl);
+      }, 1000);
     })
     .catch((err) => {
       console.error("Download failed:", err);
