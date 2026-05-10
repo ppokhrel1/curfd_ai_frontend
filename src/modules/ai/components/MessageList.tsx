@@ -218,6 +218,37 @@ const FormattedContent: React.FC<{
     );
   }
 
+  // Inline image (Gemini generate_image / edit_image result) — assistant
+  // bubble shows caption + the generated picture. Click to open full-size.
+  if (
+    message.role === "assistant" &&
+    message.imageUrls &&
+    message.imageUrls.length > 0 &&
+    !message.shapeData
+  ) {
+    return (
+      <div>
+        {content && (
+          <p className="break-words whitespace-pre-wrap text-sm mb-2">{content}</p>
+        )}
+        <div className={`grid gap-1.5 ${message.imageUrls.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
+          {message.imageUrls.map((url, i) => (
+            <img
+              key={i}
+              src={url}
+              alt={`Generated ${i + 1}`}
+              className="rounded-lg max-h-[260px] w-full object-contain bg-neutral-100 cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => window.open(url, "_blank")}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // Check for 3D model URL + parts + textured variant in metadata or content.
   const { modelUrl, stlUrl, meshParts, texturedUrl } = (() => {
     const meta = (message as any).metadata_json || (message as any).metadata;

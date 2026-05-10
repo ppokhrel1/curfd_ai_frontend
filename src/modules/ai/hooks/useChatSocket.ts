@@ -14,6 +14,7 @@ export type RunpodEventType =
   | "image_to_3d.queued"
   | "image_to_3d.image_options"
   | "image_to_3d.error"
+  | "image.generated"
   | "mesh_modification.queued"
   | "mesh_modification.error"
   | "error";
@@ -39,6 +40,10 @@ export interface RunpodEvent {
   search_query?: string;
   request_id?: string;
   prompt?: string;
+  // For image.generated event (Gemini text-to-image / image edit):
+  url?: string;
+  tool?: "generate_image" | "edit_image";
+  source_image_url?: string;
 }
 
 interface UseChatSocketProps {

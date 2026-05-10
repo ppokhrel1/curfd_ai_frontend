@@ -420,6 +420,25 @@ export const useChat = (
           }
           setGenerating(chatId, false);
           break;
+        case "image.generated":
+          // Gemini generated or edited an image — surface as an inline
+          // assistant message with an attached image URL.
+          if (!chatId || !event.url) break;
+          {
+            const promptText = (event.prompt || "").trim();
+            const action = event.tool === "edit_image" ? "Edited" : "Generated";
+            const caption = promptText
+              ? `${action}: ${promptText}`
+              : `${action} image`;
+            useChatStore.getState().addMessage(chatId, {
+              id: `gen-img-${Date.now()}`,
+              role: "assistant",
+              content: caption,
+              timestamp: new Date(),
+              imageUrls: [event.url],
+            });
+          }
+          break;
 
         case "mesh_modification.queued":
           if (!chatId) break;
