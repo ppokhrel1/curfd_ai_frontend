@@ -244,10 +244,39 @@ export class ModelImporter {
 
         // Use mesh's own name (from GLB scene nodes) for material, fallback to filename
         const partName = (mesh.name && mesh.name !== "") ? mesh.name : cleanPartName;
-        const materialProps = this.getMaterialProperties(partName);
-        const material = new THREE.MeshStandardMaterial(materialProps);
+        // Preserve the GLB's own material when it carries a real texture
+        // (e.g. Hunyuan3D-Paint output). Replacing it with a fresh
+        // MeshStandardMaterial would strip baseColorTexture and render
+        // the model as a flat grey blob — exactly what we kept seeing.
+        // For OpenSCAD/CadQuery output that has no texture, fall back to
+        // the named-material default so parts get coloured per-name.
+        const existing = mesh.material as THREE.Material | THREE.Material[] | undefined;
+        const existingFirst = Array.isArray(existing) ? existing[0] : existing;
+        const hasTexture = !!(
+          existingFirst &&
+          ((existingFirst as any).map ||
+            (existingFirst as any).baseColorTexture)
+        );
+        let material: THREE.Material;
+        if (hasTexture) {
+          // Keep the GLTFLoader-built material verbatim; just make sure
+          // its base colour map renders in sRGB so the texture isn't
+          // gamma-corrupted (three.js default since r152).
+          material = existingFirst as THREE.Material;
+          const mapAny = (material as any).map as THREE.Texture | undefined;
+          if (mapAny && (THREE as any).SRGBColorSpace) {
+            (mapAny as any).colorSpace = (THREE as any).SRGBColorSpace;
+            mapAny.needsUpdate = true;
+          }
+        } else {
+          const materialProps = this.getMaterialProperties(partName);
+          material = new THREE.MeshStandardMaterial(materialProps);
+        }
         mesh.material = material;
-        mesh.userData.originalColor = material.color.getHex();
+        mesh.userData.originalColor =
+          (material as any).color && typeof (material as any).color.getHex === "function"
+            ? (material as any).color.getHex()
+            : 0xffffff;
 
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -452,16 +481,36 @@ export class ModelImporter {
           const gltf = await this.loadGLTF(url);
           loadedObject = gltf.scene;
 
-          // Apply materials to GLB
-          const materialProps = this.getMaterialProperties(partName);
-          const material = new THREE.MeshStandardMaterial(materialProps);
+          // Same texture-preservation rule as loadMeshAsObject: only
+          // overwrite the material when the GLB carries no texture
+          // (OpenSCAD output / handmade GLBs). Hunyuan3D-Paint output
+          // arrives here with a baseColorTexture we must keep.
           loadedObject.traverse((child) => {
-            if ((child as THREE.Mesh).isMesh) {
-              (child as THREE.Mesh).material = material;
-              child.castShadow = true;
-              child.receiveShadow = true;
-              child.userData.originalColor = material.color.getHex();
+            if (!(child as THREE.Mesh).isMesh) return;
+            const mesh = child as THREE.Mesh;
+            const existing = mesh.material as THREE.Material | THREE.Material[] | undefined;
+            const existingFirst = Array.isArray(existing) ? existing[0] : existing;
+            const hasTexture = !!(
+              existingFirst && (existingFirst as any).map
+            );
+            let material: THREE.Material;
+            if (hasTexture) {
+              material = existingFirst as THREE.Material;
+              const mapAny = (material as any).map as THREE.Texture | undefined;
+              if (mapAny && (THREE as any).SRGBColorSpace) {
+                (mapAny as any).colorSpace = (THREE as any).SRGBColorSpace;
+                mapAny.needsUpdate = true;
+              }
+            } else {
+              material = new THREE.MeshStandardMaterial(
+                this.getMaterialProperties(partName)
+              );
             }
+            mesh.material = material;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData.originalColor =
+              (material as any).color?.getHex?.() ?? 0xffffff;
           });
         } else {
           console.warn(`Unsupported mesh format: ${ext}`);
@@ -516,15 +565,35 @@ export class ModelImporter {
   ): Promise<THREE.Object3D | null> {
     const loadedObject = await this.loadMeshAsObject(meshUrl, meshName);
     const cleanPartName = partName || this.extractPartName(meshName);
-    const materialProps = this.getMaterialProperties(cleanPartName);
-    const material = new THREE.MeshStandardMaterial(materialProps);
 
     loadedObject.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        (child as THREE.Mesh).material = material;
+      if (!(child as THREE.Mesh).isMesh) return;
+      const mesh = child as THREE.Mesh;
+      // Preserve GLB-carried texture (Hunyuan-Paint output); only
+      // overwrite when there's no map. Same logic as loadMeshAsObject.
+      const existing = mesh.material as THREE.Material | THREE.Material[] | undefined;
+      const existingFirst = Array.isArray(existing) ? existing[0] : existing;
+      const hasTexture = !!(existingFirst && (existingFirst as any).map);
+      let material: THREE.Material;
+      if (hasTexture) {
+        material = existingFirst as THREE.Material;
+        const mapAny = (material as any).map as THREE.Texture | undefined;
+        if (mapAny && (THREE as any).SRGBColorSpace) {
+          (mapAny as any).colorSpace = (THREE as any).SRGBColorSpace;
+          mapAny.needsUpdate = true;
+        }
+      } else {
+        material = new THREE.MeshStandardMaterial(
+          this.getMaterialProperties(cleanPartName)
+        );
+      }
+      // legacy: outer code reads originalColor for highlight effects
+      mesh.userData.originalColor =
+        (material as any).color?.getHex?.() ?? 0xffffff;
+      {
+        mesh.material = material;
         child.castShadow = true;
         child.receiveShadow = true;
-        child.userData.originalColor = material.color.getHex();
         child.userData.sourceFile = meshName;
         if (!child.name || child.name === "") {
           child.name = cleanPartName;
