@@ -219,7 +219,8 @@ const FormattedContent: React.FC<{
   }
 
   // Inline image (Gemini generate_image / edit_image result) — assistant
-  // bubble shows caption + the generated picture. Click to open full-size.
+  // bubble shows caption + the generated picture. R2 URLs go through
+  // proxifyUrl since the bucket is private; data URLs are unchanged.
   if (
     message.role === "assistant" &&
     message.imageUrls &&
@@ -232,18 +233,21 @@ const FormattedContent: React.FC<{
           <p className="break-words whitespace-pre-wrap text-sm mb-2">{content}</p>
         )}
         <div className={`grid gap-1.5 ${message.imageUrls.length === 1 ? "grid-cols-1" : "grid-cols-2"}`}>
-          {message.imageUrls.map((url, i) => (
-            <img
-              key={i}
-              src={url}
-              alt={`Generated ${i + 1}`}
-              className="rounded-lg max-h-[260px] w-full object-contain bg-neutral-100 cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => window.open(url, "_blank")}
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
-          ))}
+          {message.imageUrls.map((url, i) => {
+            const src = proxifyUrl(url);
+            return (
+              <img
+                key={i}
+                src={src}
+                alt={`Generated ${i + 1}`}
+                className="rounded-lg max-h-[260px] w-full object-contain bg-neutral-100 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => window.open(src, "_blank")}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            );
+          })}
         </div>
       </div>
     );
