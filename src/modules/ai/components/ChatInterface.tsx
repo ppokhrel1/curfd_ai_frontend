@@ -138,6 +138,8 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
       sendMessage,
       sendSystemMessage: persistSystemMessage,
       sendImageSelection,
+      sendCustomImageGeneration,
+      sendEditCandidate,
       sendMeshModification,
       clearMessages,
       retryLastMessage,
@@ -408,6 +410,8 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                           onRegenerate={regenerateWithModel}
                           onViewIn3D={handleViewIn3D}
                           onImageSelect={sendImageSelection}
+                          onGenerateCustomImage={sendCustomImageGeneration}
+                          onEditCandidateImage={sendEditCandidate}
                           onModifyMesh={sendMeshModification}
                         />
                       </div>

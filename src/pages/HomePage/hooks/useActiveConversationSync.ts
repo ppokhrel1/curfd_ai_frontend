@@ -70,10 +70,18 @@ export const useActiveConversationSync = ({
         // Recover image_to_3d shapes from assistant message metadata or content
         if (msg.role === "assistant") {
           const findModelUrl = (): string | undefined => {
+            // Prefer textured GLB whenever the worker produced one — the
+            // user enabled the texture toggle expecting to see colour, and
+            // the bare mesh recovers as a striated grey sausage. Order:
+            //   textured_url > model_url/uri > download_url
             // 1. Check metadata_json.output (persisted by _runpod_poll_and_emit)
             const meta = msg.metadata_json || msg.metadata;
             if (meta) {
               const output = meta.output;
+              const tex = output?.textured_url
+                || output?.metadata_json?.textured_url
+                || meta.textured_url;
+              if (tex && /\.(glb|stl|obj)/i.test(tex)) return tex;
               const url = output?.uri || output?.model_url || output?.download_url
                 || output?.metadata_json?.model_url
                 || meta.model_url || meta.download_url;
@@ -83,6 +91,8 @@ export const useActiveConversationSync = ({
             if (typeof msg.content === 'string' && msg.content.startsWith('{')) {
               try {
                 const parsed = JSON.parse(msg.content);
+                const tex = parsed.textured_url || parsed.metadata_json?.textured_url;
+                if (tex && /\.(glb|stl|obj)/i.test(tex)) return tex;
                 const url = parsed.uri || parsed.model_url || parsed.download_url
                   || parsed.metadata_json?.model_url;
                 if (url && /\.(glb|stl|obj)/i.test(url)) return url;
@@ -114,7 +124,10 @@ export const useActiveConversationSync = ({
               geometry: {
                 parts: recoveredParts.map((p: any) => ({
                   name: p.name,
-                  meshUrl: p.mesh_url,
+                  // Same textured-first rule as the main mesh — `_textured.glb`
+                  // is what the user actually wants to see when the worker
+                  // produced one.
+                  meshUrl: p.textured_url || p.mesh_url || p.url,
                   primitive: p.primitive,
                   faceCount: p.face_count,
                   isWatertight: p.is_watertight,

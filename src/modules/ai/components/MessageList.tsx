@@ -61,10 +61,12 @@ interface MessageListProps {
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
   onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
+  onGenerateCustomImage?: (requestId: string, prompt: string) => void;
+  onEditCandidateImage?: (requestId: string, imageUrl: string, editPrompt: string) => void;
   onModifyMesh?: (meshUrl: string, modification: string) => void;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onModifyMesh }) => {
+export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onGenerateCustomImage, onEditCandidateImage, onModifyMesh}) => {
   return (
     <div className="space-y-4 w-full pb-2">
       {messages.map((message, index) => (
@@ -75,6 +77,8 @@ export const MessageList: React.FC<MessageListProps> = ({ messages, onOpenInEdit
           onRegenerate={onRegenerate}
           onViewIn3D={onViewIn3D}
           onImageSelect={onImageSelect}
+          onGenerateCustomImage={onGenerateCustomImage}
+          onEditCandidateImage={onEditCandidateImage}
           onModifyMesh={onModifyMesh}
         />
       ))}
@@ -88,10 +92,12 @@ interface MessageBubbleProps {
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
   onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
+  onGenerateCustomImage?: (requestId: string, prompt: string) => void;
+  onEditCandidateImage?: (requestId: string, imageUrl: string, editPrompt: string) => void;
   onModifyMesh?: (meshUrl: string, modification: string) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onModifyMesh }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onGenerateCustomImage, onEditCandidateImage, onModifyMesh}) => {
   const isUser = message.role === "user";
   // Auto-open is handled by ChatInterface's AUTO-LOAD EFFECT +
   // useActiveConversationSync handles compilation — no duplicate here.
@@ -141,7 +147,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onOpenInEditor, 
               <span className="break-words whitespace-pre-wrap">{message.content}</span>
             </div>
           ) : (
-            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} onModifyMesh={onModifyMesh} />
+            <TypewriterContent message={message} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} onGenerateCustomImage={onGenerateCustomImage} onEditCandidateImage={onEditCandidateImage} onModifyMesh={onModifyMesh} />
           )}
         </div>
 
@@ -161,8 +167,10 @@ const TypewriterContent: React.FC<{
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
   onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
+  onGenerateCustomImage?: (requestId: string, prompt: string) => void;
+  onEditCandidateImage?: (requestId: string, imageUrl: string, editPrompt: string) => void;
   onModifyMesh?: (meshUrl: string, modification: string) => void;
-}> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onModifyMesh }) => {
+}> = ({ message, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onGenerateCustomImage, onEditCandidateImage, onModifyMesh}) => {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
 
@@ -183,7 +191,7 @@ const TypewriterContent: React.FC<{
     return () => clearInterval(iv);
   }, [message.content, message.shapeData]);
 
-  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} onModifyMesh={onModifyMesh} />;
+  return <FormattedContent message={message} content={displayed} onOpenInEditor={onOpenInEditor} onRegenerate={onRegenerate} onViewIn3D={onViewIn3D} onImageSelect={onImageSelect} onGenerateCustomImage={onGenerateCustomImage} onEditCandidateImage={onEditCandidateImage} onModifyMesh={onModifyMesh} />;
 };
 
 // ── Content renderer ──────────────────────────────────────────────────────────
@@ -195,8 +203,10 @@ const FormattedContent: React.FC<{
   onRegenerate?: (messageId: string, modelOverride: ModelOverride) => void;
   onViewIn3D?: (modelUrl: string) => void;
   onImageSelect?: (requestId: string, imageUrl: string, prompt: string) => void;
+  onGenerateCustomImage?: (requestId: string, prompt: string) => void;
+  onEditCandidateImage?: (requestId: string, imageUrl: string, editPrompt: string) => void;
   onModifyMesh?: (meshUrl: string, modification: string) => void;
-}> = ({ message, content, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onModifyMesh }) => {
+}> = ({ message, content, onOpenInEditor, onRegenerate, onViewIn3D, onImageSelect, onGenerateCustomImage, onEditCandidateImage, onModifyMesh}) => {
   // Handle image search results — text in bubble, picker below it (outside bubble)
   if (message.imageSearchPayload && message.role === "assistant") {
     return (
@@ -210,6 +220,23 @@ const FormattedContent: React.FC<{
                 message.imageSearchPayload!.request_id,
                 imageUrl,
                 message.imageSearchPayload!.prompt
+              );
+            }
+          }}
+          onGenerateCustom={(customPrompt) => {
+            if (onGenerateCustomImage) {
+              onGenerateCustomImage(
+                message.imageSearchPayload!.request_id,
+                customPrompt
+              );
+            }
+          }}
+          onEditCandidate={(imageUrl, editPrompt) => {
+            if (onEditCandidateImage) {
+              onEditCandidateImage(
+                message.imageSearchPayload!.request_id,
+                imageUrl,
+                editPrompt
               );
             }
           }}
@@ -742,18 +769,16 @@ const Model3DCard: React.FC<{
             <Download className="w-3 h-3" />
             STL
           </button>
-          {texturedUrl && (
-            <button
-              onClick={() => onViewIn3D?.(texturedUrl)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-500 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 hover:border-violet-500/50 transition-all whitespace-nowrap shrink-0"
-              title="View the textured (UV-mapped) variant"
-            >
-              View textured
-            </button>
-          )}
+          {/* Single primary action: View in 3D. Loads textured when the
+              worker produced one (the user enabled the toggle), else the
+              raw mesh. The bare-mesh GLB is still downloadable via the
+              GLB button to the left, so we don't need a separate inline
+              "Untextured" entry — that earlier added a 5th element that
+              made this row overflow on narrow chat columns. */}
           <button
-            onClick={() => onViewIn3D?.(modelUrl)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 hover:border-violet-400/40 transition-all group whitespace-nowrap shrink-0"
+            onClick={() => onViewIn3D?.(texturedUrl || modelUrl)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-semibold text-white bg-violet-500 hover:bg-violet-600 border border-violet-500 transition-all group whitespace-nowrap shrink-0"
+            title={texturedUrl ? "Open the textured mesh in the viewer" : "Open the mesh in the viewer"}
           >
             View in 3D
             <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />

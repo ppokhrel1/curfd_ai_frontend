@@ -14,6 +14,9 @@ export type RunpodEventType =
   | "image_to_3d.queued"
   | "image_to_3d.image_options"
   | "image_to_3d.error"
+  | "image_to_3d.candidate_pending"
+  | "image_to_3d.candidate_ready"
+  | "image_to_3d.candidate_error"
   | "image.generated"
   | "mesh_modification.queued"
   | "mesh_modification.error"
@@ -44,6 +47,12 @@ export interface RunpodEvent {
   url?: string;
   tool?: "generate_image" | "edit_image";
   source_image_url?: string;
+  message_id?: string;
+  // For image_to_3d.candidate_* events:
+  display_url?: string;
+  runpod_url?: string;
+  source?: "search" | "ai_generated" | "ai_edited" | "uploaded";
+  action?: "generate" | "edit" | string;
 }
 
 interface UseChatSocketProps {

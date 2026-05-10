@@ -482,9 +482,12 @@ class ChatService {
       }
       if (meta?.images && Array.isArray(meta.images)) {
         const baseUrl = rawApi.defaults.baseURL || '';
-        imageUrls = meta.images.map((path: string) =>
-          path.startsWith('http') ? path : `${baseUrl}${path}`
-        );
+        imageUrls = meta.images.map((path: string) => {
+          // Pass through full URLs and data: URLs unchanged. Only relative
+          // paths (legacy /uploads/chat-images/…) get the API base prefix.
+          if (path.startsWith('http') || path.startsWith('data:')) return path;
+          return `${baseUrl}${path}`;
+        });
       }
     }
 

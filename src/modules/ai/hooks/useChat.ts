@@ -76,6 +76,8 @@ interface UseChatReturn {
     shapeData?: GeneratedShape
   ) => Promise<void>;
   sendImageSelection: (requestId: string, imageUrl: string, prompt: string) => void;
+  sendCustomImageGeneration: (requestId: string, prompt: string) => void;
+  sendEditCandidate: (requestId: string, imageUrl: string, editPrompt: string) => void;
   sendMeshModification: (meshUrl: string, modification: string) => void;
   generateModel: (requirements: any) => Promise<void>;
   clearMessages: () => void;
@@ -176,31 +178,43 @@ export const useChat = (
             if (event.action === "image_to_3d" && event.output) {
               const rawOutput = event.output?.output || event.output;
               const modelUrl = rawOutput.model_url || rawOutput.download_url;
+              const texturedUrl: string | undefined = rawOutput.textured_url;
+              // When the worker produced a textured GLB, prefer it as the
+              // auto-loaded mesh — the user asked for a textured model and
+              // expects to see colour/UV-mapped surfaces, not the raw bake.
+              // The untextured URL is still kept around (passed via the
+              // shape's `assets` and the message's metadata) so the model
+              // card can offer a "View untextured" option if needed.
+              const primaryUrl = texturedUrl || modelUrl;
 
-              if (modelUrl && onShapeGenerated) {
-                // Extract segmented parts if the worker returned them
+              if (primaryUrl && onShapeGenerated) {
+                // Extract segmented parts if the worker returned them. Same
+                // textured-first logic for parts: a textured part URL wins
+                // over the bare-mesh URL.
                 const rawParts: any[] = rawOutput.parts || [];
                 const parts = rawParts.map((p: any, i: number) => ({
                   id: p.name || `part-${i}`,
                   name: p.name || `Part ${i + 1}`,
                   category: "mesh",
                   role: p.name || "part",
-                  mesh_file: p.mesh_url || p.url,
+                  mesh_file: p.textured_url || p.mesh_url || p.url,
                 }));
                 const partAssets = rawParts
-                  .filter((p: any) => p.mesh_url || p.url)
+                  .filter((p: any) => p.textured_url || p.mesh_url || p.url)
                   .map((p: any) => ({
                     filename: `${p.name || "part"}.glb`,
-                    url: p.mesh_url || p.url,
+                    url: p.textured_url || p.mesh_url || p.url,
                   }));
 
                 const shape: GeneratedShape = {
                   id: `img3d-${Date.now()}`,
                   type: "generic" as any,
                   name: "AI Generated 3D Model",
-                  description: `Generated from image (${parts.length} part${parts.length !== 1 ? "s" : ""})`,
+                  description: texturedUrl
+                    ? `Generated from image · textured${parts.length ? ` · ${parts.length} parts` : ""}`
+                    : `Generated from image${parts.length ? ` · ${parts.length} parts` : ""}`,
                   hasSimulation: false,
-                  sdfUrl: modelUrl,
+                  sdfUrl: primaryUrl,
                   assets: partAssets.length > 0 ? partAssets : undefined,
                   geometry: {
                     parts,
@@ -420,6 +434,52 @@ export const useChat = (
           }
           setGenerating(chatId, false);
           break;
+        // ── Picker candidate flow (nano banana inside the picker) ──
+        // The picker sends prompts back; we update its imageSearchPayload
+        // so React re-renders the picker into the right step. None of these
+        // touch the global isGenerating state — the picker has its own
+        // local pending UI.
+        case "image_to_3d.candidate_pending":
+        case "image_to_3d.candidate_ready":
+        case "image_to_3d.candidate_error": {
+          if (!chatId || !event.request_id) break;
+          const msgId = `img-search-${event.request_id}`;
+          const conversation = useChatStore
+            .getState()
+            .conversations.find((c) => c.id === chatId);
+          const existing = conversation?.messages.find((m) => m.id === msgId);
+          if (!existing || !existing.imageSearchPayload) break;
+
+          let nextPayload = { ...existing.imageSearchPayload };
+          if (event.type === "image_to_3d.candidate_pending") {
+            nextPayload.candidatePending =
+              event.action === "edit" ? "edit" : "generate";
+            nextPayload.candidateError = undefined;
+          } else if (event.type === "image_to_3d.candidate_ready") {
+            nextPayload = {
+              ...nextPayload,
+              candidate: {
+                url: event.display_url || "",
+                runpod_url: event.runpod_url,
+                source:
+                  (event.source as any) ||
+                  (existing.imageSearchPayload.candidate?.source ?? "ai_generated"),
+                prompt: event.prompt,
+              },
+              candidatePending: undefined,
+              candidateError: undefined,
+            };
+          } else {
+            nextPayload.candidatePending = undefined;
+            nextPayload.candidateError =
+              (typeof event.message === "string" ? event.message : undefined) ||
+              "Could not generate that image. Try rephrasing.";
+          }
+          useChatStore.getState().updateMessage(chatId, msgId, {
+            imageSearchPayload: nextPayload,
+          });
+          break;
+        }
         case "image.generated":
           // Gemini generated or edited an image — surface as an inline
           // assistant message with an attached image URL.
@@ -430,13 +490,25 @@ export const useChat = (
             const caption = promptText
               ? `${action}: ${promptText}`
               : `${action} image`;
+            // Use the server-side message id when present so reloading the
+            // chat (which fetches from the messages table) won't duplicate
+            // this row alongside a fresh-from-DB copy with the real id.
+            const persistedId = (event as any).message_id as string | undefined;
             useChatStore.getState().addMessage(chatId, {
-              id: `gen-img-${Date.now()}`,
+              id: persistedId || `gen-img-${Date.now()}`,
               role: "assistant",
               content: caption,
               timestamp: new Date(),
               imageUrls: [event.url],
             });
+            // Re-enable the chat input as soon as the picture lands. The
+            // agent may keep streaming text after this (a final
+            // acknowledgement, etc.) but the user has what they asked for
+            // and shouldn't have to wait on the trailing text to type the
+            // next message. If a later tool call needs the input blocked
+            // again the openscad.tool handler will flip it back.
+            setGenerating(chatId, false);
+            sendingRef.current = false;
           }
           break;
 
@@ -807,6 +879,44 @@ export const useChat = (
     [chatId, sendWs, wsConnected, setGenerating, setError]
   );
 
+  // --- Picker: generate a fresh candidate image with nano banana ---
+  // Does NOT trigger RunPod. The backend returns the result via
+  // image_to_3d.candidate_ready and the picker shows it for review. The
+  // user must explicitly click "Use for 3D" to commit.
+  const sendCustomImageGeneration = useCallback(
+    (requestId: string, prompt: string) => {
+      if (!chatId || !prompt.trim() || !requestId) return;
+      if (!wsConnected) {
+        setError("WebSocket disconnected — can't generate a candidate image.");
+        return;
+      }
+      sendWs({
+        type: "image_to_3d.generate_custom",
+        prompt,
+        request_id: requestId,
+      });
+    },
+    [chatId, sendWs, wsConnected, setError]
+  );
+
+  // --- Picker: refine the current candidate via Gemini edit ---
+  const sendEditCandidate = useCallback(
+    (requestId: string, imageUrl: string, editPrompt: string) => {
+      if (!chatId || !editPrompt.trim() || !imageUrl || !requestId) return;
+      if (!wsConnected) {
+        setError("WebSocket disconnected — can't edit the candidate image.");
+        return;
+      }
+      sendWs({
+        type: "image_to_3d.edit_candidate",
+        prompt: editPrompt,
+        image_url: imageUrl,
+        request_id: requestId,
+      });
+    },
+    [chatId, sendWs, wsConnected, setError]
+  );
+
   const sendMeshModification = useCallback(
     (meshUrl: string, modification: string) => {
       if (!chatId) {
@@ -970,6 +1080,8 @@ export const useChat = (
     sendMessage,
     sendSystemMessage,
     sendImageSelection,
+    sendCustomImageGeneration,
+    sendEditCandidate,
     sendMeshModification,
     generateModel,
     clearMessages,
