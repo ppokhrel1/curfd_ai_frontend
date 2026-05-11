@@ -9,6 +9,7 @@ import { useAuthStore } from "@/lib/auth";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { useEditorStore } from "@/modules/editor/stores/editorStore";
 import { useAssemblyStore } from "@/modules/viewer/stores/assemblyStore";
+import { encryptedApi as api } from "@/lib/api/encryptedClient";
 
 // --- HELPER: Auto-Parse OpenSCAD Variables ---
 const extractParametersFromCode = (code: string) => {
@@ -278,7 +279,194 @@ export const useChat = (
     ]
   );
 
-  
+  // Apply a picker candidate event (pending / ready / error) to chat
+  // store. Same logic for WS events and REST recovery polls — the
+  // backend's `_cache_picker_result` stashes the exact payload it
+  // would have WS-sent, so we just feed it through one path.
+  //
+  // Robust against the message having been wiped between submit and
+  // apply (which can happen if useConversations re-syncs from the
+  // server and the picker message — a client-only artifact — gets
+  // dropped). When that happens we re-add a minimal message carrying
+  // the candidate so the picker can pick up where it left off.
+  const applyPickerEvent = useCallback(
+    (event: any) => {
+      if (!chatId || !event?.request_id) {
+        console.warn("[picker apply] missing chatId or request_id", { chatId, event });
+        return;
+      }
+      const msgId = `img-search-${event.request_id}`;
+      const store = useChatStore.getState();
+      const conversation = store.conversations.find((c) => c.id === chatId);
+      let existing = conversation?.messages.find((m) => m.id === msgId);
+
+      if (!existing) {
+        console.warn(
+          `[picker apply] message ${msgId} not found in chat ${chatId} — ` +
+          `${conversation?.messages.length ?? 0} messages in store; ` +
+          `re-adding minimal picker shell so the candidate can render`
+        );
+        // Recreate a stub message. We don't have the original `image_urls`
+        // or `search_query`, but the picker only needs `candidate` /
+        // `candidatePending` / `candidateError` to render the REVIEW step.
+        const stub: any = {
+          id: msgId,
+          role: "assistant",
+          content: "Generated image:",
+          timestamp: new Date(),
+          imageSearchPayload: {
+            image_urls: [],
+            search_query: "",
+            request_id: event.request_id,
+            prompt: event.prompt || "",
+          },
+        };
+        store.addMessage(chatId, stub);
+        const after = useChatStore
+          .getState()
+          .conversations.find((c) => c.id === chatId);
+        existing = after?.messages.find((m) => m.id === msgId);
+        if (!existing) {
+          console.error(`[picker apply] failed to re-add ${msgId} — giving up`);
+          return;
+        }
+      }
+      if (!existing.imageSearchPayload) {
+        // Message exists but lost its picker payload (chat history reload?
+        // store rehydration?). Reconstruct a minimal payload from the event
+        // so the picker can still render the candidate.
+        console.warn(
+          `[picker apply] ${msgId} has no imageSearchPayload — rebuilding from event`
+        );
+        store.updateMessage(chatId, msgId, {
+          imageSearchPayload: {
+            image_urls: [],
+            search_query: "",
+            request_id: event.request_id,
+            prompt: event.prompt || "",
+          } as any,
+        });
+        const conv2 = useChatStore
+          .getState()
+          .conversations.find((c) => c.id === chatId);
+        const fresh = conv2?.messages.find((m) => m.id === msgId);
+        if (!fresh?.imageSearchPayload) return;
+        (existing as any).imageSearchPayload = fresh.imageSearchPayload;
+      }
+
+      let nextPayload = { ...existing.imageSearchPayload };
+      if (event.type === "image_to_3d.candidate_pending") {
+        nextPayload.candidatePending =
+          event.action === "edit" ? "edit" : "generate";
+        nextPayload.candidateError = undefined;
+      } else if (event.type === "image_to_3d.candidate_ready") {
+        nextPayload = {
+          ...nextPayload,
+          candidate: {
+            url: event.display_url || "",
+            runpod_url: event.runpod_url,
+            source:
+              (event.source as any) ||
+              (existing.imageSearchPayload.candidate?.source ?? "ai_generated"),
+            prompt: event.prompt,
+          },
+          candidatePending: undefined,
+          candidateError: undefined,
+        };
+      } else if (event.type === "image_to_3d.candidate_error") {
+        nextPayload.candidatePending = undefined;
+        nextPayload.candidateError =
+          (typeof event.message === "string" ? event.message : undefined) ||
+          "Could not generate that image. Try rephrasing.";
+      } else {
+        return;
+      }
+      useChatStore
+        .getState()
+        .updateMessage(chatId, msgId, { imageSearchPayload: nextPayload });
+    },
+    [chatId]
+  );
+
+  // REST recovery for picker candidates when the WebSocket drops mid-
+  // request. The backend caches the resolved candidate payload keyed by
+  // request_id; we poll for it with backoff. Stops early as soon as
+  // the WS delivers (chat store already has a candidate or error).
+  const pickerPollsRef = useRef<Set<string>>(new Set());
+  const pollPickerCandidate = useCallback(
+    (requestId: string) => {
+      if (!chatId || !requestId) {
+        console.warn("[picker recovery] skipped — missing chatId or requestId", {
+          chatId,
+          requestId,
+        });
+        return;
+      }
+      if (pickerPollsRef.current.has(requestId)) {
+        console.log(`[picker recovery] poll for ${requestId} already running`);
+        return;
+      }
+      pickerPollsRef.current.add(requestId);
+      console.log(`[picker recovery] starting poll for ${requestId}`);
+
+      // Backoff schedule. The first two ticks cover the typical Gemini
+      // call (~5-8s); later ticks survive longer outages (server reload
+      // mid-edit, slow networks). Total wall time ~3 min, then give up.
+      const delays = [2000, 3000, 4000, 5000, 7000, 10000, 15000, 20000, 30000, 45000, 45000];
+
+      (async () => {
+        try {
+          let tick = 0;
+          for (const delay of delays) {
+            tick += 1;
+            await new Promise((r) => setTimeout(r, delay));
+            // Already resolved (WS got there first, or another poll)?
+            const conv = useChatStore
+              .getState()
+              .conversations.find((c) => c.id === chatId);
+            const msg = conv?.messages.find(
+              (m) => m.id === `img-search-${requestId}`
+            );
+            const p = msg?.imageSearchPayload;
+            if (p?.candidate?.url || p?.candidateError) {
+              console.log(
+                `[picker recovery] tick ${tick}: already resolved via WS — stopping`
+              );
+              return;
+            }
+
+            try {
+              const { data } = await api.get<{
+                status: "pending" | "found";
+                payload?: any;
+              }>(`/picker/candidate/${requestId}`);
+              console.log(
+                `[picker recovery] tick ${tick} (after ${delay}ms): status=${data?.status}`
+              );
+              if (data?.status === "found" && data.payload) {
+                console.log(
+                  `[picker recovery] recovered candidate via REST — applying`,
+                  data.payload
+                );
+                applyPickerEvent(data.payload);
+                return;
+              }
+            } catch (err) {
+              // Network blips during poll are expected — keep trying.
+              console.warn(`[picker recovery] tick ${tick} poll failed:`, err);
+            }
+          }
+          console.warn(
+            `[picker recovery] gave up after ${delays.length} ticks for ${requestId}`
+          );
+        } finally {
+          pickerPollsRef.current.delete(requestId);
+        }
+      })();
+    },
+    [chatId, applyPickerEvent]
+  );
+
   // --- 2. SOCKET EVENT HANDLER ---
   const handleSocketEvent = useCallback(
     async (event: RunpodEvent) => {
@@ -442,42 +630,7 @@ export const useChat = (
         case "image_to_3d.candidate_pending":
         case "image_to_3d.candidate_ready":
         case "image_to_3d.candidate_error": {
-          if (!chatId || !event.request_id) break;
-          const msgId = `img-search-${event.request_id}`;
-          const conversation = useChatStore
-            .getState()
-            .conversations.find((c) => c.id === chatId);
-          const existing = conversation?.messages.find((m) => m.id === msgId);
-          if (!existing || !existing.imageSearchPayload) break;
-
-          let nextPayload = { ...existing.imageSearchPayload };
-          if (event.type === "image_to_3d.candidate_pending") {
-            nextPayload.candidatePending =
-              event.action === "edit" ? "edit" : "generate";
-            nextPayload.candidateError = undefined;
-          } else if (event.type === "image_to_3d.candidate_ready") {
-            nextPayload = {
-              ...nextPayload,
-              candidate: {
-                url: event.display_url || "",
-                runpod_url: event.runpod_url,
-                source:
-                  (event.source as any) ||
-                  (existing.imageSearchPayload.candidate?.source ?? "ai_generated"),
-                prompt: event.prompt,
-              },
-              candidatePending: undefined,
-              candidateError: undefined,
-            };
-          } else {
-            nextPayload.candidatePending = undefined;
-            nextPayload.candidateError =
-              (typeof event.message === "string" ? event.message : undefined) ||
-              "Could not generate that image. Try rephrasing.";
-          }
-          useChatStore.getState().updateMessage(chatId, msgId, {
-            imageSearchPayload: nextPayload,
-          });
+          applyPickerEvent(event);
           break;
         }
         case "image.generated":
@@ -883,11 +1036,21 @@ export const useChat = (
   // Does NOT trigger RunPod. The backend returns the result via
   // image_to_3d.candidate_ready and the picker shows it for review. The
   // user must explicitly click "Use for 3D" to commit.
+  //
+  // We also kick off a REST recovery poll keyed by request_id — if the
+  // WS drops between submit and response (server reload mid-task), the
+  // poll finds the cached result and dispatches it as if it'd come
+  // through the socket. Without this, the user sees a 30s timeout
+  // even though the image already exists in R2 backend-side.
   const sendCustomImageGeneration = useCallback(
     (requestId: string, prompt: string) => {
       if (!chatId || !prompt.trim() || !requestId) return;
+      // Always start the recovery poll — even if the WS is down right
+      // now, an earlier identical submit may have made it to the backend
+      // and the poll is the only path to discover that.
+      pollPickerCandidate(requestId);
       if (!wsConnected) {
-        setError("WebSocket disconnected — can't generate a candidate image.");
+        setError("WebSocket disconnected — relying on REST recovery to deliver the image.");
         return;
       }
       sendWs({
@@ -896,7 +1059,7 @@ export const useChat = (
         request_id: requestId,
       });
     },
-    [chatId, sendWs, wsConnected, setError]
+    [chatId, sendWs, wsConnected, setError, pollPickerCandidate]
   );
 
   // --- Picker: refine the current candidate via Gemini edit ---
@@ -907,6 +1070,9 @@ export const useChat = (
         setError("WebSocket disconnected — can't edit the candidate image.");
         return;
       }
+      // Same reasoning as sendCustomImageGeneration: poll regardless of
+      // WS state. The poll is the only recovery path if WS drops mid-edit.
+      pollPickerCandidate(requestId);
       sendWs({
         type: "image_to_3d.edit_candidate",
         prompt: editPrompt,
@@ -914,7 +1080,7 @@ export const useChat = (
         request_id: requestId,
       });
     },
-    [chatId, sendWs, wsConnected, setError]
+    [chatId, sendWs, wsConnected, setError, pollPickerCandidate]
   );
 
   const sendMeshModification = useCallback(

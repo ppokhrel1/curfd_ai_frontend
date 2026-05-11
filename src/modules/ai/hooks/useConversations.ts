@@ -272,8 +272,28 @@ export const useConversations = (): UseConversationsReturn => {
         // were added before the server persisted them (race condition on new chats).
         const existingMsgs = useChatStore.getState().conversations.find(c => c.id === activeConversationId)?.messages ?? [];
         if (validatedHistory.length > 0 || existingMsgs.length === 0) {
+          // Preserve client-only picker messages (`img-search-*`) that the
+          // server doesn't persist. Without this, every history sync wipes
+          // the in-flight picker and breaks REST-recovery (the
+          // applyPickerEvent dispatch can't find a target message).
+          const serverIds = new Set(validatedHistory.map((m: any) => m.id));
+          const clientOnlyPicker = existingMsgs.filter(
+            (m: any) =>
+              typeof m.id === "string" &&
+              m.id.startsWith("img-search-") &&
+              !serverIds.has(m.id)
+          );
+          const merged = clientOnlyPicker.length
+            ? [...validatedHistory, ...clientOnlyPicker]
+            : validatedHistory;
+          if (clientOnlyPicker.length) {
+            console.log(
+              `[useConversations] Preserved ${clientOnlyPicker.length} ` +
+              `client-only picker message(s) across history sync`
+            );
+          }
           updateConversation(activeConversationId, {
-            messages: validatedHistory,
+            messages: merged,
             generatedShape: latestShape,
           });
         } else if (latestShape) {
