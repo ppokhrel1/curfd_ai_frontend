@@ -193,20 +193,22 @@ export const useChatStore = create<ChatState>()(
         {
             name: getUserStorageKey(),
             // Bumping the version invalidates persisted state on every client.
-            // Do this whenever stored conversations may reference assets that
-            // no longer exist (e.g. after a server-side wipe or a storage
-            // backend migration). On version mismatch Zustand drops the
-            // saved state and starts fresh.
-            version: 3,
+            // Do this whenever the shape of persisted state changes OR
+            // stored conversations may reference assets that no longer
+            // exist. On version mismatch Zustand drops the saved state
+            // and starts fresh.
+            // v4 = stopped persisting conversations/messages — chat
+            //      history reloads from the DB via useConversations
+            //      on chat select, so localStorage no longer mirrors
+            //      it. Drops the multi-MB image data URLs and picker
+            //      payloads that were bloating browser storage.
+            version: 4,
             storage: createJSONStorage(() => localStorage),
-            // Handle Set serialization
+            // Only persist UI preferences and the active-chat pointer.
+            // Conversations/messages are server-of-record; useConversations
+            // re-fetches them on activeConversationId change.
             partialize: (state) => ({
-                conversations: state.conversations,
                 activeConversationId: state.activeConversationId,
-                generatingChatStatus: state.generatingChatStatus,
-                generatingChatActions: state.generatingChatActions,
-                jobHistory: state.jobHistory,
-                generatingChatIds: Array.from(state.generatingChatIds) as any,
                 currentUserId: state.currentUserId,
                 selectedProvider: state.selectedProvider,
                 selectedModel: state.selectedModel,
@@ -218,23 +220,21 @@ export const useChatStore = create<ChatState>()(
             onRehydrateStorage: (state) => {
                 return (rehydratedState) => {
                     if (rehydratedState) {
-                        // Security: Validate user match before rehydrating
+                        // Security: Validate user match before rehydrating.
+                        // If the persisted user differs from the current
+                        // user, clear everything (defense in depth — the
+                        // partialize above already drops conversations,
+                        // but we still clear ephemeral state explicitly).
                         const userData = localStorage.getItem('curfd_user_data');
                         if (userData) {
                             try {
                                 const user = JSON.parse(userData);
                                 const currentUserId = user.id || user.user_id;
 
-                                // If stored user doesn't match current user, clear the data
                                 if (rehydratedState.currentUserId &&
                                     rehydratedState.currentUserId !== currentUserId) {
                                     console.warn('[ChatStore] User mismatch detected, clearing stale data');
-                                    rehydratedState.conversations = [];
-                                    rehydratedState.activeConversationId = null;
-                                    rehydratedState.generatingChatIds = new Set();
-                                    rehydratedState.generatingChatStatus = {};
-                                    rehydratedState.generatingChatActions = {};
-                                    rehydratedState.jobHistory = {};
+                                    (rehydratedState as any).activeConversationId = null;
                                 }
 
                                 rehydratedState.currentUserId = String(currentUserId);
@@ -243,14 +243,10 @@ export const useChatStore = create<ChatState>()(
                             }
                         }
 
-                        // Always start fresh — never restore in-progress generating state
-                        rehydratedState.generatingChatIds = new Set();
-
                         // Sync with service
                         if (rehydratedState.activeConversationId) {
                             chatService.setActiveChat(rehydratedState.activeConversationId);
                         }
-
                     }
                 };
             }

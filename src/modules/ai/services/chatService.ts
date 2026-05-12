@@ -498,6 +498,19 @@ class ChatService {
       try { preservedMeta = JSON.parse(preservedMeta); } catch(e) {}
     }
 
+    // Picker message rehydration. The backend persists picker state
+    // (image_urls, search_query, candidate, etc.) under
+    // metadata_json.image_search_payload at every WS event. Restore
+    // it here so a reload re-renders the picker with the candidate
+    // already populated — no need to re-call Gemini.
+    let imageSearchPayload: any = undefined;
+    if (preservedMeta && typeof preservedMeta === 'object') {
+      const meta = preservedMeta as any;
+      if (meta.image_search_payload) {
+        imageSearchPayload = meta.image_search_payload;
+      }
+    }
+
     return {
       id: msg.id,
       content: content,
@@ -505,6 +518,7 @@ class ChatService {
       timestamp: new Date(msg.created_at),
       shapeData: shapeData,
       imageUrls,
+      imageSearchPayload,
       metadata_json: preservedMeta,
     } as any;
   }
