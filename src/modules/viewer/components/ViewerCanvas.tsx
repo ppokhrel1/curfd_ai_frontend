@@ -89,16 +89,43 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
       {/* Camera */}
       <PerspectiveCamera makeDefault position={[5, 5, 5]} fov={50} />
 
-      {/* Controls */}
+      {/* Controls — tuned for organic / momentum-y feel.
+            * dampingFactor 0.08 — gentle inertia after the user lets go;
+              the previous 0.05 felt twitchy and stopped on a dime.
+            * rotateSpeed / panSpeed / zoomSpeed all under 1.0 — small
+              gestures move the camera proportionally less, so you can
+              dial in a viewpoint without overshooting. Doubles as
+              "more organic" on touchscreens where finger drags carry
+              way more pixels than mouse drags.
+            * Explicit `touches` map ensures one-finger rotates and
+              two-finger pinch zooms / drags. drei picks reasonable
+              defaults but they vary by version; pinning it kills the
+              "stops at some point" feel on mobile.
+            * enableRotate / enablePan / enableZoom explicit so a
+              future state change can't accidentally disable any of
+              them. Pan-screen-space and screen-aligned dolly feel
+              the most natural across desktop+touch.
+        */}
       <OrbitControls
         enableDamping
-        dampingFactor={0.05}
+        dampingFactor={0.08}
+        rotateSpeed={0.7}
+        zoomSpeed={0.8}
+        panSpeed={0.8}
+        screenSpacePanning
         autoRotate={state.autoRotate}
         autoRotateSpeed={0.8}
         minDistance={0.01}
         maxDistance={100000}
+        enableRotate
         enableZoom
-        zoomSpeed={1.2}
+        enablePan
+        touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
+        mouseButtons={{
+          LEFT: THREE.MOUSE.ROTATE,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN,
+        }}
         makeDefault
       />
 

@@ -100,18 +100,6 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
     };
   }, []);
 
-  // When a generation error arrives and we don't have a candidate
-  // yet, jump the user back to the COMPOSE step so they can edit
-  // their prompt and retry. Otherwise the error banner shows in
-  // BROWSE with no obvious way to get back to the prompt textarea
-  // (the path exists via "Generate with AI" but it's not discoverable
-  // when the user expects an inline edit affordance).
-  useEffect(() => {
-    if (error && !candidate && !localCandidate) {
-      setMode('compose');
-    }
-  }, [error, candidate, localCandidate]);
-
   const armSubmittingTimeout = (action: 'generate' | 'edit') => {
     setSubmitting(action);
     if (submittingTimerRef.current) clearTimeout(submittingTimerRef.current);
@@ -176,6 +164,18 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
       if (hideCandidate) setHideCandidate(false);
     }
   }, [effectiveCandidate?.url, hideCandidate]);
+
+  // When a generation error arrives and we don't have a candidate
+  // yet, jump the user back to the COMPOSE step so they can edit
+  // their prompt and retry. Otherwise the error banner shows in
+  // BROWSE with no obvious way to get back to the prompt textarea
+  // (the path exists via "Generate with AI" but it's not discoverable
+  // when the user expects an inline edit affordance).
+  useEffect(() => {
+    if (error && !candidate && !localCandidate) {
+      setMode('compose');
+    }
+  }, [error, candidate, localCandidate]);
 
   const handleClearCandidate = () => {
     setLocalCandidate(null);
@@ -279,7 +279,7 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
             />
           ) : (
             <BrowseStep
-              imageUrls={payload.image_urls}
+              imageUrls={payload.image_urls || []}
               onPick={handleSelectFromGrid}
               onExpand={(u) => setExpandedUrl(u)}
               onAskGenerate={() => setMode('compose')}
@@ -357,13 +357,13 @@ const Header: React.FC<{
 };
 
 const BrowseStep: React.FC<{
-  imageUrls: string[];
+  imageUrls?: string[];
   onPick: (url: string) => void;
   onExpand: (url: string) => void;
   onAskGenerate: () => void;
   error?: string;
   pending: boolean;
-}> = ({ imageUrls, onPick, onExpand, onAskGenerate, error, pending }) => (
+}> = ({ imageUrls = [], onPick, onExpand, onAskGenerate, error, pending }) => (
   <div className="space-y-3">
     {error && (
       <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-[12px] text-red-700">
