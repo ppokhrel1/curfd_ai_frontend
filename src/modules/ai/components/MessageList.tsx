@@ -746,7 +746,8 @@ const Model3DCard: React.FC<{
             Modify
           </button>
         )}
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="flex items-center gap-0.5 ml-auto">
+          <Download className="w-3 h-3 text-neutral-400 mr-0.5 shrink-0" />
           <button
             onClick={() => {
               // Prefer the textured GLB when the worker produced one —
@@ -759,14 +760,13 @@ const Model3DCard: React.FC<{
               );
               downloadFile(proxifyUrl(src), base);
             }}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
+            className="px-1.5 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
             title={
               texturedUrl
                 ? "Download GLB (textured / coloured)"
                 : "Download GLB (bare mesh)"
             }
           >
-            <Download className="w-3 h-3" />
             GLB
           </button>
           <button
@@ -782,11 +782,40 @@ const Model3DCard: React.FC<{
               const name = (modelUrl.split("/").pop() || "model").replace(/\.\w+$/, "") + ".stl";
               downloadFile(stl, name);
             }}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
+            className="px-1.5 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
             title="Download STL (geometry only — STL has no colour by design; use GLB if you want colour)"
           >
-            <Download className="w-3 h-3" />
             STL
+          </button>
+          <button
+            onClick={async () => {
+              // Print-ready 3MF for OrcaSlicer / Bambu Studio / Anycubic
+              // Slicer Next. Single watertight mesh — paint colours in
+              // the slicer's MMU paint tool. (Auto-paint disabled: each
+              // slicer fork has a slightly different `paint_color`
+              // encoding and the wrong byte crashes the slicer.)
+              const src = texturedUrl || modelUrl;
+              const base = (modelUrl.split("/").pop() || "model").replace(/\.\w+$/, "") + ".3mf";
+              const api = import.meta.env.VITE_API_URL || "/api/v1";
+              try {
+                const resp = await fetch(`${api}/convert/3mf?filaments=4`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ url: src }),
+                });
+                if (!resp.ok) throw new Error(`3MF export failed (${resp.status})`);
+                const blob = await resp.blob();
+                const objUrl = URL.createObjectURL(blob);
+                downloadFile(objUrl, base);
+                setTimeout(() => URL.revokeObjectURL(objUrl), 30_000);
+              } catch (err) {
+                console.warn("[Model3DCard] 3MF download failed:", err);
+              }
+            }}
+            className="px-1.5 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
+            title="Download 3MF for OrcaSlicer / Bambu Studio / Anycubic Slicer (paint colours in the slicer's MMU tool)"
+          >
+            3MF
           </button>
           {/* Single primary action: View in 3D. Loads textured when the
               worker produced one (the user enabled the toggle), else the
