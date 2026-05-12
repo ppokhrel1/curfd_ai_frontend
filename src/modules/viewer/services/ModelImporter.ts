@@ -257,25 +257,47 @@ export class ModelImporter {
 
         // Smooth-normal pipeline for untextured marching-cubes output:
         //   1. Drop existing flat per-face normals from the DiT.
-        //   2. Weld duplicate vertices by position. Marching cubes
-        //      emits each vertex once per incident triangle, so
-        //      computeVertexNormals would just re-derive the same
-        //      flat normal per face without this step.
-        //   3. Compute fresh per-vertex normals — averaged across
-        //      the merged neighborhood, giving Phong-smooth shading
-        //      that matches the reference render.
+        //   2. Weld TRUE duplicate vertices by position (1e-6 — float
+        //      precision threshold, only collides identical coords).
+        //      Earlier 1e-4 tolerance was too aggressive and welded
+        //      neighbouring vertices across sharp carving edges,
+        //      averaging normals across creases → some normals
+        //      pointed inward → black patches under directional
+        //      light. The downloaded file looks fine because it
+        //      keeps the original topology; the bug was in our
+        //      welder, not the mesh.
+        //   3. Skip the weld entirely when the mesh appears to
+        //      already share vertices (backend Taubin smoothing
+        //      already merges; redundant welding can collapse fine
+        //      detail). Heuristic: position-attribute count is
+        //      noticeably less than face_count * 3.
+        //   4. Compute fresh per-vertex normals from the (possibly
+        //      welded) geometry.
         if (mesh.geometry) {
           if (!_hasTextureForNormals) {
             mesh.geometry.deleteAttribute("normal");
-            try {
-              const merged = mergeVertices(mesh.geometry, 1e-4);
-              mesh.geometry.dispose();
-              mesh.geometry = merged;
-            } catch (e) {
-              console.warn(
-                "[ModelImporter] vertex merge skipped (shading may look faceted):",
-                e
-              );
+            const indexed = mesh.geometry.index !== null;
+            const vertCount =
+              mesh.geometry.attributes.position?.count ?? 0;
+            const faceCount = indexed
+              ? (mesh.geometry.index!.count / 3)
+              : (vertCount / 3);
+            const alreadyShared =
+              indexed && vertCount > 0 && vertCount < faceCount * 2.5;
+            if (!alreadyShared) {
+              try {
+                // 1e-6 ≈ float32 precision — welds only positions
+                // that are bit-identical or sub-pixel close, never
+                // collapses real geometry features.
+                const merged = mergeVertices(mesh.geometry, 1e-6);
+                mesh.geometry.dispose();
+                mesh.geometry = merged;
+              } catch (e) {
+                console.warn(
+                  "[ModelImporter] vertex merge skipped (shading may look faceted):",
+                  e
+                );
+              }
             }
             mesh.geometry.computeVertexNormals();
           }
