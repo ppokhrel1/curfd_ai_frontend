@@ -509,24 +509,35 @@ const SimulationEffects: React.FC<{
 };
 
 const Lighting: React.FC = () => {
+  // Soft "studio softbox" rig — mimics Mac Preview's clean look
+  // without needing an HDR environment (which fails on mobile, per
+  // the earlier removal of the Environment preset).
+  //
+  // Strategy: lots of diffuse fill from every direction, very weak
+  // directional. With smooth normals on the imported mesh, this
+  // gives near-uniform lighting across adjacent triangles so the
+  // marching-cubes tessellation doesn't read as visible bow-tie
+  // patterns. The old rig had directional intensity=1 with shadow
+  // casting + a green pointLight that punched chromatic bands into
+  // the dark side, both of which accentuated the triangulation.
   return (
     <>
-      <ambientLight intensity={0.5} />
-      <directionalLight
-        position={[10, 10, 5]}
-        intensity={1}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-camera-far={50}
-        shadow-camera-left={-10}
-        shadow-camera-right={10}
-        shadow-camera-top={10}
-        shadow-camera-bottom={-10}
-        shadow-bias={-0.0001}
-      />
-      <pointLight position={[-10, -10, -5]} intensity={0.2} color="#4ade80" />
-      <hemisphereLight args={["#ffffff", "#1f2937", 0.4]} />
+      {/* Strong ambient — base fill across the whole surface */}
+      <ambientLight intensity={0.85} />
+
+      {/* Hemisphere — sky-vs-ground gradient, soft directional cue */}
+      <hemisphereLight args={["#ffffff", "#dcdde0", 0.8]} />
+
+      {/* Very weak directional — gives just enough shape cue for the
+          eye to read 3D, without harsh face-by-face shading. Shadows
+          OFF: shadow maps create sharp lines along triangle edges
+          which is exactly the "stripes" effect we're trying to kill. */}
+      <directionalLight position={[10, 10, 5]} intensity={0.35} />
+
+      {/* Fill from the opposite side, neutral white. Replaces the
+          green pointLight which was tinting the dark side and made
+          the patterning much more visible. */}
+      <directionalLight position={[-8, -6, -4]} intensity={0.15} />
     </>
   );
 };
