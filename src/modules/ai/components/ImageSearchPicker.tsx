@@ -100,6 +100,18 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
     };
   }, []);
 
+  // When a generation error arrives and we don't have a candidate
+  // yet, jump the user back to the COMPOSE step so they can edit
+  // their prompt and retry. Otherwise the error banner shows in
+  // BROWSE with no obvious way to get back to the prompt textarea
+  // (the path exists via "Generate with AI" but it's not discoverable
+  // when the user expects an inline edit affordance).
+  useEffect(() => {
+    if (error && !candidate && !localCandidate) {
+      setMode('compose');
+    }
+  }, [error, candidate, localCandidate]);
+
   const armSubmittingTimeout = (action: 'generate' | 'edit') => {
     setSubmitting(action);
     if (submittingTimerRef.current) clearTimeout(submittingTimerRef.current);
