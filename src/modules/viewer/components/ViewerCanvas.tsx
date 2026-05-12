@@ -5,8 +5,8 @@ import {
   GizmoHelper,
   GizmoViewport,
   Grid,
-  OrbitControls,
   PerspectiveCamera,
+  TrackballControls,
   TransformControls,
 } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -89,43 +89,34 @@ export const ViewerCanvas: React.FC<ViewerCanvasProps> = ({
       {/* Camera */}
       <PerspectiveCamera makeDefault position={[5, 5, 5]} fov={50} />
 
-      {/* Controls — tuned for organic / momentum-y feel.
-            * dampingFactor 0.08 — gentle inertia after the user lets go;
-              the previous 0.05 felt twitchy and stopped on a dime.
-            * rotateSpeed / panSpeed / zoomSpeed all under 1.0 — small
-              gestures move the camera proportionally less, so you can
-              dial in a viewpoint without overshooting. Doubles as
-              "more organic" on touchscreens where finger drags carry
-              way more pixels than mouse drags.
-            * Explicit `touches` map ensures one-finger rotates and
-              two-finger pinch zooms / drags. drei picks reasonable
-              defaults but they vary by version; pinning it kills the
-              "stops at some point" feel on mobile.
-            * enableRotate / enablePan / enableZoom explicit so a
-              future state change can't accidentally disable any of
-              them. Pan-screen-space and screen-aligned dolly feel
-              the most natural across desktop+touch.
+      {/* Controls — TrackballControls instead of OrbitControls so
+            you can spin the model freely past vertical (no polar-
+            angle clamp). OrbitControls fundamentally couldn't go
+            past 180° vertically because its spherical-coord math
+            degenerates at the poles; TrackballControls uses
+            quaternion rotation so it spins freely around any axis.
+            *
+            * staticMoving=false enables damping. dynamicDampingFactor
+              0.15 is the equivalent of OrbitControls's
+              dampingFactor — gentle inertia after gesture release.
+            * Speed knobs match what we tuned on OrbitControls.
+            * autoRotate / autoRotateSpeed aren't part of
+              TrackballControls; if we want them back we'd drive the
+              camera manually from a useFrame in the parent. The
+              `state.autoRotate` toggle currently no-ops while we
+              decide if that's worth re-implementing.
         */}
-      <OrbitControls
-        enableDamping
-        dampingFactor={0.08}
-        rotateSpeed={0.7}
-        zoomSpeed={0.8}
+      <TrackballControls
+        rotateSpeed={2.5}
+        zoomSpeed={1.2}
         panSpeed={0.8}
-        screenSpacePanning
-        autoRotate={state.autoRotate}
-        autoRotateSpeed={0.8}
+        staticMoving={false}
+        dynamicDampingFactor={0.15}
         minDistance={0.01}
         maxDistance={100000}
-        enableRotate
-        enableZoom
-        enablePan
-        touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
-        mouseButtons={{
-          LEFT: THREE.MOUSE.ROTATE,
-          MIDDLE: THREE.MOUSE.DOLLY,
-          RIGHT: THREE.MOUSE.PAN,
-        }}
+        noRotate={false}
+        noZoom={false}
+        noPan={false}
         makeDefault
       />
 
@@ -469,10 +460,12 @@ const AutoFit: React.FC<{ camera: boolean; object: THREE.Object3D | null }> = ({
     camera.lookAt(center);
 
     if (controls) {
-      const orbitControls = controls as any;
-      orbitControls.target.copy(center);
-      orbitControls.maxDistance = Math.max(10000, maxDim * 50);
-      orbitControls.update();
+      // Works for both OrbitControls and TrackballControls — they
+      // share .target / .maxDistance / .update().
+      const c = controls as any;
+      c.target.copy(center);
+      c.maxDistance = Math.max(10000, maxDim * 50);
+      c.update();
     }
   }, [object, camera, controls]);
 
