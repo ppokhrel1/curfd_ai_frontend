@@ -142,16 +142,34 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
   // Local-only candidate for grid picks (avoids a WS round-trip for
   // something we already have on the client).
   const [localCandidate, setLocalCandidate] = useState<ImageCandidate | null>(null);
+  // Ephemeral "user wants to browse again" flag. Toggled true by
+  // handleClearCandidate so the picker re-shows BROWSE / COMPOSE even
+  // when a server-persisted candidate is still in the payload (we
+  // can't clear that without a server round-trip and the user may
+  // still want to come back to it). Reset to false whenever a new
+  // candidate arrives so the next generation's REVIEW is visible.
+  const [hideCandidate, setHideCandidate] = useState(false);
   const effectiveCandidate = candidate || localCandidate || undefined;
-  const effectiveShowReview = !!effectiveCandidate;
+  const effectiveShowReview = !!effectiveCandidate && !hideCandidate;
+
+  // Whenever a NEW candidate URL arrives, drop the hide flag so the
+  // REVIEW step swings back into view. Compared against the URL not
+  // the object reference so React's prop-identity churn doesn't reset
+  // it on every render.
+  const lastSeenUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    const url = effectiveCandidate?.url || null;
+    if (url && url !== lastSeenUrlRef.current) {
+      lastSeenUrlRef.current = url;
+      if (hideCandidate) setHideCandidate(false);
+    }
+  }, [effectiveCandidate?.url, hideCandidate]);
 
   const handleClearCandidate = () => {
     setLocalCandidate(null);
+    setHideCandidate(true);
     setMode('browse');
     setEditText('');
-    // The server-side candidate (in payload.candidate) can't be cleared
-    // from here — the user just visually goes back to BROWSE; if they
-    // confirm we still have it.
   };
 
   const handleSubmitGenerate = () => {
@@ -168,6 +186,10 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
       promptLen: t.length,
       requestId: payload.request_id,
     });
+    // Whatever the user submits, they want to see the result — drop
+    // the hide flag NOW so an instant cache hit (same URL as before)
+    // still re-renders the REVIEW step.
+    setHideCandidate(false);
     armSubmittingTimeout('generate');
     onGenerateCustom(t);
   };
@@ -179,6 +201,7 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
       console.warn('[Picker] edit clicked without candidate or callback');
       return;
     }
+    setHideCandidate(false);
     armSubmittingTimeout('edit');
     onEditCandidate(effectiveCandidate.runpod_url || effectiveCandidate.url, t);
   };
