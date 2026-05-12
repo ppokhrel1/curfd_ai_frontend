@@ -338,7 +338,7 @@ export const ChatInterface = forwardRef<ChatInterfaceRef, ChatInterfaceProps>(
                   <div key={conv.id} onClick={() => handleSelect(conv.id)} className={`p-2.5 rounded-lg cursor-pointer group flex items-start justify-between gap-2 ${conv.id === activeConversationId ? "bg-primary-50 border border-primary-200" : "hover:bg-neutral-100 border border-transparent"}`}>
                     <div className="flex-1 min-w-0">
                       <p className={`text-xs font-medium truncate ${conv.id === activeConversationId ? "text-primary-600" : "text-neutral-800"}`}>{conv.title}</p>
-                      <p className="text-[10px] text-neutral-500">{conv.messages.length} msgs</p>
+                      <p className="text-[10px] text-neutral-500">{conv.messageCount ?? conv.messages.length} msgs</p>
                     </div>
                     <button onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }} className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/20 rounded text-neutral-500 hover:text-red-400">
                       <X className="w-2.5 h-2.5" />

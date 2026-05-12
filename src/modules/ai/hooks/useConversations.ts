@@ -151,6 +151,13 @@ export const useConversations = (): UseConversationsReturn => {
               id: String(chat.id),
               title: String(chat.title).substring(0, 200),
               messages: [],
+              // Use the server-side total so the sidebar shows real
+              // `N msgs` counts immediately, before each chat's
+              // messages are individually synced.
+              messageCount:
+                typeof chat.message_count === "number"
+                  ? chat.message_count
+                  : undefined,
               createdAt: new Date(chat.created_at),
               updatedAt: chat.updated_at
                 ? new Date(chat.updated_at)

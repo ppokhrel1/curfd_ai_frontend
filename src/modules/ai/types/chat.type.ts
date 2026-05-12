@@ -94,4 +94,9 @@ export interface Conversation {
   generatedShape?: GeneratedShape;
   createdAt: Date;
   updatedAt: Date;
+  // Server-side total count (from /init). When set, sidebars should
+  // prefer this over messages.length — the loaded `messages` array is
+  // empty for non-active chats until they get clicked and synced.
+  // Falls back to messages.length when undefined.
+  messageCount?: number;
 }

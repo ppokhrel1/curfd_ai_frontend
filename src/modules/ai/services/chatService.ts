@@ -15,6 +15,11 @@ export interface ChatResponse {
   title: string;
   created_at: string;
   updated_at: string;
+  // Optional — populated by /init's batched COUNT query so the
+  // sidebar can render real `N msgs` totals without each chat having
+  // to full-sync its history on click. Other endpoints (POST /chats,
+  // PATCH /chats/{id}, …) leave it undefined.
+  message_count?: number;
 }
 
 export interface MessageResponse {
