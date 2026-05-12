@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import * as THREE from "three";
 import { GLTFLoader, OBJLoader, STLLoader } from "three-stdlib";
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { GeometryAnalyzer } from "../utils/GeometryAnalyzer";
 import { SDFParser } from "../utils/SDFParser";
 import type { SDFVisual } from "../utils/SDFParser";
@@ -235,9 +236,49 @@ export class ModelImporter {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
 
-        // Recompute normals — AI-generated meshes often have inverted or missing normals
+        // Detect whether the GLB already carries a real texture
+        // (Hunyuan3D-Paint output). Textured meshes already look
+        // photoreal — running our smoothing pipeline can damage UV
+        // coordinates and introduce seams. Only smooth bare meshes
+        // (raw shape-DiT output) where the marching-cubes faceting
+        // is what the user is complaining about.
+        const _existingForCheck = mesh.material as
+          | THREE.Material
+          | THREE.Material[]
+          | undefined;
+        const _existingFirstForCheck = Array.isArray(_existingForCheck)
+          ? _existingForCheck[0]
+          : _existingForCheck;
+        const _hasTextureForNormals = !!(
+          _existingFirstForCheck &&
+          ((_existingFirstForCheck as any).map ||
+            (_existingFirstForCheck as any).baseColorTexture)
+        );
+
+        // Smooth-normal pipeline for untextured marching-cubes output:
+        //   1. Drop existing flat per-face normals from the DiT.
+        //   2. Weld duplicate vertices by position. Marching cubes
+        //      emits each vertex once per incident triangle, so
+        //      computeVertexNormals would just re-derive the same
+        //      flat normal per face without this step.
+        //   3. Compute fresh per-vertex normals — averaged across
+        //      the merged neighborhood, giving Phong-smooth shading
+        //      that matches the reference render.
         if (mesh.geometry) {
-          mesh.geometry.computeVertexNormals();
+          if (!_hasTextureForNormals) {
+            mesh.geometry.deleteAttribute("normal");
+            try {
+              const merged = mergeVertices(mesh.geometry, 1e-4);
+              mesh.geometry.dispose();
+              mesh.geometry = merged;
+            } catch (e) {
+              console.warn(
+                "[ModelImporter] vertex merge skipped (shading may look faceted):",
+                e
+              );
+            }
+            mesh.geometry.computeVertexNormals();
+          }
           mesh.geometry.computeBoundingBox();
           mesh.geometry.computeBoundingSphere();
         }
