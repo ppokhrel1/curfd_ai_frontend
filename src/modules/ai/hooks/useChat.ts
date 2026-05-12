@@ -295,7 +295,11 @@ export const useChat = (
         console.warn("[picker apply] missing chatId or request_id", { chatId, event });
         return;
       }
-      const msgId = `img-search-${event.request_id}`;
+      // Picker message id is the bare request_id (a UUID). Was
+      // `img-search-${request_id}` until the backend's messages.id
+      // VARCHAR(36) column rejected the 47-char form. Now backend +
+      // frontend both use the request_id directly.
+      const msgId = event.request_id;
       const store = useChatStore.getState();
       const conversation = store.conversations.find((c) => c.id === chatId);
       let existing = conversation?.messages.find((m) => m.id === msgId);
@@ -425,7 +429,7 @@ export const useChat = (
               .getState()
               .conversations.find((c) => c.id === chatId);
             const msg = conv?.messages.find(
-              (m) => m.id === `img-search-${requestId}`
+              (m) => m.id === requestId
             );
             const p = msg?.imageSearchPayload;
             if (p?.candidate?.url || p?.candidateError) {
@@ -594,7 +598,7 @@ export const useChat = (
           {
             const { image_urls, search_query, request_id, prompt } = event;
             const msg: Message = {
-              id: `img-search-${request_id}`,
+              id: request_id,
               role: "assistant",
               content: `I found ${image_urls.length} images for "${search_query}". Pick one to generate your 3D model:`,
               timestamp: new Date(),
