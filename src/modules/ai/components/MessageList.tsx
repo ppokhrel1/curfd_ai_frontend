@@ -8,6 +8,7 @@ import { ImageSearchPicker } from "./ImageSearchPicker";
 import { proxifyUrl } from "@/lib/apiConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
 import { useAssemblyStore } from "@/modules/viewer/stores/assemblyStore";
+import { useChatStore } from "../stores/chatStore";
 
 export type EditorPayloadType = "requirements" | "code";
 
@@ -528,14 +529,33 @@ const Model3DCard: React.FC<{
   const assemblyParts = useAssemblyStore((s) => s.parts);
   const partsWithUrl = (parts || []).filter((p) => p.mesh_url || p.url);
 
+  // Active-model URL across the chat. Subscribed via selector so the
+  // auto-register effect below re-fires when the user recalls a different
+  // historical model.
+  const activeShapeUrl = useChatStore((s) => {
+    const conv = s.conversations.find((c) => c.id === s.activeConversationId);
+    return conv?.generatedShape?.sdfUrl;
+  });
+
   // Auto-register parts to assemblyStore when this card mounts with parts
   // metadata. The websocket auto-register in useChat.ts only fires for
   // freshly-completed image_to_3d events; historical messages (chat
   // reloaded from backend, multi-tab, browser refresh) still need their
   // parts in the store so the viewer renders them as a multi-part
   // assembly instead of falling back to the combined model_url.
+  //
+  // BUT only the *currently-active* model (conversation.generatedShape)
+  // should auto-load. Without this guard, every Model3DCard on chat-open
+  // races to clearAssembly() then queues an async ModelImporter load —
+  // the clears happen synchronously up-front but the addPart() calls
+  // arrive later as the imports resolve, so the parts accumulate from
+  // every historical model and the viewer renders them all stacked on
+  // top of each other.
   useEffect(() => {
     if (partsWithUrl.length === 0) return;
+    const thisCardUrl = texturedUrl || modelUrl;
+    if (!activeShapeUrl || activeShapeUrl !== thisCardUrl) return;
+
     const store = useAssemblyStore.getState();
     const alreadyRegistered = partsWithUrl.every((p) => {
       const url = p.mesh_url || p.url;
@@ -579,7 +599,7 @@ const Model3DCard: React.FC<{
       }
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [partsWithUrl.map((p) => p.mesh_url || p.url).join("|")]);
+  }, [partsWithUrl.map((p) => p.mesh_url || p.url).join("|"), activeShapeUrl]);
 
   const handleModifySubmit = () => {
     const text = modText.trim();
