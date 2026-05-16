@@ -93,6 +93,16 @@ export const ImageSearchPicker: React.FC<ImageSearchPickerProps> = ({
     }
   }, [pending, candidate, error]);
 
+  // Reset `confirming` (the "Use for 3D" spinner flag) when a new
+  // candidate URL arrives. Without this, the picker stays locked in
+  // "Starting 3D…" forever after the first confirmation — Edit-with-AI
+  // and Try-different appear active but no-op because their disabled
+  // state still has `confirming === true` from the previous round.
+  const candidateUrl = candidate?.runpod_url || candidate?.url;
+  useEffect(() => {
+    setConfirming(false);
+  }, [candidateUrl]);
+
   useEffect(() => {
     // Cleanup timer on unmount.
     return () => {
@@ -552,16 +562,21 @@ const ReviewStep: React.FC<{
         <div className="flex items-center justify-between gap-2 pt-1">
           <button
             onClick={onTryDifferent}
-            disabled={!!pending || confirming}
+            disabled={!!pending}
             className="flex items-center gap-1 px-2 py-1.5 rounded-md text-[12px] text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 disabled:opacity-50"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Try different
           </button>
           <div className="flex items-center gap-2">
+            {/* Edit-with-AI and Try-different are independent of `confirming`
+                — that flag only controls the "Use for 3D" button's spinner
+                state. Without this, once the user clicked Use-for-3D once,
+                both side buttons stayed disabled forever (no way to refine
+                the image after kicking off a 3D job). */}
             <button
               onClick={onStartEdit}
-              disabled={!!pending || confirming}
+              disabled={!!pending}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition-colors disabled:opacity-50"
             >
               <Pencil className="w-3.5 h-3.5" />
