@@ -56,10 +56,20 @@ export const proxifyUrl = (url: string): string => {
         return url;
     }
 
-    // Cloudflare R2 URLs — same pattern, route through backend storage proxy
-    // e.g. https://<account>.r2.cloudflarestorage.com/nooriat-models/generated_models/foo.glb
-    //   → {apiBase}/storage/nooriat-models/generated_models/foo.glb
+    // Cloudflare R2 URLs.
+    //
+    // Two flavours:
+    //  1. Presigned (contains X-Amz-Signature) — Modal worker now emits
+    //     these. Public-readable for the signed window (7 days) without
+    //     exposing the bucket. Pass through unchanged so the browser
+    //     hits R2 directly and skips a backend round-trip.
+    //  2. Bare host-style URL (legacy / fallback path) — bucket is
+    //     private, so rewrite to /api/v1/storage/... where the backend's
+    //     signed boto client can fetch it.
     if (url.includes("r2.cloudflarestorage.com")) {
+        if (url.includes("X-Amz-Signature=")) {
+            return url;
+        }
         try {
             const parsed = new URL(url);
             const path = parsed.pathname.replace(/^\//, "");
