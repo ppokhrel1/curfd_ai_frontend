@@ -16,6 +16,30 @@ export type EditorPayloadType = "requirements" | "code";
  *  Refuses HTML/JSON responses for binary asset extensions — otherwise an
  *  error page would land on disk as `model.glb` and produce a confusing
  *  "UTF-8 decoding" failure when the user tries to open it. */
+/** Extract just the last path segment from a URL (or path), without
+ * the query string. `https://x.r2.../path/foo.glb?X-Amz-Signature=…`
+ * → `foo.glb`. Falls back to a sensible default if the URL can't be
+ * parsed or has no path.
+ *
+ * Critical because the raw `url.split("/").pop()` approach we used to
+ * use returned the entire `foo.glb?X-Amz-…` query-tail, which then
+ * landed as the saved filename when piped into `<a download="…">`.
+ */
+function _filenameFromUrl(url: string, fallback = "model.glb"): string {
+  try {
+    // URL() needs an absolute URL; for relative paths fall back to a
+    // synthetic base then read pathname.
+    const u = url.startsWith("http") ? new URL(url) : new URL(url, "https://x/");
+    const last = u.pathname.split("/").filter(Boolean).pop();
+    return last || fallback;
+  } catch {
+    // Last-resort: strip everything from the first "?" or "&" onward.
+    const noQuery = url.split(/[?&]/)[0];
+    const last = noQuery.split("/").filter(Boolean).pop();
+    return last || fallback;
+  }
+}
+
 function downloadFile(url: string, filename: string) {
   const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
   fetch(url, {
@@ -516,7 +540,9 @@ const Model3DCard: React.FC<{
   onViewIn3D?: (url: string) => void;
   onModifyMesh?: (meshUrl: string, modification: string) => void;
 }> = ({ modelUrl, stlUrl, parts, texturedUrl, onViewIn3D, onModifyMesh }) => {
-  const filename = modelUrl.split("/").pop() || "model.glb";
+  // Strip presigned-URL query string before deriving filename + format
+  // so the card label reads "model.glb" instead of "model.glb?X-Amz-…".
+  const filename = _filenameFromUrl(modelUrl, "model.glb");
   const format = filename.split(".").pop()?.toUpperCase() || "GLB";
   const [showModify, setShowModify] = useState(false);
   const [modText, setModText] = useState("");
@@ -774,7 +800,10 @@ const Model3DCard: React.FC<{
               // user expects "GLB" to match what they see in the viewer.
               // Falls back to the bare mesh when no texture was baked.
               const src = texturedUrl || modelUrl;
-              const base = (src.split("/").pop() || "model.glb").replace(
+              // _filenameFromUrl strips the presigned ?X-Amz-... query
+              // before we derive the saved filename. Without this, the
+              // browser writes the file as e.g. "foo.glb?X-Amz-Sig=…".
+              const base = _filenameFromUrl(src, "model.glb").replace(
                 /\.glb$/i,
                 texturedUrl ? "_textured.glb" : ".glb"
               );
@@ -799,7 +828,9 @@ const Model3DCard: React.FC<{
               const stl = stlUrl
                 ? proxifyUrl(stlUrl)
                 : `${import.meta.env.VITE_API_URL || "/api/v1"}/convert/stl?url=${encodeURIComponent(modelUrl)}`;
-              const name = (modelUrl.split("/").pop() || "model").replace(/\.\w+$/, "") + ".stl";
+              // Same query-stripping issue as the GLB button — bare
+              // .split("/").pop() picks up `?X-Amz-…` for presigned URLs.
+              const name = _filenameFromUrl(modelUrl, "model").replace(/\.\w+$/, "") + ".stl";
               downloadFile(stl, name);
             }}
             className="px-1.5 py-1 rounded-md text-[11px] font-medium text-neutral-500 hover:text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition-all"
@@ -815,7 +846,9 @@ const Model3DCard: React.FC<{
               // slicer fork has a slightly different `paint_color`
               // encoding and the wrong byte crashes the slicer.)
               const src = texturedUrl || modelUrl;
-              const base = (modelUrl.split("/").pop() || "model").replace(/\.\w+$/, "") + ".3mf";
+              // Strip presigned-URL query before deriving the .3mf
+              // filename, same reason as GLB/STL buttons above.
+              const base = _filenameFromUrl(modelUrl, "model").replace(/\.\w+$/, "") + ".3mf";
               const api = import.meta.env.VITE_API_URL || "/api/v1";
               try {
                 const resp = await fetch(`${api}/convert/3mf?filaments=4`, {

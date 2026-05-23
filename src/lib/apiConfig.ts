@@ -59,15 +59,17 @@ export const proxifyUrl = (url: string): string => {
     // Cloudflare R2 URLs.
     //
     // Two flavours:
-    //  1. Presigned (contains X-Amz-Signature) — Modal worker now emits
-    //     these. Public-readable for the signed window (7 days) without
-    //     exposing the bucket. Pass through unchanged so the browser
-    //     hits R2 directly and skips a backend round-trip.
+    //  1. Presigned (contains X-Amz-Signature in ANY case) — Modal
+    //     worker now emits these. Public-readable for the signed
+    //     window (7 days) without exposing the bucket. Pass through
+    //     unchanged so the browser hits R2 directly and skips a
+    //     backend round-trip. Case-insensitive match because some
+    //     log/display layers uppercase query-string keys.
     //  2. Bare host-style URL (legacy / fallback path) — bucket is
     //     private, so rewrite to /api/v1/storage/... where the backend's
     //     signed boto client can fetch it.
     if (url.includes("r2.cloudflarestorage.com")) {
-        if (url.includes("X-Amz-Signature=")) {
+        if (/[?&]x-amz-signature=/i.test(url)) {
             return url;
         }
         try {
