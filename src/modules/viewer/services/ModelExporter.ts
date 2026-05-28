@@ -144,4 +144,164 @@ export class ModelExporter {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
+
+  /** Export an assembly as one file per part inside a zip.
+   *
+   *  For each part we prefer fetching the original `sourceUrl` (the GLB
+   *  the worker emitted) — that preserves textures, materials, and the
+   *  exact mesh fidelity the user sees. If the source can't be fetched
+   *  (offline, expired URL) we fall back to STL'ing the live THREE.Group,
+   *  which loses colour but keeps geometry usable in any slicer.
+   *
+   *  A `manifest.json` lists each part with its position + rotation so
+   *  downstream tools can reassemble the layout the user arranged. */
+  async exportPartsToZip(
+    parts: {
+      name: string;
+      sourceUrl?: string | null;
+      model: THREE.Group | null;
+      position: [number, number, number];
+      rotation: [number, number, number];
+      visible: boolean;
+    }[],
+    modelName: string
+  ): Promise<{ blob: Blob; written: number; skipped: number }> {
+    const zip = new JSZip();
+    const partsFolder = zip.folder('parts');
+    if (!partsFolder) throw new Error('zip.folder(parts) returned null');
+
+    // Used filenames so two parts named "Part" don't overwrite each other.
+    const usedNames = new Set<string>();
+    const uniqueFilename = (base: string, ext: string): string => {
+      const safe = base.replace(/[^a-zA-Z0-9_\- ]+/g, '_').trim() || 'part';
+      let candidate = `${safe}.${ext}`;
+      let i = 2;
+      while (usedNames.has(candidate)) candidate = `${safe}_${i++}.${ext}`;
+      usedNames.add(candidate);
+      return candidate;
+    };
+
+    const manifest: {
+      name: string;
+      file: string;
+      source: 'glb' | 'stl-fallback';
+      position: [number, number, number];
+      rotation_deg: [number, number, number];
+    }[] = [];
+    let written = 0;
+    let skipped = 0;
+
+    for (const part of parts) {
+      if (!part.visible) {
+        skipped++;
+        continue;
+      }
+
+      let savedAs: { filename: string; source: 'glb' | 'stl-fallback' } | null =
+        null;
+
+      // Strategy A — fetch the original GLB. Best fidelity; preserves
+      // textures. The URL may have come through proxifyUrl already
+      // (image-to-3D assets land here), so we use it as-is.
+      if (part.sourceUrl) {
+        try {
+          const resp = await fetch(part.sourceUrl);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const filename = uniqueFilename(part.name, 'glb');
+            partsFolder.file(filename, blob);
+            savedAs = { filename, source: 'glb' };
+          } else {
+            console.warn(
+              `[ModelExporter] ${part.name}: source fetch ${resp.status} — falling back to STL`
+            );
+          }
+        } catch (e) {
+          console.warn(
+            `[ModelExporter] ${part.name}: source fetch failed, falling back to STL`,
+            e
+          );
+        }
+      }
+
+      // Strategy B — STL the live Three.js model. Loses colour but keeps
+      // geometry. Only useful if there's a model to traverse.
+      if (!savedAs && part.model) {
+        try {
+          // Collect every mesh under the part's group, merge into one
+          // virtual scene the STLExporter can serialise. STLExporter takes
+          // a Group too — we just need to ensure transform matrices are
+          // baked in.
+          const group = new THREE.Group();
+          part.model.updateMatrixWorld(true);
+          part.model.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+              const m = child as THREE.Mesh;
+              if (!m.geometry?.attributes?.position) return;
+              const clone = m.clone();
+              clone.applyMatrix4(m.matrixWorld);
+              group.add(clone);
+            }
+          });
+          if (group.children.length > 0) {
+            const stlData = this.stlExporter.parse(group, { binary: true });
+            const filename = uniqueFilename(part.name, 'stl');
+            partsFolder.file(filename, stlData.buffer as ArrayBuffer);
+            savedAs = { filename, source: 'stl-fallback' };
+          }
+        } catch (e) {
+          console.error(
+            `[ModelExporter] ${part.name}: STL fallback failed`,
+            e
+          );
+        }
+      }
+
+      if (savedAs) {
+        manifest.push({
+          name: part.name,
+          file: `parts/${savedAs.filename}`,
+          source: savedAs.source,
+          position: part.position,
+          rotation_deg: part.rotation,
+        });
+        written++;
+      } else {
+        skipped++;
+      }
+    }
+
+    zip.file(
+      'manifest.json',
+      JSON.stringify(
+        {
+          model: modelName,
+          generated_by: 'CURFD AI',
+          generated_at: new Date().toISOString(),
+          part_count: manifest.length,
+          parts: manifest,
+        },
+        null,
+        2
+      )
+    );
+    zip.file('README.txt', this.partsReadme(modelName, manifest.length));
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    return { blob, written, skipped };
+  }
+
+  private partsReadme(name: string, partCount: number): string {
+    return `${name} — ${partCount} part${partCount === 1 ? '' : 's'}
+Generated by CURFD AI
+
+This archive contains one file per assembly part inside the parts/ folder.
+Files are .glb when the original source mesh was available (preserves colour
+and textures), or .stl as a geometry-only fallback.
+
+manifest.json lists each part's position and rotation so you can rebuild the
+exact layout in a slicer / CAD tool — units are millimetres for position and
+degrees (XYZ Euler) for rotation.
+`;
+  }
 }

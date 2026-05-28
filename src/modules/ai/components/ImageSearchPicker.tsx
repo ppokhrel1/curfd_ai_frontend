@@ -2,11 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowLeft,
+  Box,
   Check,
+  Cpu,
+  Layers,
+  Lightbulb,
   Loader2,
+  Palette,
   Pencil,
   Search,
   Sparkles,
+  Wand2,
   X,
 } from 'lucide-react';
 import type {
@@ -15,6 +21,7 @@ import type {
   ImageSearchPayload,
 } from '../types/chat.type';
 import { proxifyUrl } from '@/lib/apiConfig';
+import { useChatStore } from '../stores/chatStore';
 
 /**
  * Image picker — drives a "prompt → choose / generate / upload → review →
@@ -312,7 +319,7 @@ const Header: React.FC<{
 }> = ({ step, searchQuery, source }) => {
   const dot = (active: boolean, done: boolean) => (
     <span
-      className={`w-1.5 h-1.5 rounded-full ${
+      className={`w-1.5 h-1.5 rounded-full transition-all ${
         done
           ? 'bg-primary-500'
           : active
@@ -325,14 +332,31 @@ const Header: React.FC<{
   const reviewActive = step === 'review';
   const browseDone = reviewActive;
 
+  // Pill colour follows the source so the user gets a visual cue without
+  // squinting at the label — AI-generated and AI-edited go violet,
+  // search/upload stay primary.
+  const sourceTone =
+    source === 'ai_generated' || source === 'ai_edited'
+      ? 'bg-violet-50 text-violet-700 border-violet-200'
+      : 'bg-primary-50 text-primary-700 border-primary-200';
+
   return (
-    <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-neutral-200 bg-neutral-50/60">
+    <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-neutral-200 bg-gradient-to-r from-neutral-50/80 to-white">
       <div className="flex items-center gap-1.5 text-[11px] text-neutral-600 min-w-0">
         {step === 'review' ? (
           <>
-            <Check className="w-3.5 h-3.5 text-primary-600 flex-shrink-0" />
-            <span className="font-medium text-neutral-800 truncate">
-              {source ? SOURCE_LABEL[source] : 'Selected image'}
+            <span
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10.5px] font-medium ${sourceTone}`}
+            >
+              {source === 'ai_generated' || source === 'ai_edited' ? (
+                <Sparkles className="w-3 h-3" />
+              ) : (
+                <Check className="w-3 h-3" />
+              )}
+              {source ? SOURCE_LABEL[source] : 'Selected'}
+            </span>
+            <span className="hidden sm:inline text-neutral-400 text-[10.5px]">
+              Ready to lock in
             </span>
           </>
         ) : step === 'compose' ? (
@@ -402,17 +426,18 @@ const BrowseStep: React.FC<{
       </div>
     )}
 
-    {/* Entry actions */}
-    <div className="pt-1 border-t border-neutral-100 flex items-center justify-between gap-2">
+    {/* Entry actions — mobile-friendly with a Generate-with-AI CTA that
+        scales to full width on phones. */}
+    <div className="pt-1 border-t border-neutral-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <span className="text-[11px] text-neutral-500">
         {imageUrls.length > 0
-          ? `${imageUrls.length} suggestion${imageUrls.length === 1 ? '' : 's'}`
-          : 'No suggestions found'}
+          ? `${imageUrls.length} suggestion${imageUrls.length === 1 ? '' : 's'} — tap any to use, or describe your own ↓`
+          : 'No suggestions found — describe what you have in mind below.'}
       </span>
       <button
         onClick={onAskGenerate}
         disabled={pending}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition-colors disabled:opacity-50"
+        className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg text-[12px] font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition-colors disabled:opacity-50 w-full sm:w-auto"
       >
         <Sparkles className="w-3.5 h-3.5" />
         Generate with AI
@@ -531,25 +556,30 @@ const ReviewStep: React.FC<{
       <div className="relative">
         <button
           onClick={() => onExpand(src)}
-          className="block w-full overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 group"
-          title="Click to expand"
+          className="block w-full overflow-hidden rounded-xl border border-neutral-200 bg-gradient-to-br from-neutral-50 to-neutral-100 group shadow-inner"
+          title="Tap to expand"
         >
           <img
             src={src}
             alt="Selected reference"
-            className="w-full max-h-[280px] object-contain transition-transform group-hover:scale-[1.01]"
+            className="w-full max-h-[240px] sm:max-h-[320px] object-contain transition-transform group-hover:scale-[1.01]"
           />
+          {/* Expand affordance — visible on hover (desktop) and always on
+              mobile (no hover state). Keeps the lightbox discoverable. */}
+          <span className="hidden sm:flex absolute top-2 right-2 items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/40 text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">
+            ⤢ Expand
+          </span>
         </button>
         {pending === 'edit' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-lg">
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-xl">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white border border-violet-200 shadow text-[12px] text-violet-700">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Applying edit…
+              Repainting with AI…
             </div>
           </div>
         )}
         {candidate.prompt && candidate.source !== 'search' && (
-          <p className="mt-1.5 px-1 text-[11px] text-neutral-500 line-clamp-2">
+          <p className="mt-2 px-1 text-[11px] text-neutral-500 line-clamp-2">
             <span className="font-medium text-neutral-600">Prompt:</span>{' '}
             "{candidate.prompt}"
           </p>
@@ -558,54 +588,218 @@ const ReviewStep: React.FC<{
 
       {editForm}
 
-      {!editForm && (
-        <div className="flex items-center justify-between gap-2 pt-1">
-          <button
-            onClick={onTryDifferent}
-            disabled={!!pending}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-md text-[12px] text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 disabled:opacity-50"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Try different
-          </button>
-          <div className="flex items-center gap-2">
-            {/* Edit-with-AI and Try-different are independent of `confirming`
-                — that flag only controls the "Use for 3D" button's spinner
-                state. Without this, once the user clicked Use-for-3D once,
-                both side buttons stayed disabled forever (no way to refine
-                the image after kicking off a 3D job). */}
-            <button
-              onClick={onStartEdit}
-              disabled={!!pending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition-colors disabled:opacity-50"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              Edit with AI
-            </button>
+      {!editForm && !confirming && (
+        <>
+          {/* Friendly hint — surfaces the purpose of the secondary actions
+              so users know they can iterate before committing to a 60-90 s
+              3D job. Lightweight chip-styled banner that scales between
+              phone and desktop. */}
+          <div className="flex items-start gap-2 px-2.5 py-2 rounded-lg bg-gradient-to-r from-amber-50 to-violet-50 border border-amber-100 text-[11px] leading-snug text-neutral-700">
+            <Lightbulb className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-500" />
+            <span>
+              <span className="font-semibold text-neutral-800">Like this image?</span>{' '}
+              Tweak it with{' '}
+              <span className="font-medium text-violet-700">Edit&nbsp;with&nbsp;AI</span>{' '}
+              or browse another one — it's free to keep trying. Hit{' '}
+              <span className="font-medium text-primary-700">Generate&nbsp;3D</span>{' '}
+              when it's right.
+            </span>
+          </div>
+
+          {/* Action row.
+              Mobile: secondary actions on top row, primary full-width below.
+              Desktop (sm+): everything inline, primary on the right. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pt-0.5">
+            <div className="flex items-center gap-2 justify-between sm:justify-start">
+              <button
+                onClick={onTryDifferent}
+                disabled={!!pending}
+                className="flex items-center gap-1 px-2.5 py-2 sm:py-1.5 rounded-md text-[12px] text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Try different
+              </button>
+              {/* Edit-with-AI and Try-different are independent of `confirming`
+                  — that flag only controls the primary button's spinner
+                  state. Without this, once the user clicked Generate-3D once,
+                  both side buttons stayed disabled forever (no way to refine
+                  the image after kicking off a 3D job). */}
+              <button
+                onClick={onStartEdit}
+                disabled={!!pending}
+                className="flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-md text-[12px] font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition-colors disabled:opacity-50"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Edit with AI
+              </button>
+            </div>
             <button
               onClick={onConfirm}
-              disabled={!!pending || confirming}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-[12px] font-semibold transition-colors ${
-                pending || confirming
+              disabled={!!pending}
+              className={`flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-md text-[12.5px] font-semibold transition-all w-full sm:w-auto ${
+                pending
                   ? 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
-                  : 'bg-primary-500 text-white hover:bg-primary-600 shadow-sm'
+                  : 'bg-gradient-to-r from-primary-500 to-violet-500 text-white hover:from-primary-600 hover:to-violet-600 shadow-sm hover:shadow active:scale-[0.98]'
               }`}
             >
-              {confirming ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Starting 3D…
-                </>
-              ) : (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  Use for 3D
-                </>
-              )}
+              <Box className="w-3.5 h-3.5" />
+              Generate 3D Model
             </button>
           </div>
-        </div>
+        </>
       )}
+
+      {confirming && <ThreeDProgress />}
+    </div>
+  );
+};
+
+/** Multi-stage progress timeline that surfaces what the engine is doing
+ *  after the user clicks "Generate 3D Model". RunPod's worker doesn't
+ *  emit fine-grained sub-stages (just IN_QUEUE → IN_PROGRESS → COMPLETED),
+ *  so we drive the visible "stage" off elapsed-time heuristics tuned to
+ *  Hunyuan3D-2mini + PartField + Paint timings, and overlay the live
+ *  status string from the chatStore when the backend does send one. */
+const STAGES: {
+  key: string;
+  label: string;
+  hint: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** Seconds into the job by which this stage typically begins. */
+  startsAt: number;
+}[] = [
+  { key: 'queue', label: 'Queuing for GPU', hint: 'Securing a worker on RunPod', icon: Cpu, startsAt: 0 },
+  { key: 'mesh', label: 'Sculpting the mesh', hint: 'Hunyuan3D is reading your image', icon: Wand2, startsAt: 6 },
+  { key: 'segment', label: 'Splitting into parts', hint: 'PartField is finding seams', icon: Layers, startsAt: 35 },
+  { key: 'texture', label: 'Painting textures', hint: 'Baking colour onto the mesh', icon: Palette, startsAt: 55 },
+  { key: 'finish', label: 'Wrapping up', hint: 'Uploading and naming parts', icon: Box, startsAt: 85 },
+];
+
+const ThreeDProgress: React.FC = () => {
+  // Read live status from chatStore — backend's RunPod poller pushes
+  // status strings (IN_QUEUE, IN_PROGRESS, COMPLETED, …) into here via
+  // setGenerating(). We don't surface the raw string; it's just a signal
+  // that the job is alive and lets us advance past the "Queuing" stage
+  // the moment the GPU picks it up.
+  const liveStatus = useChatStore(
+    (s) => (s as any).generatingStatus || ''
+  ) as string;
+
+  const [elapsed, setElapsed] = useState(0);
+  const startedAt = useRef(Date.now());
+
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt.current) / 1000));
+    }, 500);
+    return () => clearInterval(iv);
+  }, []);
+
+  // Map elapsed → current stage index. Once RunPod reports IN_PROGRESS we
+  // know it's at least past Queuing.
+  const liveIsRunning =
+    /IN_PROGRESS|PROCESSING|RUNNING|GENERAT|MODIFY|MESH|TEXTUR|SEGMENT/i.test(
+      liveStatus
+    );
+  let activeIdx = STAGES.findIndex(
+    (s, i) =>
+      elapsed >= s.startsAt &&
+      (i === STAGES.length - 1 || elapsed < STAGES[i + 1].startsAt)
+  );
+  if (activeIdx < 0) activeIdx = 0;
+  if (liveIsRunning && activeIdx === 0) activeIdx = 1;
+
+  const mm = String(Math.floor(elapsed / 60)).padStart(1, '0');
+  const ss = String(elapsed % 60).padStart(2, '0');
+
+  return (
+    <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-primary-50 p-3 sm:p-4 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="relative w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+            <Box className="w-3.5 h-3.5 text-violet-600" />
+            <span className="absolute inset-0 rounded-lg border-2 border-violet-300 border-t-violet-600 animate-spin" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold text-neutral-800 truncate">
+              Building your 3D model
+            </p>
+            <p className="text-[10.5px] text-neutral-500 truncate">
+              {STAGES[activeIdx]?.hint || 'Working on it…'}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col items-end flex-shrink-0">
+          <span className="font-mono text-[11px] text-violet-700 font-medium tabular-nums">
+            {mm}:{ss}
+          </span>
+          <span className="text-[9.5px] text-neutral-400">elapsed</span>
+        </div>
+      </div>
+
+      {/* Stage list — phone-friendly vertical timeline. Done = check,
+          active = pulsing dot, pending = greyed. */}
+      <ol className="space-y-1.5">
+        {STAGES.map((stage, i) => {
+          const Icon = stage.icon;
+          const done = i < activeIdx;
+          const active = i === activeIdx;
+          return (
+            <li key={stage.key} className="flex items-center gap-2.5">
+              <span
+                className={`relative w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+                  done
+                    ? 'bg-violet-500 text-white'
+                    : active
+                    ? 'bg-white border-2 border-violet-400 text-violet-600'
+                    : 'bg-neutral-100 text-neutral-300'
+                }`}
+              >
+                {done ? (
+                  <Check className="w-3 h-3" strokeWidth={3} />
+                ) : (
+                  <Icon className="w-2.5 h-2.5" />
+                )}
+                {active && (
+                  <span className="absolute inset-0 rounded-full border-2 border-violet-400 animate-ping opacity-60" />
+                )}
+              </span>
+              <span
+                className={`text-[12px] leading-tight ${
+                  done
+                    ? 'text-neutral-500 line-through decoration-violet-200'
+                    : active
+                    ? 'text-neutral-800 font-medium'
+                    : 'text-neutral-400'
+                }`}
+              >
+                {stage.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      {/* Smooth indeterminate bar — gives the user something kinetic to
+          watch while the heavy stages tick. */}
+      <div className="h-1 rounded-full bg-violet-100 overflow-hidden">
+        <div className="h-full w-1/3 bg-gradient-to-r from-primary-500 to-violet-500 rounded-full animate-[shimmer_1.6s_ease-in-out_infinite]" style={{
+          animation: 'shimmer 1.6s ease-in-out infinite',
+        }} />
+      </div>
+
+      <p className="text-[10.5px] text-neutral-500 text-center">
+        Heads up — this usually takes <span className="font-medium text-neutral-700">about 60–90 seconds</span>. Feel free to keep chatting while we work.
+      </p>
+
+      {/* Inline keyframes — kept local so we don't drag a global stylesheet
+          edit into this change. */}
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-120%); }
+          100% { transform: translateX(420%); }
+        }
+      `}</style>
     </div>
   );
 };

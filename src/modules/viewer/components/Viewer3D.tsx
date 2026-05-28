@@ -151,19 +151,31 @@ export const Viewer3D: React.FC<Viewer3DProps> = ({
     const toastId = toast.loading("Preparing export package...");
     try {
       if (hasAssembly) {
-        // Merge all visible assembly parts into a combined group for export
-        const mergedGroup = new THREE.Group();
-        for (const part of assemblyParts) {
-          if (!part.visible || !part.model) continue;
-          const clone = part.model.clone();
-          const [rx, ry, rz] = part.rotation.map(d => (d * Math.PI) / 180);
-          clone.position.set(part.position[0], part.position[1], part.position[2]);
-          clone.rotation.set(rx, ry, rz);
-          mergedGroup.add(clone);
+        // Parts-aware export: one file per assembly part inside the zip,
+        // each named after the part and (where possible) using the
+        // original GLB so textures + materials survive. Merging into a
+        // single STL — the old behaviour — was producing one anonymous
+        // blob that couldn't be reassembled or coloured downstream.
+        const exportable = assemblyParts.map((p) => ({
+          name: p.name,
+          sourceUrl: p.shape?.sdfUrl ? proxifyUrl(p.shape.sdfUrl) : null,
+          model: p.model,
+          position: p.position,
+          rotation: p.rotation,
+          visible: p.visible,
+        }));
+        const result = await exporter.exportPartsToZip(exportable, "assembly");
+        if (result.written === 0) {
+          toast.error("No exportable parts (all skipped)", { id: toastId });
+          return;
         }
-        const zipBlob = await exporter.exportToZip(mergedGroup, "assembly");
-        exporter.downloadZip(zipBlob, "assembly.zip");
-        toast.success(`Assembly exported (${assemblyParts.filter(p => p.visible && p.model).length} parts)`, { id: toastId });
+        exporter.downloadZip(result.blob, "assembly-parts.zip");
+        toast.success(
+          result.skipped > 0
+            ? `Exported ${result.written} parts (${result.skipped} skipped)`
+            : `Exported ${result.written} parts`,
+          { id: toastId }
+        );
         return;
       }
       if (!loadedModel) {
