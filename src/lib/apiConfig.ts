@@ -58,22 +58,24 @@ export const proxifyUrl = (url: string): string => {
 
     // Cloudflare R2 URLs.
     //
-    // Two flavours:
-    //  1. Presigned (contains X-Amz-Signature in ANY case) — Modal
-    //     worker now emits these. Public-readable for the signed
-    //     window (7 days) without exposing the bucket. Pass through
-    //     unchanged so the browser hits R2 directly and skips a
-    //     backend round-trip. Case-insensitive match because some
-    //     log/display layers uppercase query-string keys.
-    //  2. Bare host-style URL (legacy / fallback path) — bucket is
-    //     private, so rewrite to /api/v1/storage/... where the backend's
-    //     signed boto client can fetch it.
+    // We ALWAYS rewrite to /api/v1/storage/... regardless of whether the
+    // URL is presigned. Hitting r2.cloudflarestorage.com directly from
+    // the browser triggers a CORS preflight that the bucket doesn't
+    // answer with the right Access-Control headers — the GLTFLoader
+    // fetch then bubbles up as `TypeError: Failed to fetch` with no
+    // useful detail. Going through the backend proxy gives us a
+    // same-origin response (with our CORS middleware attached) and
+    // costs ~1s of extra hop for the file the user can't otherwise
+    // load at all.
+    //
+    // If we ever ship a Cloudflare custom domain in front of R2, we
+    // should let those URLs (matched by the custom hostname) pass
+    // through — the CDN handles CORS correctly.
     if (url.includes("r2.cloudflarestorage.com")) {
-        if (/[?&]x-amz-signature=/i.test(url)) {
-            return url;
-        }
         try {
             const parsed = new URL(url);
+            // Drop the X-Amz-* query string — the backend re-signs with
+            // its own credentials before fetching from R2.
             const path = parsed.pathname.replace(/^\//, "");
             if (path) {
                 const apiBase = getApiBaseUrl();

@@ -149,12 +149,45 @@ export const useModelFetch = ({
         const msg = (err as Error)?.message || String(err);
         const isMissing = /\b404\b|not found/i.test(msg);
         const isNetwork = /\b(?:5\d{2}|fetch|network|failed to fetch)\b/i.test(msg);
-        console.error('Failed to fetch model files:', err);
+        const isCors = /\bcors\b|cross-origin|opaque/i.test(msg);
+        const isParse = /\bparse|invalid glb|unexpected token|json|gltf/i.test(msg);
+        // Print the resolved URL + a one-line classification before the
+        // full error so the cause is grep-able from the console.
+        console.error(
+          '[useModelFetch] Failed to load 3D model:',
+          {
+            classification: isMissing
+              ? '404 / missing'
+              : isCors
+              ? 'CORS'
+              : isParse
+              ? 'parse / format'
+              : isNetwork
+              ? 'network / 5xx'
+              : 'unknown',
+            modelUrl: shape.sdfUrl,
+            proxified: proxifyUrl(shape.sdfUrl),
+            yamlUrl: shape.yamlUrl,
+            assetCount: shape.assets?.length || 0,
+            error: err,
+          }
+        );
 
         if ((isMissing || isNetwork) && tryCompileFromCode(isMissing ? '3D file missing (404)' : 'Network error')) {
           return; // recovered via compile fallback — don't throw
         }
-        toast.error(isMissing ? 'The 3D file is no longer available.' : 'Could not load 3D model assets.');
+        // Toast now describes WHAT broke so the user can tell network
+        // from format issues without opening DevTools every time.
+        const reason = isMissing
+          ? 'file no longer available'
+          : isCors
+          ? 'blocked by CORS — check backend proxy'
+          : isParse
+          ? 'bad GLB / GLTF format'
+          : isNetwork
+          ? 'storage timeout — retry in a moment'
+          : `unexpected (${msg.slice(0, 80)})`;
+        toast.error(`Could not load 3D model: ${reason}`);
         throw err;
       }
     },
